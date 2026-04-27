@@ -229,7 +229,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { confirm, open } from "@tauri-apps/plugin-dialog";
 import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
 
@@ -482,8 +482,30 @@ async function handleDisableMod(folderName: string) {
     return;
   }
 
+  const confirmed = await confirm(
+    `确定要禁用这个 Mod 吗？\n\n${folderName}\n\n它会被移动到 Disabled Mods 文件夹。`,
+    {
+      title: "确认禁用 Mod",
+      kind: "warning",
+    }
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
   const from = `${gamePath.value}\\Mods\\${folderName}`;
   const to = `${gamePath.value}\\Disabled Mods\\${folderName}`;
+
+  if (!(await exists(from))) {
+    message.value = `禁用失败：没有找到 Mod 文件夹：${folderName}`;
+    return;
+  }
+
+  if (await exists(to)) {
+    message.value = `禁用失败：Disabled Mods 中已经存在同名文件夹：${folderName}`;
+    return;
+  }
 
   try {
     await invoke("move_folder", {
@@ -504,8 +526,30 @@ async function handleEnableMod(folderName: string) {
     return;
   }
 
+  const confirmed = await confirm(
+    `确定要启用这个 Mod 吗？\n\n${folderName}\n\n它会被移动回 Mods 文件夹。`,
+    {
+      title: "确认启用 Mod",
+      kind: "info",
+    }
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
   const from = `${gamePath.value}\\Disabled Mods\\${folderName}`;
   const to = `${gamePath.value}\\Mods\\${folderName}`;
+
+  if (!(await exists(from))) {
+    message.value = `启用失败：没有找到已禁用的 Mod 文件夹：${folderName}`;
+    return;
+  }
+
+  if (await exists(to)) {
+    message.value = `启用失败：Mods 中已经存在同名文件夹：${folderName}`;
+    return;
+  }
 
   try {
     await invoke("move_folder", {
@@ -519,7 +563,6 @@ async function handleEnableMod(folderName: string) {
     message.value = `启用 Mod 失败：${String(error)}`;
   }
 }
-
 
 async function handleLaunchGame() {
   if (!gamePath.value) {
