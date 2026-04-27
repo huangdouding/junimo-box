@@ -88,6 +88,30 @@
               <p class="mod-description">
                 {{ mod.description || "没有描述。" }}
               </p>
+              <div
+  v-if="mod.contentPackFor || mod.dependencies.length > 0"
+  class="dependencies"
+>
+  <p v-if="mod.contentPackFor" class="dependency-line">
+    内容包依赖：
+    <span :class="mod.contentPackFor.isInstalled ? 'ok' : 'bad'">
+      {{ mod.contentPackFor.uniqueId }}
+      {{ mod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
+    </span>
+  </p>
+
+  <p
+    v-for="dependency in mod.dependencies"
+    :key="dependency.uniqueId"
+    class="dependency-line"
+  >
+    依赖：
+    <span :class="dependency.isInstalled ? 'ok' : dependency.isRequired ? 'bad' : 'optional'">
+      {{ dependency.uniqueId }}
+      {{ dependency.isInstalled ? "已安装" : dependency.isRequired ? "缺失" : "可选未安装" }}
+    </span>
+  </p>
+</div>
             </div>
 
             <span class="mod-folder">
@@ -117,6 +141,32 @@
     </article>
   </div>
 </div>
+<div v-if="mods.length > 0" class="card">
+  <div class="mods-header">
+    <h2>依赖检查</h2>
+    <span>
+      {{ missingDependencies.length === 0 ? "正常" : `${missingDependencies.length} 项缺失` }}
+    </span>
+  </div>
+
+  <p v-if="missingDependencies.length === 0" class="success-text">
+    ✅ 所有必需依赖都已安装。
+  </p>
+
+  <div v-else class="missing-list">
+    <article
+      v-for="dependency in missingDependencies"
+      :key="dependency.uniqueId"
+      class="missing-item"
+    >
+      <strong>{{ dependency.uniqueId }}</strong>
+      <p>
+        被 {{ dependency.requiredBy.length }} 个 Mod 需要：
+        {{ dependency.requiredBy.join("、") }}
+      </p>
+    </article>
+  </div>
+</div>
     </section>
   </main>
 </template>
@@ -130,6 +180,17 @@ import JSON5 from "json5";
 
 const STORAGE_KEY = "junimo-box-game-path";
 
+type ModDependency = {
+  uniqueId: string;
+  isRequired: boolean;
+  isInstalled: boolean;
+};
+
+type MissingDependency = {
+  uniqueId: string;
+  requiredBy: string[];
+};
+
 type ModInfo = {
   name: string;
   author: string;
@@ -137,6 +198,8 @@ type ModInfo = {
   description: string;
   uniqueId: string;
   folderName: string;
+  dependencies: ModDependency[];
+  contentPackFor?: ModDependency;
 };
 
 const gamePath = ref("");
@@ -146,6 +209,7 @@ const modsFolderExists = ref(false);
 const message = ref("");
 const mods = ref<ModInfo[]>([]);
 const skippedFolders = ref<string[]>([]);
+const missingDependencies = ref<MissingDependency[]>([]);
 
 onMounted(async () => {
   const savedPath = localStorage.getItem(STORAGE_KEY);
@@ -210,7 +274,10 @@ async function scanMods() {
   skippedFolders.value = [];
   const foundMods = await collectModsFromFolder(modsFolder, "");
 
-    mods.value = foundMods.sort((a, b) => a.name.localeCompare(b.name));
+    mods.value = attachDependencyStatus(
+      foundMods.sort((a, b) => a.name.localeCompare(b.name))
+    );
+    missingDependencies.value = collectMissingDependencies(mods.value);
 
     message.value =
       foundMods.length > 0
@@ -244,8 +311,9 @@ async function collectModsFromFolder(
         description: manifest.Description || "",
         uniqueId: manifest.UniqueID || "",
         folderName: folderLabel,
-      });
-
+        dependencies: normalizeDependencies(manifest.Dependencies),
+        contentPackFor: normalizeContentPackFor(manifest.ContentPackFor),
+});
       // 关键：已经识别为一个 Mod，就不要继续扫它内部的 assets/i18n 等文件夹
       return foundMods;
     } catch (error) {
@@ -343,6 +411,106 @@ async function handleLaunchGame() {
     message.value = `启动失败：${String(error)}`;
   }
 }
+
+function normalizeDependencies(rawDependencies: unknown): ModDependency[] {
+  if (!Array.isArray(rawDependencies)) {
+    return [];
+  }
+
+  return rawDependencies
+    .map((dependency) => {
+      if (!dependency || typeof dependency !== "object") {
+        return null;
+      }
+
+      const item = dependency as {
+        UniqueID?: string;
+        IsRequired?: boolean;
+      };
+
+      if (!item.UniqueID) {
+        return null;
+      }
+
+      return {
+        uniqueId: item.UniqueID,
+        isRequired: item.IsRequired !== false,
+        isInstalled: false,
+      };
+    })
+    .filter((dependency): dependency is ModDependency => dependency !== null);
+}
+
+function normalizeContentPackFor(rawContentPackFor: unknown): ModDependency | undefined {
+  if (!rawContentPackFor || typeof rawContentPackFor !== "object") {
+    return undefined;
+  }
+
+  const item = rawContentPackFor as {
+    UniqueID?: string;
+  };
+
+  if (!item.UniqueID) {
+    return undefined;
+  }
+
+  return {
+    uniqueId: item.UniqueID,
+    isRequired: true,
+    isInstalled: false,
+  };
+}
+
+function attachDependencyStatus(modList: ModInfo[]) {
+  const installedUniqueIds = new Set(
+    modList
+      .map((mod) => mod.uniqueId)
+      .filter(Boolean)
+  );
+
+  return modList.map((mod) => ({
+    ...mod,
+    dependencies: mod.dependencies.map((dependency) => ({
+      ...dependency,
+      isInstalled: installedUniqueIds.has(dependency.uniqueId),
+    })),
+    contentPackFor: mod.contentPackFor
+      ? {
+          ...mod.contentPackFor,
+          isInstalled: installedUniqueIds.has(mod.contentPackFor.uniqueId),
+        }
+      : undefined,
+  }));
+}
+
+function collectMissingDependencies(modList: ModInfo[]): MissingDependency[] {
+  const missingMap = new Map<string, string[]>();
+
+  for (const mod of modList) {
+    const requiredDependencies = [
+      ...(mod.contentPackFor ? [mod.contentPackFor] : []),
+      ...mod.dependencies.filter((dependency) => dependency.isRequired),
+    ];
+
+    for (const dependency of requiredDependencies) {
+      if (dependency.isInstalled) {
+        continue;
+      }
+
+      const requiredBy = missingMap.get(dependency.uniqueId) || [];
+      requiredBy.push(mod.name);
+      missingMap.set(dependency.uniqueId, requiredBy);
+    }
+  }
+
+  return Array.from(missingMap.entries())
+    .map(([uniqueId, requiredBy]) => ({
+      uniqueId,
+      requiredBy,
+    }))
+    .sort((a, b) => a.uniqueId.localeCompare(b.uniqueId));
+}
+
 </script>
 
 <style scoped>
@@ -493,6 +661,22 @@ button.secondary:hover {
   background: #e2d1b8;
   color: #5c4630;
   font-size: 12px;
+  font-weight: 700;
+}
+.dependencies {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(92, 70, 48, 0.16);
+}
+
+.dependency-line {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #5c4630;
+}
+
+.optional {
+  color: #9a6a2f;
   font-weight: 700;
 }
 </style>
