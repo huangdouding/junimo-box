@@ -38,7 +38,7 @@
 
         <button
           v-if="activeView === 'mods' && gamePath"
-          class="secondary"
+          class="secondary compact-header-button"
           @click="scanMods"
         >
           重新扫描
@@ -46,7 +46,7 @@
 
         <button
           v-if="activeView === 'logs'"
-          class="secondary"
+          class="secondary compact-header-button"
           @click="handleReadLatestSmapiLog"
         >
           读取最新日志
@@ -58,7 +58,7 @@
       </div>
 
       <section v-if="activeView === 'overview'" class="view-stack">
-        <div class="panel">
+        <div class="panel compact-panel">
           <div class="panel-header">
             <h3>当前环境</h3>
             <span>{{ gamePath ? "已配置" : "未配置" }}</span>
@@ -95,7 +95,7 @@
           </div>
         </div>
 
-        <div class="panel">
+        <div class="panel compact-panel">
           <div class="panel-header">
             <h3>Mod 概览</h3>
             <span>{{ mods.length + disabledMods.length }} 个</span>
@@ -128,6 +128,49 @@
       </section>
 
       <section v-if="activeView === 'mods'" class="view-stack">
+        <div v-if="lastInstalledZipMods.length > 0" class="panel">
+          <div class="panel-header">
+            <h3>最近安装</h3>
+            <span>{{ lastInstalledZipMods.length }} 个</span>
+          </div>
+
+          <div class="mods-list">
+            <article
+              v-for="mod in lastInstalledZipMods"
+              :key="mod.unique_id || mod.manifest_path"
+              class="mod-item install-result"
+            >
+              <div class="mod-main">
+                <h4>{{ mod.name }}</h4>
+
+                <p class="mod-meta">
+                  {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+                </p>
+
+                <p class="mod-description">
+                  UniqueID：{{ mod.unique_id || "未提供" }}
+                </p>
+
+                <p class="mod-description">
+                  安装文件夹：{{ mod.suggested_folder }}
+                </p>
+              </div>
+            </article>
+          </div>
+
+          <div v-if="missingDependencies.length > 0" class="install-warning">
+            <strong>⚠️ 安装后发现缺失依赖</strong>
+            <p>
+              有 {{ missingDependencies.length }} 项必需依赖未安装。请查看下方“依赖检查”面板。
+            </p>
+          </div>
+
+          <div v-else class="install-success">
+            <strong>✅ 依赖检查正常</strong>
+            <p>当前已启用 Mod 没有发现缺失的必需依赖。</p>
+          </div>
+        </div>
+
         <div v-if="mods.length > 0" class="panel">
           <div class="panel-header">
             <h3>依赖检查</h3>
@@ -462,7 +505,7 @@
       </section>
 
       <section v-if="activeView === 'tools'" class="view-stack">
-        <div class="panel">
+        <div class="panel compact-panel">
           <div class="panel-header">
             <h3>工具箱</h3>
             <span>快捷操作</span>
@@ -521,7 +564,7 @@
             </div>
           </div>
 
-          <p class="muted-text">
+          <p class="muted-text path-text">
             当前压缩包：{{ selectedZipPath }}
           </p>
 
@@ -562,7 +605,7 @@
       </section>
 
       <section v-if="activeView === 'settings'" class="view-stack">
-        <div class="panel">
+        <div class="panel compact-panel">
           <div class="panel-header">
             <h3>基础设置</h3>
             <span>本地配置</span>
@@ -585,8 +628,10 @@
     <aside class="right-panel">
       <div class="launch-card">
         <div class="junimo-badge">🌱</div>
-        <h3>启动中心</h3>
-        <p>管理你的星露谷 Mod 环境</p>
+        <div>
+          <h3>启动中心</h3>
+          <p>管理你的星露谷 Mod 环境</p>
+        </div>
 
         <button class="launch-button" @click="handleLaunchGame">
           启动游戏
@@ -630,32 +675,32 @@
             :disabled="!gamePath"
             @click="scanMods"
           >
-            扫描 Mods
+            扫描
           </button>
 
           <button
             :disabled="!modsFolderExists"
             @click="handleOpenModsFolder"
           >
-            Mods 文件夹
+            Mods
           </button>
 
           <button
             :disabled="mods.length === 0 && disabledMods.length === 0"
             @click="handleExportModList"
           >
-            导出列表
+            列表
           </button>
 
           <button
             :disabled="!gamePath"
             @click="handleExportProblemReport"
           >
-            问题报告
+            报告
           </button>
 
           <button @click="handlePreviewZipMod">
-            ZIP 预览
+            ZIP
           </button>
         </div>
       </div>
@@ -759,6 +804,7 @@ const showRawSmapiLog = ref(false);
 
 const selectedZipPath = ref("");
 const zipModPreviews = ref<ZipModPreview[]>([]);
+const lastInstalledZipMods = ref<ZipModPreview[]>([]);
 
 const currentViewMeta = computed(() => {
   const map: Record<
@@ -787,7 +833,7 @@ const currentViewMeta = computed(() => {
     tools: {
       eyebrow: "Toolbox",
       title: "工具箱",
-      description: "打开常用目录，导出 Mod 列表、问题报告和安装 ZIP Mod。",
+      description: "打开常用目录，导出报告，预览并安装 ZIP Mod。",
     },
     settings: {
       eyebrow: "Settings",
@@ -828,6 +874,7 @@ async function handleSelectPath() {
   disabledMods.value = [];
   skippedFolders.value = [];
   missingDependencies.value = [];
+  lastInstalledZipMods.value = [];
 
   localStorage.setItem(STORAGE_KEY, selected);
 
@@ -1330,13 +1377,18 @@ async function handleInstallZipMod() {
       gamePath: gamePath.value,
     });
 
-    message.value = `安装完成：已安装 ${installedMods.length} 个 Mod。`;
+    lastInstalledZipMods.value = installedMods;
 
     selectedZipPath.value = "";
     zipModPreviews.value = [];
 
     await checkGameFiles(gamePath.value);
     await scanMods();
+
+    message.value =
+      missingDependencies.value.length > 0
+        ? `安装完成：已安装 ${installedMods.length} 个 Mod，但发现 ${missingDependencies.value.length} 项缺失依赖。`
+        : `安装完成：已安装 ${installedMods.length} 个 Mod，依赖检查正常。`;
 
     activeView.value = "mods";
   } catch (error) {
@@ -1753,9 +1805,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   height: 100vh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 300px;
+  grid-template-columns: 218px minmax(0, 1fr) 270px;
   background:
-    radial-gradient(circle at top left, rgba(132, 184, 95, 0.18), transparent 32%),
+    radial-gradient(circle at top left, rgba(132, 184, 95, 0.16), transparent 30%),
     #f5efe3;
   color: #2d241b;
   font-family:
@@ -1766,56 +1818,56 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .sidebar {
   height: 100%;
-  padding: 22px 16px;
+  padding: 16px 14px;
   box-sizing: border-box;
   background: linear-gradient(180deg, #5f432d, #3f2b1d);
   color: #fff7e8;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  border-right: 4px solid rgba(45, 36, 27, 0.2);
+  gap: 18px;
+  border-right: 3px solid rgba(45, 36, 27, 0.2);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: 17px;
   background: rgba(255, 250, 240, 0.1);
 }
 
 .brand-icon {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 13px;
   background: #fffaf0;
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 20px;
-  line-height: 1.1;
+  font-size: 19px;
+  line-height: 1.05;
 }
 
 .brand p {
   margin: 4px 0 0;
   color: #e7d7be;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .nav-button {
   width: 100%;
-  padding: 12px 14px;
+  padding: 11px 13px;
   border: none;
   border-radius: 14px;
   background: transparent;
@@ -1837,7 +1889,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .sidebar-footer {
   margin-top: auto;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 15px;
   background: rgba(255, 250, 240, 0.1);
 }
 
@@ -1855,26 +1907,28 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   min-width: 0;
   height: 100%;
   overflow-y: auto;
-  padding: 28px;
+  padding: 24px 28px;
   box-sizing: border-box;
 }
 
 .content-header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: 18px;
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .content-header h2 {
-  margin: 4px 0 6px;
-  font-size: 32px;
+  margin: 3px 0 5px;
+  font-size: 31px;
+  line-height: 1.1;
 }
 
 .content-header p {
   margin: 0;
   color: #7a6652;
+  line-height: 1.45;
 }
 
 .eyebrow {
@@ -1888,7 +1942,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .view-stack {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .notice,
@@ -1896,12 +1950,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .empty-state {
   border-radius: 22px;
   background: rgba(255, 250, 240, 0.92);
-  box-shadow: 0 10px 30px rgba(67, 47, 27, 0.1);
+  box-shadow: 0 10px 28px rgba(67, 47, 27, 0.09);
 }
 
 .notice {
-  margin-bottom: 18px;
-  padding: 14px 18px;
+  margin-bottom: 16px;
+  padding: 13px 18px;
   color: #7a4f22;
   font-weight: 800;
 }
@@ -1910,8 +1964,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   padding: 20px;
 }
 
+.compact-panel {
+  padding: 18px 20px;
+}
+
 .empty-state {
-  padding: 34px;
+  padding: 32px;
   text-align: center;
 }
 
@@ -1929,7 +1987,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .panel-header h3 {
@@ -1962,8 +2020,8 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .status-card,
 .summary-row > div,
 .setting-block {
-  padding: 14px;
-  border-radius: 16px;
+  padding: 13px 14px;
+  border-radius: 15px;
   background: #f6ead8;
 }
 
@@ -2040,7 +2098,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .mod-folder {
-  max-width: 190px;
+  max-width: 175px;
   padding: 5px 8px;
   border-radius: 999px;
   background: #e2d1b8;
@@ -2207,79 +2265,124 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   line-height: 1.5;
 }
 
+.path-text {
+  word-break: break-all;
+}
+
 .zip-preview-list {
   margin-top: 14px;
 }
 
+.install-result {
+  background: #e8f3df;
+}
+
+.install-warning,
+.install-success {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.install-warning {
+  background: #f8e7c8;
+  color: #7a4f22;
+}
+
+.install-success {
+  background: #e8f3df;
+  color: #2f6f3c;
+}
+
+.install-warning p,
+.install-success p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
 .right-panel {
   height: 100%;
-  padding: 22px 18px;
+  padding: 16px 14px;
   box-sizing: border-box;
   overflow-y: auto;
   background: rgba(255, 250, 240, 0.62);
   border-left: 1px solid rgba(92, 70, 48, 0.14);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .launch-card,
 .side-card {
-  padding: 18px;
-  border-radius: 22px;
+  padding: 16px;
+  border-radius: 20px;
   background: #fffaf0;
-  box-shadow: 0 10px 30px rgba(67, 47, 27, 0.1);
+  box-shadow: 0 10px 26px rgba(67, 47, 27, 0.09);
+}
+
+.launch-card {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  column-gap: 12px;
+  align-items: center;
+}
+
+.launch-card .launch-button {
+  grid-column: 1 / -1;
 }
 
 .junimo-badge {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 18px;
+  border-radius: 15px;
   background: #e3f0d6;
-  font-size: 28px;
-  margin-bottom: 12px;
+  font-size: 25px;
 }
 
 .launch-card h3,
 .side-card h4 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .launch-card p,
 .path-card p {
   margin: 0;
   color: #7a6652;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
   word-break: break-all;
 }
 
 .launch-button {
   width: 100%;
-  margin-top: 16px;
-  padding: 14px 18px;
-  border-radius: 16px;
+  margin-top: 14px;
+  padding: 13px 16px;
+  border-radius: 15px;
   background: #6fa85f;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .side-actions {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .side-actions button {
   width: 100%;
+  padding: 10px 8px;
+  font-size: 13px;
+  border-radius: 12px;
 }
 
 .info-line {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 0;
+  padding: 9px 0;
   border-bottom: 1px solid rgba(92, 70, 48, 0.12);
 }
 
@@ -2317,6 +2420,11 @@ button.secondary {
 
 button.secondary:hover:not(:disabled) {
   background: #755d3c;
+}
+
+.compact-header-button {
+  white-space: nowrap;
+  padding: 10px 15px;
 }
 
 .tiny-button {
@@ -2359,9 +2467,9 @@ button.secondary:hover:not(:disabled) {
   font-weight: 800;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1100px) {
   .app-shell {
-    grid-template-columns: 190px minmax(0, 1fr);
+    grid-template-columns: 205px minmax(0, 1fr);
   }
 
   .right-panel {
