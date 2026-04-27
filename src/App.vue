@@ -27,6 +27,13 @@
         >
           扫描 Mods
         </button>
+        <button
+        v-if="modsFolderExists"
+        class="secondary"
+        @click="handleOpenModsFolder"
+        >
+          打开 Mods 文件夹
+        </button>
       </div>
 
       <div v-if="gamePath" class="card">
@@ -282,6 +289,30 @@ async function collectModsFromFolder(
 function getFolderName(path: string) {
   const parts = path.split("\\").filter(Boolean);
   return parts[parts.length - 1] || path;
+}
+
+async function handleOpenModsFolder() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const modsFolder = `${gamePath.value}\\Mods`;
+
+  if (!(await exists(modsFolder))) {
+    message.value = "未找到 Mods 文件夹。";
+    return;
+  }
+
+  try {
+    await invoke("open_folder", {
+      path: modsFolder,
+    });
+
+    message.value = "已打开 Mods 文件夹。";
+  } catch (error) {
+    message.value = `打开 Mods 文件夹失败：${String(error)}`;
+  }
 }
 
 async function handleLaunchGame() {
