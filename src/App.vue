@@ -114,9 +114,18 @@
 </div>
             </div>
 
-            <span class="mod-folder">
-              {{ mod.folderName }}
-            </span>
+            <div class="mod-actions">
+              <span class="mod-folder">
+                {{ mod.folderName }}
+              </span>
+              
+              <button
+              class="tiny-button"
+              @click="handleOpenModFolder(mod.folderName)"
+              >
+    打开文件夹
+  </button>
+</div>
           </article>
         </div>
       </div>
@@ -382,6 +391,32 @@ async function handleOpenModsFolder() {
     message.value = `打开 Mods 文件夹失败：${String(error)}`;
   }
 }
+
+
+async function handleOpenModFolder(folderName: string) {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const modFolder = `${gamePath.value}\\Mods\\${folderName}`;
+
+  if (!(await exists(modFolder))) {
+    message.value = `未找到 Mod 文件夹：${folderName}`;
+    return;
+  }
+
+  try {
+    await invoke("open_folder", {
+      path: modFolder,
+    });
+
+    message.value = `已打开 Mod 文件夹：${folderName}`;
+  } catch (error) {
+    message.value = `打开 Mod 文件夹失败：${String(error)}`;
+  }
+}
+
 
 async function handleLaunchGame() {
   if (!gamePath.value) {
@@ -678,5 +713,23 @@ button.secondary:hover {
 .optional {
   color: #9a6a2f;
   font-weight: 700;
+}
+.mod-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.tiny-button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #8b6f47;
+}
+
+.tiny-button:hover {
+  background: #755d3c;
 }
 </style>
