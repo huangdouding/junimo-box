@@ -118,7 +118,7 @@ fn read_latest_smapi_log() -> Result<Vec<String>, String> {
     Ok(vec![file_name, content])
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct ZipModPreview {
     name: String,
     author: String,
@@ -197,6 +197,96 @@ fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
     Ok(previews)
 }
 
+#[tauri::command]
+fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPreview>, String> {
+    let previews = preview_zip_mods(zip_path.clone())?;
+
+    let root_manifest_count = previews
+        .iter()
+        .filter(|preview| get_root_prefix_from_manifest_path(&preview.manifest_path).is_empty())
+        .count();
+
+    if root_manifest_count > 0 && previews.len() > 1 {
+        return Err(
+            "This zip contains a root manifest.json and multiple mods. Junimo Box cannot safely install it yet."
+                .to_string(),
+        );
+    }
+
+    let mods_dir = Path::new(&game_path).join("Mods");
+
+    if !mods_dir.exists() {
+        fs::create_dir_all(&mods_dir)
+            .map_err(|error| format!("Failed to create Mods folder: {}", error))?;
+    }
+
+    let mut seen_folders = std::collections::HashSet::new();
+
+    for preview in &previews {
+        if !seen_folders.insert(preview.suggested_folder.clone()) {
+            return Err(format!(
+                "Duplicate target folder in zip: {}",
+                preview.suggested_folder
+            ));
+        }
+
+        let target_folder = safe_join(&mods_dir, &preview.suggested_folder)?;
+
+        if target_folder.exists() {
+            return Err(format!(
+                "Target Mod folder already exists: {}",
+                target_folder.to_string_lossy()
+            ));
+        }
+    }
+
+    let file =
+        File::open(&zip_path).map_err(|error| format!("Failed to open zip file: {}", error))?;
+
+    let mut archive =
+        ZipArchive::new(file).map_err(|error| format!("Failed to read zip archive: {}", error))?;
+
+    for index in 0..archive.len() {
+        let mut zip_file = archive
+            .by_index(index)
+            .map_err(|error| format!("Failed to read zip entry: {}", error))?;
+
+        if zip_file.is_dir() {
+            continue;
+        }
+
+        let entry_name = normalize_zip_path(zip_file.name());
+
+        if entry_name.contains("__MACOSX") {
+            continue;
+        }
+
+        let Some((preview, relative_path)) = find_matching_preview(&entry_name, &previews) else {
+            continue;
+        };
+
+        if relative_path.is_empty() {
+            continue;
+        }
+
+        let target_folder = safe_join(&mods_dir, &preview.suggested_folder)?;
+        let target_path = safe_join(&target_folder, &relative_path)?;
+
+        if let Some(parent) = target_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("Failed to create target folder: {}", error))?;
+        }
+
+        let mut output_file = File::create(&target_path)
+            .map_err(|error| format!("Failed to create target file: {}", error))?;
+
+        std::io::copy(&mut zip_file, &mut output_file)
+            .map_err(|error| format!("Failed to extract zip file: {}", error))?;
+    }
+
+    Ok(previews)
+}
+
 fn get_json_string(value: &serde_json::Value, key: &str) -> Option<String> {
     value
         .get(key)
@@ -217,6 +307,60 @@ fn get_folder_from_manifest_path(manifest_path: &str) -> String {
     "UnknownMod".to_string()
 }
 
+fn normalize_zip_path(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
+fn get_root_prefix_from_manifest_path(manifest_path: &str) -> String {
+    let normalized = normalize_zip_path(manifest_path);
+
+    match normalized.rfind('/') {
+        Some(index) => normalized[..index + 1].to_string(),
+        None => String::new(),
+    }
+}
+
+fn find_matching_preview<'a>(
+    entry_name: &str,
+    previews: &'a [ZipModPreview],
+) -> Option<(&'a ZipModPreview, String)> {
+    for preview in previews {
+        let prefix = get_root_prefix_from_manifest_path(&preview.manifest_path);
+
+        if prefix.is_empty() {
+            return Some((preview, entry_name.to_string()));
+        }
+
+        if entry_name.starts_with(&prefix) {
+            let relative_path = entry_name[prefix.len()..].to_string();
+
+            if !relative_path.is_empty() {
+                return Some((preview, relative_path));
+            }
+        }
+    }
+
+    None
+}
+
+fn safe_join(base: &Path, relative_path: &str) -> Result<PathBuf, String> {
+    let mut result = base.to_path_buf();
+
+    for part in relative_path.split('/') {
+        if part.is_empty() || part == "." {
+            continue;
+        }
+
+        if part == ".." || part.contains(':') {
+            return Err(format!("Unsafe zip path: {}", relative_path));
+        }
+
+        result.push(part);
+    }
+
+    Ok(result)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -229,7 +373,8 @@ pub fn run() {
             write_text_file,
             get_smapi_log_folder,
             read_latest_smapi_log,
-            preview_zip_mods
+            preview_zip_mods,
+            install_zip_mods
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

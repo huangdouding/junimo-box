@@ -507,7 +507,18 @@
         <div v-if="zipModPreviews.length > 0" class="panel">
           <div class="panel-header">
             <h3>ZIP Mod 安装预览</h3>
-            <span>{{ zipModPreviews.length }} 个</span>
+
+            <div class="panel-actions">
+              <span>{{ zipModPreviews.length }} 个</span>
+
+              <button
+                class="tiny-button"
+                :disabled="!gamePath"
+                @click="handleInstallZipMod"
+              >
+                安装到 Mods
+              </button>
+            </div>
           </div>
 
           <p class="muted-text">
@@ -776,7 +787,7 @@ const currentViewMeta = computed(() => {
     tools: {
       eyebrow: "Toolbox",
       title: "工具箱",
-      description: "打开常用目录，导出 Mod 列表、问题报告和预览 ZIP Mod。",
+      description: "打开常用目录，导出 Mod 列表、问题报告和安装 ZIP Mod。",
     },
     settings: {
       eyebrow: "Settings",
@@ -1283,6 +1294,53 @@ async function handlePreviewZipMod() {
     selectedZipPath.value = selected;
     zipModPreviews.value = [];
     message.value = `ZIP 预览失败：${String(error)}`;
+  }
+}
+
+async function handleInstallZipMod() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  if (!selectedZipPath.value || zipModPreviews.value.length === 0) {
+    message.value = "请先预览 ZIP Mod。";
+    return;
+  }
+
+  const modNames = zipModPreviews.value
+    .map((mod) => `- ${mod.name || mod.suggested_folder}`)
+    .join("\n");
+
+  const confirmed = await confirm(
+    `确定要安装这个 ZIP 里的 Mod 吗？\n\n${modNames}\n\nJunimo Box 会把它们解压到 Mods 文件夹。`,
+    {
+      title: "确认安装 ZIP Mod",
+      kind: "info",
+    }
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const installedMods = await invoke<ZipModPreview[]>("install_zip_mods", {
+      zipPath: selectedZipPath.value,
+      gamePath: gamePath.value,
+    });
+
+    message.value = `安装完成：已安装 ${installedMods.length} 个 Mod。`;
+
+    selectedZipPath.value = "";
+    zipModPreviews.value = [];
+
+    await checkGameFiles(gamePath.value);
+    await scanMods();
+
+    activeView.value = "mods";
+  } catch (error) {
+    message.value = `安装 ZIP Mod 失败：${String(error)}`;
   }
 }
 
@@ -1882,6 +1940,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .panel-header span {
   color: #7a6652;
   font-weight: 800;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .status-grid,
