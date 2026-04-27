@@ -132,7 +132,11 @@
           <div class="panel-header">
             <h3>依赖检查</h3>
             <span>
-              {{ missingDependencies.length === 0 ? "正常" : `${missingDependencies.length} 项缺失` }}
+              {{
+                missingDependencies.length === 0
+                  ? "正常"
+                  : `${missingDependencies.length} 项缺失`
+              }}
             </span>
           </div>
 
@@ -296,7 +300,8 @@
               <div class="mod-main">
                 <h4>{{ folder }}</h4>
                 <p class="mod-description">
-                  这个文件夹没有被识别为 Mod。通常是因为没有 manifest.json，或者 manifest.json 读取失败。
+                  这个文件夹没有被识别为 Mod。通常是因为没有 manifest.json，
+                  或者 manifest.json 读取失败。
                 </p>
               </div>
             </article>
@@ -318,18 +323,141 @@
       </section>
 
       <section v-if="activeView === 'logs'" class="view-stack">
-        <div v-if="smapiLogContent" class="panel">
+        <div v-if="smapiLogAnalysis" class="panel">
           <div class="panel-header">
-            <h3>SMAPI 日志</h3>
+            <h3>日志诊断摘要</h3>
             <span>{{ smapiLogFileName }}</span>
           </div>
 
-          <pre class="log-viewer">{{ smapiLogContent }}</pre>
+          <div class="diagnosis-grid">
+            <div class="diagnosis-card">
+              <span>SMAPI 版本</span>
+              <strong>{{ smapiLogAnalysis.smapiVersion || "未识别" }}</strong>
+            </div>
+
+            <div class="diagnosis-card">
+              <span>游戏版本</span>
+              <strong>{{ smapiLogAnalysis.gameVersion || "未识别" }}</strong>
+            </div>
+
+            <div class="diagnosis-card">
+              <span>警告</span>
+              <strong
+                :class="smapiLogAnalysis.warningLines.length > 0 ? 'bad' : 'ok'"
+              >
+                {{ smapiLogAnalysis.warningLines.length }}
+              </strong>
+            </div>
+
+            <div class="diagnosis-card">
+              <span>错误</span>
+              <strong
+                :class="smapiLogAnalysis.errorLines.length > 0 ? 'bad' : 'ok'"
+              >
+                {{ smapiLogAnalysis.errorLines.length }}
+              </strong>
+            </div>
+          </div>
+
+          <div v-if="smapiLogAnalysis.modsPath" class="diagnosis-section">
+            <h4>Mods 路径</h4>
+            <p class="code-text">{{ smapiLogAnalysis.modsPath }}</p>
+          </div>
+
+          <div
+            v-if="smapiLogAnalysis.suggestions.length > 0"
+            class="diagnosis-section"
+          >
+            <h4>建议处理</h4>
+
+            <ul class="diagnosis-list">
+              <li
+                v-for="suggestion in smapiLogAnalysis.suggestions"
+                :key="suggestion"
+              >
+                {{ suggestion }}
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="smapiLogAnalysis.affectedAssets.length > 0"
+            class="diagnosis-section warning-box"
+          >
+            <h4>受影响的游戏文件</h4>
+
+            <p>
+              SMAPI 检测到游戏原始内容文件可能被修改或损坏。常见原因是旧式
+              XNB 模组覆盖了游戏文件。
+            </p>
+
+            <ul class="diagnosis-list">
+              <li
+                v-for="asset in smapiLogAnalysis.affectedAssets"
+                :key="asset"
+              >
+                {{ asset }}
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="smapiLogAnalysis.skippedMods.length > 0"
+            class="diagnosis-section warning-box"
+          >
+            <h4>被 SMAPI 跳过的 Mod</h4>
+
+            <div
+              v-for="skippedMod in smapiLogAnalysis.skippedMods"
+              :key="skippedMod.path"
+              class="diagnosis-item"
+            >
+              <strong>{{ skippedMod.path }}</strong>
+              <p>{{ skippedMod.reason || "SMAPI 跳过了这个文件夹。" }}</p>
+            </div>
+          </div>
+
+          <div
+            v-if="smapiLogAnalysis.errorLines.length > 0"
+            class="diagnosis-section error-box"
+          >
+            <h4>错误行</h4>
+            <pre class="small-log">{{ smapiLogAnalysis.errorLines.join("\n") }}</pre>
+          </div>
+
+          <div
+            v-if="smapiLogAnalysis.warningLines.length > 0"
+            class="diagnosis-section"
+          >
+            <h4>警告行</h4>
+            <pre class="small-log">{{ smapiLogAnalysis.warningLines.join("\n") }}</pre>
+          </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-if="smapiLogContent" class="panel">
+          <div class="panel-header">
+            <h3>原始日志</h3>
+
+            <button
+              class="tiny-button"
+              @click="showRawSmapiLog = !showRawSmapiLog"
+            >
+              {{ showRawSmapiLog ? "收起" : "展开" }}
+            </button>
+          </div>
+
+          <pre v-if="showRawSmapiLog" class="log-viewer">{{ smapiLogContent }}</pre>
+
+          <p v-else class="muted-text">
+            原始日志已隐藏。通常只需要查看上方诊断摘要；需要完整内容时再展开。
+          </p>
+        </div>
+
+        <div v-if="!smapiLogContent" class="empty-state">
           <h3>还没有读取日志</h3>
-          <p>点击“读取最新日志”，Junimo Box 会打开最近一次 SMAPI 日志。</p>
+          <p>
+            点击“读取最新日志”，Junimo Box 会读取最近一次 SMAPI 日志并生成诊断摘要。
+          </p>
         </div>
       </section>
 
@@ -495,6 +623,22 @@ type ModInfo = {
   contentPackFor?: ModDependency;
 };
 
+type SkippedModInfo = {
+  path: string;
+  reason: string;
+};
+
+type SmapiLogAnalysis = {
+  smapiVersion: string;
+  gameVersion: string;
+  modsPath: string;
+  warningLines: string[];
+  errorLines: string[];
+  skippedMods: SkippedModInfo[];
+  affectedAssets: string[];
+  suggestions: string[];
+};
+
 const navItems: Array<{
   id: ViewId;
   label: string;
@@ -522,6 +666,8 @@ const missingDependencies = ref<MissingDependency[]>([]);
 
 const smapiLogFileName = ref("");
 const smapiLogContent = ref("");
+const smapiLogAnalysis = ref<SmapiLogAnalysis | null>(null);
+const showRawSmapiLog = ref(false);
 
 const currentViewMeta = computed(() => {
   const map: Record<
@@ -545,7 +691,7 @@ const currentViewMeta = computed(() => {
     logs: {
       eyebrow: "SMAPI Logs",
       title: "SMAPI 日志",
-      description: "读取最近一次 SMAPI 日志，后续会升级为诊断摘要。",
+      description: "读取最近一次 SMAPI 日志，并生成基础诊断摘要。",
     },
     tools: {
       eyebrow: "Toolbox",
@@ -964,11 +1110,15 @@ async function handleReadLatestSmapiLog() {
 
     smapiLogFileName.value = result[0] || "未知日志文件";
     smapiLogContent.value = result[1] || "";
+    smapiLogAnalysis.value = analyzeSmapiLog(smapiLogContent.value);
+    showRawSmapiLog.value = false;
 
-    message.value = `已读取最新 SMAPI 日志：${smapiLogFileName.value}`;
+    message.value = `已读取并分析最新 SMAPI 日志：${smapiLogFileName.value}`;
   } catch (error) {
     smapiLogFileName.value = "";
     smapiLogContent.value = "";
+    smapiLogAnalysis.value = null;
+    showRawSmapiLog.value = false;
     message.value = `读取 SMAPI 日志失败：${String(error)}`;
   }
 }
@@ -1102,6 +1252,109 @@ function createExportModInfo(mod: ModInfo) {
 function getFolderName(path: string) {
   const parts = path.split("\\").filter(Boolean);
   return parts[parts.length - 1] || path;
+}
+
+function analyzeSmapiLog(content: string): SmapiLogAnalysis {
+  const lines = content.split(/\r?\n/);
+
+  const analysis: SmapiLogAnalysis = {
+    smapiVersion: "",
+    gameVersion: "",
+    modsPath: "",
+    warningLines: [],
+    errorLines: [],
+    skippedMods: [],
+    affectedAssets: [],
+    suggestions: [],
+  };
+
+  let isReadingAffectedAssets = false;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    const versionMatch = trimmedLine.match(
+      /SMAPI\s+([^\s]+)\s+with Stardew Valley\s+([^\s]+)/
+    );
+
+    if (versionMatch) {
+      analysis.smapiVersion = versionMatch[1];
+      analysis.gameVersion = versionMatch[2];
+    }
+
+    const modsPathMatch = trimmedLine.match(/Mods go here:\s*(.+)$/);
+
+    if (modsPathMatch) {
+      analysis.modsPath = modsPathMatch[1];
+    }
+
+    if (trimmedLine.includes(" WARN ")) {
+      analysis.warningLines.push(trimmedLine);
+    }
+
+    if (trimmedLine.includes(" ERROR ")) {
+      analysis.errorLines.push(trimmedLine);
+    }
+
+    if (trimmedLine.includes("Affected assets:")) {
+      isReadingAffectedAssets = true;
+      continue;
+    }
+
+    if (isReadingAffectedAssets) {
+      if (trimmedLine.startsWith("- ")) {
+        analysis.affectedAssets.push(trimmedLine.replace(/^- /, ""));
+        continue;
+      }
+
+      if (trimmedLine.length > 0) {
+        isReadingAffectedAssets = false;
+      }
+    }
+
+    const skippedMatch = trimmedLine.match(
+      /Skipped\s+(.+?)(?:\s+\((.+)\)\.?$|\.?$)/
+    );
+
+    if (skippedMatch) {
+      analysis.skippedMods.push({
+        path: skippedMatch[1],
+        reason: skippedMatch[2] || "SMAPI 跳过了这个文件夹。",
+      });
+    }
+  }
+
+  const hasModifiedContentWarning = analysis.warningLines.some((line) =>
+    line.includes("content files were modified or corrupted")
+  );
+
+  if (hasModifiedContentWarning) {
+    analysis.suggestions.push(
+      "检测到游戏原始内容文件可能被修改或损坏。建议在 Steam 中验证《星露谷物语》的游戏文件完整性。"
+    );
+  }
+
+  if (analysis.skippedMods.length > 0) {
+    analysis.suggestions.push(
+      "检测到有文件夹被 SMAPI 跳过。常见原因是文件夹名以点号开头、文件夹结构不正确，或这不是一个有效 Mod。"
+    );
+  }
+
+  if (analysis.errorLines.length > 0) {
+    analysis.suggestions.push(
+      "检测到 ERROR 错误。建议优先查看错误行附近的 Mod 名称、缺失依赖或版本不兼容信息。"
+    );
+  }
+
+  if (
+    analysis.warningLines.length === 0 &&
+    analysis.errorLines.length === 0 &&
+    analysis.skippedMods.length === 0
+  ) {
+    analysis.suggestions.push("没有发现明显的 WARN、ERROR 或被跳过的 Mod。");
+  }
+
+  return analysis;
 }
 </script>
 
@@ -1455,6 +1708,110 @@ function getFolderName(path: string) {
   white-space: pre-wrap;
 }
 
+.diagnosis-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.diagnosis-card {
+  padding: 14px;
+  border-radius: 16px;
+  background: #f6ead8;
+}
+
+.diagnosis-card span {
+  display: block;
+  margin-bottom: 6px;
+  color: #7a6652;
+  font-size: 13px;
+}
+
+.diagnosis-card strong {
+  font-size: 18px;
+}
+
+.diagnosis-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(92, 70, 48, 0.14);
+}
+
+.diagnosis-section h4 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.diagnosis-section p {
+  margin: 0 0 10px;
+  color: #5c4630;
+  line-height: 1.5;
+}
+
+.diagnosis-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #4b3a2a;
+  line-height: 1.6;
+}
+
+.diagnosis-item {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 250, 240, 0.72);
+}
+
+.diagnosis-item + .diagnosis-item {
+  margin-top: 10px;
+}
+
+.diagnosis-item p {
+  margin: 6px 0 0;
+}
+
+.warning-box {
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: #f8e7c8;
+}
+
+.error-box {
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: #f7dfd8;
+}
+
+.code-text {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f6ead8;
+  color: #5c4630;
+  font-family: Consolas, "Courier New", monospace;
+  word-break: break-all;
+}
+
+.small-log {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: #2d241b;
+  color: #fff7e8;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.muted-text {
+  margin: 0;
+  color: #7a6652;
+  line-height: 1.5;
+}
+
 .right-panel {
   height: 100%;
   padding: 22px 18px;
@@ -1603,7 +1960,7 @@ button.secondary:hover:not(:disabled) {
   font-weight: 800;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 190px minmax(0, 1fr);
   }

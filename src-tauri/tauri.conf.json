@@ -11,12 +11,14 @@
   },
   "app": {
     "windows": [
-      {
-        "title": "Junimo Box",
-        "width": 800,
-        "height": 600
-      }
-    ],
+  {
+    "title": "Junimo Box",
+    "width": 1200,
+    "height": 760,
+    "minWidth": 1000,
+    "minHeight": 650
+  }
+],
     "security": {
       "csp": null
     }
