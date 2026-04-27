@@ -1,14 +1,32 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": [
-    "main"
-  ],
+  "description": "Default permissions for Junimo Box",
+  "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default",
     "dialog:default",
-    "fs:default"
+    "fs:default",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "D:\\STEAM\\steamapps\\common\\Stardew Valley" },
+        { "path": "D:\\STEAM\\steamapps\\common\\Stardew Valley\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "D:\\STEAM\\steamapps\\common\\Stardew Valley" },
+        { "path": "D:\\STEAM\\steamapps\\common\\Stardew Valley\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        { "path": "D:\\STEAM\\steamapps\\common\\Stardew Valley" },
+        { "path": "D:\\STEAM\\steamapps\\common\\Stardew Valley\\**" }
+      ]
+    }
   ]
 }
