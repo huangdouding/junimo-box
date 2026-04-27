@@ -36,21 +36,31 @@
           <p>{{ currentViewMeta.description }}</p>
         </div>
 
-        <button
-          v-if="activeView === 'mods' && gamePath"
-          class="secondary compact-header-button"
-          @click="scanMods"
-        >
-          重新扫描
-        </button>
+        <div class="header-actions">
+          <button
+            v-if="activeView === 'overview'"
+            class="secondary compact-header-button"
+            @click="handleSelectPath"
+          >
+            选择目录
+          </button>
 
-        <button
-          v-if="activeView === 'logs'"
-          class="secondary compact-header-button"
-          @click="handleReadLatestSmapiLog"
-        >
-          读取最新日志
-        </button>
+          <button
+            v-if="activeView === 'mods' && gamePath"
+            class="secondary compact-header-button"
+            @click="scanMods"
+          >
+            重新扫描
+          </button>
+
+          <button
+            v-if="activeView === 'logs'"
+            class="secondary compact-header-button"
+            @click="handleReadLatestSmapiLog"
+          >
+            读取最新日志
+          </button>
+        </div>
       </header>
 
       <div v-if="message" class="notice">
@@ -58,70 +68,72 @@
       </div>
 
       <section v-if="activeView === 'overview'" class="view-stack">
-        <div class="panel compact-panel">
-          <div class="panel-header">
-            <h3>当前环境</h3>
-            <span>{{ gamePath ? "已配置" : "未配置" }}</span>
+        <div class="overview-grid">
+          <div class="panel compact-panel">
+            <div class="panel-header">
+              <h3>当前环境</h3>
+              <span>{{ gamePath ? "已配置" : "未配置" }}</span>
+            </div>
+
+            <div class="status-grid">
+              <div class="status-card">
+                <span>游戏目录</span>
+                <strong :class="gamePath ? 'ok' : 'bad'">
+                  {{ gamePath ? "已选择" : "未选择" }}
+                </strong>
+              </div>
+
+              <div class="status-card">
+                <span>Stardew Valley</span>
+                <strong :class="stardewExists ? 'ok' : 'bad'">
+                  {{ stardewExists ? "已找到" : "未找到" }}
+                </strong>
+              </div>
+
+              <div class="status-card">
+                <span>SMAPI</span>
+                <strong :class="smapiExists ? 'ok' : 'bad'">
+                  {{ smapiExists ? "已安装" : "未安装" }}
+                </strong>
+              </div>
+
+              <div class="status-card">
+                <span>Mods 文件夹</span>
+                <strong :class="modsFolderExists ? 'ok' : 'bad'">
+                  {{ modsFolderExists ? "已找到" : "未找到" }}
+                </strong>
+              </div>
+            </div>
           </div>
 
-          <div class="status-grid">
-            <div class="status-card">
-              <span>游戏目录</span>
-              <strong :class="gamePath ? 'ok' : 'bad'">
-                {{ gamePath ? "已选择" : "未选择" }}
-              </strong>
+          <div class="panel compact-panel">
+            <div class="panel-header">
+              <h3>Mod 概览</h3>
+              <span>{{ mods.length + disabledMods.length }} 个</span>
             </div>
 
-            <div class="status-card">
-              <span>Stardew Valley</span>
-              <strong :class="stardewExists ? 'ok' : 'bad'">
-                {{ stardewExists ? "已找到" : "未找到" }}
-              </strong>
-            </div>
+            <div class="summary-row">
+              <div>
+                <span>已启用</span>
+                <strong>{{ mods.length }}</strong>
+              </div>
 
-            <div class="status-card">
-              <span>SMAPI</span>
-              <strong :class="smapiExists ? 'ok' : 'bad'">
-                {{ smapiExists ? "已安装" : "未安装" }}
-              </strong>
-            </div>
+              <div>
+                <span>已禁用</span>
+                <strong>{{ disabledMods.length }}</strong>
+              </div>
 
-            <div class="status-card">
-              <span>Mods 文件夹</span>
-              <strong :class="modsFolderExists ? 'ok' : 'bad'">
-                {{ modsFolderExists ? "已找到" : "未找到" }}
-              </strong>
-            </div>
-          </div>
-        </div>
+              <div>
+                <span>缺失依赖</span>
+                <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">
+                  {{ missingDependencies.length }}
+                </strong>
+              </div>
 
-        <div class="panel compact-panel">
-          <div class="panel-header">
-            <h3>Mod 概览</h3>
-            <span>{{ mods.length + disabledMods.length }} 个</span>
-          </div>
-
-          <div class="summary-row">
-            <div>
-              <span>已启用</span>
-              <strong>{{ mods.length }}</strong>
-            </div>
-
-            <div>
-              <span>已禁用</span>
-              <strong>{{ disabledMods.length }}</strong>
-            </div>
-
-            <div>
-              <span>缺失依赖</span>
-              <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">
-                {{ missingDependencies.length }}
-              </strong>
-            </div>
-
-            <div>
-              <span>未识别</span>
-              <strong>{{ skippedFolders.length }}</strong>
+              <div>
+                <span>未识别</span>
+                <strong>{{ skippedFolders.length }}</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -134,7 +146,7 @@
             <span>{{ lastInstalledZipMods.length }} 个</span>
           </div>
 
-          <div class="mods-list">
+          <div class="mods-list compact-mods-list">
             <article
               v-for="mod in lastInstalledZipMods"
               :key="mod.unique_id || mod.manifest_path"
@@ -171,7 +183,7 @@
           </div>
         </div>
 
-        <div v-if="mods.length > 0" class="panel">
+        <div v-if="mods.length > 0" class="panel slim-panel">
           <div class="panel-header">
             <h3>依赖检查</h3>
             <span>
@@ -203,7 +215,7 @@
         </div>
 
         <div v-if="mods.length > 0" class="panel">
-          <div class="panel-header">
+          <div class="panel-header sticky-panel-header">
             <h3>已安装 Mods</h3>
             <span>{{ mods.length }} 个</span>
           </div>
@@ -215,7 +227,10 @@
               class="mod-item"
             >
               <div class="mod-main">
-                <h4>{{ mod.name }}</h4>
+                <div class="mod-title-row">
+                  <h4>{{ mod.name }}</h4>
+                  <span class="mod-folder mobile-folder">{{ mod.folderName }}</span>
+                </div>
 
                 <p class="mod-meta">
                   {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
@@ -266,23 +281,25 @@
               </div>
 
               <div class="mod-actions">
-                <span class="mod-folder">
+                <span class="mod-folder desktop-folder">
                   {{ mod.folderName }}
                 </span>
 
-                <button
-                  class="tiny-button"
-                  @click="handleOpenModFolder(mod.folderName)"
-                >
-                  打开
-                </button>
+                <div class="mod-button-row">
+                  <button
+                    class="tiny-button"
+                    @click="handleOpenModFolder(mod.folderName)"
+                  >
+                    打开
+                  </button>
 
-                <button
-                  class="tiny-button danger"
-                  @click="handleDisableMod(mod.folderName)"
-                >
-                  禁用
-                </button>
+                  <button
+                    class="tiny-button danger"
+                    @click="handleDisableMod(mod.folderName)"
+                  >
+                    禁用
+                  </button>
+                </div>
               </div>
             </article>
           </div>
@@ -361,7 +378,7 @@
           class="empty-state"
         >
           <h3>还没有扫描到 Mod</h3>
-          <p>点击右侧的“扫描 Mods”开始读取 Mods 文件夹。</p>
+          <p>点击“重新扫描”或进入工具箱扫描 Mods 文件夹。</p>
         </div>
       </section>
 
@@ -508,7 +525,7 @@
         <div class="panel compact-panel">
           <div class="panel-header">
             <h3>工具箱</h3>
-            <span>快捷操作</span>
+            <span>文件与报告</span>
           </div>
 
           <div class="tool-grid">
@@ -626,20 +643,40 @@
     </section>
 
     <aside class="right-panel">
-      <div class="launch-card">
-        <div class="junimo-badge">🌱</div>
-        <div>
-          <h3>启动中心</h3>
-          <p>管理你的星露谷 Mod 环境</p>
+      <section class="launch-card primary-launch-card">
+        <div class="launch-card-head">
+          <div class="junimo-badge">🌱</div>
+          <div>
+            <h3>启动中心</h3>
+            <p>选择加载 Mod 或启动原版</p>
+          </div>
         </div>
 
-        <button class="launch-button" @click="handleLaunchGame">
-          启动游戏
-        </button>
-      </div>
+        <div class="launch-buttons">
+          <button
+            class="launch-button smapi-launch"
+            :disabled="!smapiExists"
+            @click="handleLaunchSmapi"
+          >
+            启动 SMAPI
+          </button>
 
-      <div class="side-card">
-        <h4>游戏状态</h4>
+          <button
+            class="launch-button vanilla-launch"
+            :disabled="!stardewExists"
+            @click="handleLaunchVanilla"
+          >
+            启动原版
+          </button>
+        </div>
+
+        <p class="launch-note">
+          SMAPI 会加载 Mods；原版不会加载 Mods。
+        </p>
+      </section>
+
+      <section class="side-card status-card-panel">
+        <h4>环境状态</h4>
 
         <div class="info-line">
           <span>Stardew Valley</span>
@@ -661,54 +698,32 @@
             {{ modsFolderExists ? "已找到" : "未找到" }}
           </strong>
         </div>
-      </div>
 
-      <div class="side-card">
-        <h4>快捷操作</h4>
-
-        <div class="side-actions">
-          <button @click="handleSelectPath">
-            选择目录
-          </button>
-
-          <button
-            :disabled="!gamePath"
-            @click="scanMods"
-          >
-            扫描
-          </button>
-
-          <button
-            :disabled="!modsFolderExists"
-            @click="handleOpenModsFolder"
-          >
-            Mods
-          </button>
-
-          <button
-            :disabled="mods.length === 0 && disabledMods.length === 0"
-            @click="handleExportModList"
-          >
-            列表
-          </button>
-
-          <button
-            :disabled="!gamePath"
-            @click="handleExportProblemReport"
-          >
-            报告
-          </button>
-
-          <button @click="handlePreviewZipMod">
-            ZIP
-          </button>
+        <div class="side-metrics">
+          <div>
+            <span>启用</span>
+            <strong>{{ mods.length }}</strong>
+          </div>
+          <div>
+            <span>禁用</span>
+            <strong>{{ disabledMods.length }}</strong>
+          </div>
+          <div>
+            <span>缺依赖</span>
+            <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">
+              {{ missingDependencies.length }}
+            </strong>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="side-card path-card">
-        <h4>当前路径</h4>
+      <section class="side-card path-card">
+        <div class="path-card-head">
+          <h4>当前路径</h4>
+          <button class="text-button" @click="handleSelectPath">更改</button>
+        </div>
         <p>{{ gamePath || "尚未选择 Stardew Valley 安装目录" }}</p>
-      </div>
+      </section>
     </aside>
   </main>
 </template>
@@ -1021,7 +1036,19 @@ async function collectModsFromFolder(
   return foundMods;
 }
 
-async function handleLaunchGame() {
+async function launchExecutable(path: string, successMessage: string) {
+  try {
+    await invoke("launch_game", {
+      path,
+    });
+
+    message.value = successMessage;
+  } catch (error) {
+    message.value = `启动失败：${String(error)}`;
+  }
+}
+
+async function handleLaunchSmapi() {
   if (!gamePath.value) {
     message.value = "请先选择游戏目录。";
     return;
@@ -1029,27 +1056,30 @@ async function handleLaunchGame() {
 
   await checkGameFiles(gamePath.value);
 
-  const smapiExe = `${gamePath.value}\\StardewModdingAPI.exe`;
-  const stardewExe = `${gamePath.value}\\Stardew Valley.exe`;
-
-  const targetExe = smapiExists.value ? smapiExe : stardewExe;
-
-  if (!smapiExists.value && !stardewExists.value) {
-    message.value = "未找到 Stardew Valley.exe，无法启动游戏。";
+  if (!smapiExists.value) {
+    message.value = "未找到 StardewModdingAPI.exe，无法通过 SMAPI 启动。";
     return;
   }
 
-  try {
-    await invoke("launch_game", {
-      path: targetExe,
-    });
+  const smapiExe = `${gamePath.value}\\StardewModdingAPI.exe`;
+  await launchExecutable(smapiExe, "正在通过 SMAPI 启动游戏...");
+}
 
-    message.value = smapiExists.value
-      ? "正在通过 SMAPI 启动游戏..."
-      : "正在启动原版 Stardew Valley...";
-  } catch (error) {
-    message.value = `启动失败：${String(error)}`;
+async function handleLaunchVanilla() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
   }
+
+  await checkGameFiles(gamePath.value);
+
+  if (!stardewExists.value) {
+    message.value = "未找到 Stardew Valley.exe，无法启动原版游戏。";
+    return;
+  }
+
+  const stardewExe = `${gamePath.value}\\Stardew Valley.exe`;
+  await launchExecutable(stardewExe, "正在启动原版 Stardew Valley...");
 }
 
 async function handleOpenGameFolder() {
@@ -1805,9 +1835,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   height: 100vh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 218px minmax(0, 1fr) 270px;
+  grid-template-columns: 210px minmax(0, 1fr) 250px;
   background:
-    radial-gradient(circle at top left, rgba(132, 184, 95, 0.16), transparent 30%),
+    radial-gradient(circle at top left, rgba(132, 184, 95, 0.14), transparent 30%),
     #f5efe3;
   color: #2d241b;
   font-family:
@@ -1818,21 +1848,21 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .sidebar {
   height: 100%;
-  padding: 16px 14px;
+  padding: 16px 12px;
   box-sizing: border-box;
-  background: linear-gradient(180deg, #5f432d, #3f2b1d);
+  background: linear-gradient(180deg, #5d3f2a, #3b271a);
   color: #fff7e8;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  border-right: 3px solid rgba(45, 36, 27, 0.2);
+  border-right: 1px solid rgba(45, 36, 27, 0.25);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px;
+  padding: 11px;
   border-radius: 17px;
   background: rgba(255, 250, 240, 0.1);
 }
@@ -1845,11 +1875,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   border-radius: 13px;
   background: #fffaf0;
   font-size: 22px;
+  flex-shrink: 0;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1.05;
 }
 
@@ -1907,7 +1938,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   min-width: 0;
   height: 100%;
   overflow-y: auto;
-  padding: 24px 28px;
+  padding: 22px 28px;
   box-sizing: border-box;
 }
 
@@ -1931,6 +1962,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   line-height: 1.45;
 }
 
+.header-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
 .eyebrow {
   color: #8b6f47 !important;
   font-weight: 800;
@@ -1945,12 +1982,18 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 16px;
 }
 
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
 .notice,
 .panel,
 .empty-state {
   border-radius: 22px;
-  background: rgba(255, 250, 240, 0.92);
-  box-shadow: 0 10px 28px rgba(67, 47, 27, 0.09);
+  background: rgba(255, 250, 240, 0.9);
+  box-shadow: 0 10px 28px rgba(67, 47, 27, 0.08);
 }
 
 .notice {
@@ -1964,6 +2007,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   padding: 20px;
 }
 
+.slim-panel,
 .compact-panel {
   padding: 18px 20px;
 }
@@ -2050,9 +2094,13 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 12px;
 }
 
+.compact-mods-list {
+  gap: 10px;
+}
+
 .mod-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   padding: 16px;
   border-radius: 18px;
@@ -2071,9 +2119,17 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   min-width: 0;
 }
 
+.mod-title-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .mod-item h4 {
   margin: 0 0 6px;
   font-size: 18px;
+  line-height: 1.2;
 }
 
 .mod-meta {
@@ -2094,6 +2150,13 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mod-button-row {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
@@ -2107,6 +2170,10 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   font-weight: 800;
   text-align: right;
   word-break: break-all;
+}
+
+.mobile-folder {
+  display: none;
 }
 
 .dependencies {
@@ -2302,48 +2369,48 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .right-panel {
   height: 100%;
-  padding: 16px 14px;
+  padding: 14px 12px;
   box-sizing: border-box;
   overflow-y: auto;
-  background: rgba(255, 250, 240, 0.62);
-  border-left: 1px solid rgba(92, 70, 48, 0.14);
+  background: rgba(255, 250, 240, 0.58);
+  border-left: 1px solid rgba(92, 70, 48, 0.12);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .launch-card,
 .side-card {
-  padding: 16px;
+  padding: 14px;
   border-radius: 20px;
   background: #fffaf0;
-  box-shadow: 0 10px 26px rgba(67, 47, 27, 0.09);
+  box-shadow: 0 10px 24px rgba(67, 47, 27, 0.08);
 }
 
-.launch-card {
+.primary-launch-card {
+  background: linear-gradient(180deg, #fffaf0, #f6ead8);
+}
+
+.launch-card-head {
   display: grid;
-  grid-template-columns: 44px 1fr;
-  column-gap: 12px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 11px;
   align-items: center;
 }
 
-.launch-card .launch-button {
-  grid-column: 1 / -1;
-}
-
 .junimo-badge {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border-radius: 15px;
   background: #e3f0d6;
-  font-size: 25px;
+  font-size: 24px;
 }
 
 .launch-card h3,
 .side-card h4 {
-  margin: 0 0 6px;
+  margin: 0 0 5px;
 }
 
 .launch-card p,
@@ -2355,43 +2422,80 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   word-break: break-all;
 }
 
+.launch-buttons {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
 .launch-button {
   width: 100%;
-  margin-top: 14px;
-  padding: 13px 16px;
+  padding: 13px 14px;
   border-radius: 15px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.smapi-launch {
   background: #6fa85f;
-  font-size: 16px;
-  font-weight: 800;
 }
 
-.side-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+.vanilla-launch {
+  background: #8b6f47;
 }
 
-.side-actions button {
-  width: 100%;
-  padding: 10px 8px;
-  font-size: 13px;
-  border-radius: 12px;
+.launch-note {
+  margin-top: 10px !important;
+  font-size: 12px !important;
 }
 
 .info-line {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding: 9px 0;
+  padding: 8px 0;
   border-bottom: 1px solid rgba(92, 70, 48, 0.12);
+  font-size: 14px;
 }
 
-.info-line:last-child {
+.info-line:last-of-type {
   border-bottom: none;
 }
 
 .info-line span {
   color: #7a6652;
+}
+
+.side-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.side-metrics div {
+  padding: 9px 8px;
+  border-radius: 13px;
+  background: #f6ead8;
+}
+
+.side-metrics span {
+  display: block;
+  margin-bottom: 4px;
+  color: #7a6652;
+  font-size: 12px;
+}
+
+.side-metrics strong {
+  font-size: 16px;
+}
+
+.path-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 button {
@@ -2418,8 +2522,21 @@ button.secondary {
   background: #8b6f47;
 }
 
-button.secondary:hover:not(:disabled) {
+button.secondary:hover:not(:disabled),
+.vanilla-launch:hover:not(:disabled) {
   background: #755d3c;
+}
+
+.text-button {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #e2d1b8;
+  color: #5c4630;
+  font-size: 12px;
+}
+
+.text-button:hover:not(:disabled) {
+  background: #d5bf9f;
 }
 
 .compact-header-button {
@@ -2467,13 +2584,58 @@ button.secondary:hover:not(:disabled) {
   font-weight: 800;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .app-shell {
     grid-template-columns: 205px minmax(0, 1fr);
   }
 
   .right-panel {
     display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .content {
+    padding: 18px;
+  }
+
+  .content-header {
+    flex-direction: column;
+  }
+
+  .status-grid,
+  .summary-row,
+  .tool-grid,
+  .diagnosis-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mod-item {
+    grid-template-columns: 1fr;
+  }
+
+  .mod-actions {
+    align-items: flex-start;
+  }
+
+  .desktop-folder {
+    display: none;
+  }
+
+  .mobile-folder {
+    display: inline-block;
+  }
+
+  .mod-button-row {
+    flex-direction: row;
   }
 }
 </style>
