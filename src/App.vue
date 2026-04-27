@@ -36,6 +36,14 @@
         </button>
       </div>
 
+      <button
+      v-if="mods.length > 0 || disabledMods.length > 0"
+      class="secondary"
+      @click="handleExportModList"
+      >
+        导出 Mod 列表
+      </button>
+
       <div v-if="gamePath" class="card">
         <p>
           <strong>当前路径：</strong>
@@ -229,7 +237,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { confirm, open } from "@tauri-apps/plugin-dialog";
+import { confirm, open, save } from "@tauri-apps/plugin-dialog";
 import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
 
@@ -425,6 +433,56 @@ async function collectModsFromFolder(
 function getFolderName(path: string) {
   const parts = path.split("\\").filter(Boolean);
   return parts[parts.length - 1] || path;
+}
+
+async function handleExportModList() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const filePath = await save({
+    title: "导出 Mod 列表",
+    defaultPath: "junimo-box-mod-report.json",
+    filters: [
+      {
+        name: "JSON 文件",
+        extensions: ["json"],
+      },
+    ],
+  });
+
+  if (!filePath) {
+    return;
+  }
+
+  const report = {
+    app: "Junimo Box",
+    exportedAt: new Date().toISOString(),
+    gamePath: gamePath.value,
+    stardewExists: stardewExists.value,
+    smapiExists: smapiExists.value,
+    modsFolderExists: modsFolderExists.value,
+    summary: {
+      enabledMods: mods.value.length,
+      disabledMods: disabledMods.value.length,
+      missingDependencies: missingDependencies.value.length,
+    },
+    missingDependencies: missingDependencies.value,
+    enabledMods: mods.value.map(createExportModInfo),
+    disabledMods: disabledMods.value.map(createExportModInfo),
+  };
+
+  try {
+    await invoke("write_text_file", {
+      path: filePath,
+      content: JSON.stringify(report, null, 2),
+    });
+
+    message.value = `已导出 Mod 列表：${filePath}`;
+  } catch (error) {
+    message.value = `导出失败：${String(error)}`;
+  }
 }
 
 async function handleOpenModsFolder() {
@@ -690,6 +748,19 @@ function collectMissingDependencies(modList: ModInfo[]): MissingDependency[] {
       requiredBy,
     }))
     .sort((a, b) => a.uniqueId.localeCompare(b.uniqueId));
+}
+
+function createExportModInfo(mod: ModInfo) {
+  return {
+    name: mod.name,
+    author: mod.author,
+    version: mod.version,
+    description: mod.description,
+    uniqueId: mod.uniqueId,
+    folderName: mod.folderName,
+    contentPackFor: mod.contentPackFor,
+    dependencies: mod.dependencies,
+  };
 }
 
 </script>
