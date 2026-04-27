@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 
 #[tauri::command]
@@ -17,13 +19,36 @@ fn open_folder(path: String) -> Result<(), String> {
 
     Ok(())
 }
+#[tauri::command]
+fn move_folder(from: String, to: String) -> Result<(), String> {
+    let from_path = Path::new(&from);
+    let to_path = Path::new(&to);
+
+    if !from_path.exists() {
+        return Err(format!("Source folder does not exist: {}", from));
+    }
+
+    if to_path.exists() {
+        return Err(format!("Target folder already exists: {}", to));
+    }
+
+    if let Some(parent) = to_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create target parent folder: {}", error))?;
+    }
+
+    fs::rename(from_path, to_path)
+        .map_err(|error| format!("Failed to move folder: {}", error))?;
+
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![launch_game, open_folder])
+        .invoke_handler(tauri::generate_handler![launch_game, open_folder, move_folder])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

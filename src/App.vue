@@ -115,15 +115,22 @@
             </div>
 
             <div class="mod-actions">
-              <span class="mod-folder">
-                {{ mod.folderName }}
-              </span>
-              
-              <button
-              class="tiny-button"
-              @click="handleOpenModFolder(mod.folderName)"
-              >
+  <span class="mod-folder">
+    {{ mod.folderName }}
+  </span>
+
+  <button
+    class="tiny-button"
+    @click="handleOpenModFolder(mod.folderName)"
+  >
     打开文件夹
+  </button>
+
+  <button
+    class="tiny-button danger"
+    @click="handleDisableMod(mod.folderName)"
+  >
+    禁用
   </button>
 </div>
           </article>
@@ -176,6 +183,45 @@
     </article>
   </div>
 </div>
+
+<div v-if="disabledMods.length > 0" class="mods-panel">
+  <div class="mods-header">
+    <h2>已禁用 Mods</h2>
+    <span>{{ disabledMods.length }} 个</span>
+  </div>
+
+  <div class="mods-list">
+    <article
+      v-for="mod in disabledMods"
+      :key="mod.uniqueId || mod.folderName"
+      class="mod-item disabled"
+    >
+      <div>
+        <h3>{{ mod.name }}</h3>
+        <p class="mod-meta">
+          {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+        </p>
+        <p class="mod-description">
+          {{ mod.description || "没有描述。" }}
+        </p>
+      </div>
+
+      <div class="mod-actions">
+        <span class="mod-folder">
+          {{ mod.folderName }}
+        </span>
+
+        <button
+          class="tiny-button"
+          @click="handleEnableMod(mod.folderName)"
+        >
+          启用
+        </button>
+      </div>
+    </article>
+  </div>
+</div>
+
     </section>
   </main>
 </template>
@@ -217,6 +263,7 @@ const smapiExists = ref(false);
 const modsFolderExists = ref(false);
 const message = ref("");
 const mods = ref<ModInfo[]>([]);
+const disabledMods = ref<ModInfo[]>([]);
 const skippedFolders = ref<string[]>([]);
 const missingDependencies = ref<MissingDependency[]>([]);
 
@@ -287,6 +334,18 @@ async function scanMods() {
       foundMods.sort((a, b) => a.name.localeCompare(b.name))
     );
     missingDependencies.value = collectMissingDependencies(mods.value);
+
+    const disabledModsFolder = `${gamePath.value}\\Disabled Mods`;
+
+if (await exists(disabledModsFolder)) {
+  const foundDisabledMods = await collectModsFromFolder(disabledModsFolder, "");
+
+  disabledMods.value = attachDependencyStatus(
+    foundDisabledMods.sort((a, b) => a.name.localeCompare(b.name))
+  );
+} else {
+  disabledMods.value = [];
+}
 
     message.value =
       foundMods.length > 0
@@ -414,6 +473,50 @@ async function handleOpenModFolder(folderName: string) {
     message.value = `已打开 Mod 文件夹：${folderName}`;
   } catch (error) {
     message.value = `打开 Mod 文件夹失败：${String(error)}`;
+  }
+}
+
+async function handleDisableMod(folderName: string) {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const from = `${gamePath.value}\\Mods\\${folderName}`;
+  const to = `${gamePath.value}\\Disabled Mods\\${folderName}`;
+
+  try {
+    await invoke("move_folder", {
+      from,
+      to,
+    });
+
+    message.value = `已禁用 Mod：${folderName}`;
+    await scanMods();
+  } catch (error) {
+    message.value = `禁用 Mod 失败：${String(error)}`;
+  }
+}
+
+async function handleEnableMod(folderName: string) {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const from = `${gamePath.value}\\Disabled Mods\\${folderName}`;
+  const to = `${gamePath.value}\\Mods\\${folderName}`;
+
+  try {
+    await invoke("move_folder", {
+      from,
+      to,
+    });
+
+    message.value = `已启用 Mod：${folderName}`;
+    await scanMods();
+  } catch (error) {
+    message.value = `启用 Mod 失败：${String(error)}`;
   }
 }
 
@@ -731,5 +834,16 @@ button.secondary:hover {
 
 .tiny-button:hover {
   background: #755d3c;
+}
+.tiny-button.danger {
+  background: #b65b4b;
+}
+
+.tiny-button.danger:hover {
+  background: #9f493c;
+}
+
+.mod-item.disabled {
+  opacity: 0.72;
 }
 </style>
