@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 use zip::ZipArchive;
 
 #[tauri::command]
@@ -43,8 +44,7 @@ fn move_folder(from: String, to: String) -> Result<(), String> {
             .map_err(|error| format!("Failed to create target parent folder: {}", error))?;
     }
 
-    fs::rename(from_path, to_path)
-        .map_err(|error| format!("Failed to move folder: {}", error))?;
+    fs::rename(from_path, to_path).map_err(|error| format!("Failed to move folder: {}", error))?;
 
     Ok(())
 }
@@ -213,16 +213,40 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
         );
     }
 
-    let mods_dir = Path::new(&game_path).join("Mods");
+    let game_dir = Path::new(&game_path);
+    let mods_dir = game_dir.join("Mods");
 
     if !mods_dir.exists() {
         fs::create_dir_all(&mods_dir)
             .map_err(|error| format!("Failed to create Mods folder: {}", error))?;
     }
 
+    validate_zip_install_targets(&mods_dir, &previews)?;
+
+    let temp_root = create_install_temp_dir(game_dir)?;
+
+    let install_result = extract_zip_to_temp_and_move(&zip_path, &mods_dir, &temp_root, &previews);
+
+    if let Err(error) = fs::remove_dir_all(&temp_root) {
+        eprintln!(
+            "Failed to clean temporary install folder {}: {}",
+            temp_root.to_string_lossy(),
+            error
+        );
+    }
+
+    install_result?;
+
+    Ok(previews)
+}
+
+fn validate_zip_install_targets(
+    mods_dir: &Path,
+    previews: &[ZipModPreview],
+) -> Result<(), String> {
     let mut seen_folders = std::collections::HashSet::new();
 
-    for preview in &previews {
+    for preview in previews {
         if !seen_folders.insert(preview.suggested_folder.clone()) {
             return Err(format!(
                 "Duplicate target folder in zip: {}",
@@ -230,7 +254,7 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
             ));
         }
 
-        let target_folder = safe_join(&mods_dir, &preview.suggested_folder)?;
+        let target_folder = safe_join(mods_dir, &preview.suggested_folder)?;
 
         if target_folder.exists() {
             return Err(format!(
@@ -240,8 +264,38 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
         }
     }
 
+    Ok(())
+}
+
+fn create_install_temp_dir(game_dir: &Path) -> Result<PathBuf, String> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("Failed to create timestamp: {}", error))?
+        .as_secs();
+
+    let temp_dir = game_dir
+        .join("Junimo Box Temp")
+        .join(format!("zip-install-{}", timestamp));
+
+    if temp_dir.exists() {
+        fs::remove_dir_all(&temp_dir)
+            .map_err(|error| format!("Failed to clear temp folder: {}", error))?;
+    }
+
+    fs::create_dir_all(&temp_dir)
+        .map_err(|error| format!("Failed to create temp folder: {}", error))?;
+
+    Ok(temp_dir)
+}
+
+fn extract_zip_to_temp_and_move(
+    zip_path: &str,
+    mods_dir: &Path,
+    temp_root: &Path,
+    previews: &[ZipModPreview],
+) -> Result<(), String> {
     let file =
-        File::open(&zip_path).map_err(|error| format!("Failed to open zip file: {}", error))?;
+        File::open(zip_path).map_err(|error| format!("Failed to open zip file: {}", error))?;
 
     let mut archive =
         ZipArchive::new(file).map_err(|error| format!("Failed to read zip archive: {}", error))?;
@@ -261,7 +315,7 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
             continue;
         }
 
-        let Some((preview, relative_path)) = find_matching_preview(&entry_name, &previews) else {
+        let Some((preview, relative_path)) = find_matching_preview(&entry_name, previews) else {
             continue;
         };
 
@@ -269,22 +323,48 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
             continue;
         }
 
-        let target_folder = safe_join(&mods_dir, &preview.suggested_folder)?;
-        let target_path = safe_join(&target_folder, &relative_path)?;
+        let temp_mod_folder = safe_join(temp_root, &preview.suggested_folder)?;
+        let temp_file_path = safe_join(&temp_mod_folder, &relative_path)?;
 
-        if let Some(parent) = target_path.parent() {
+        if let Some(parent) = temp_file_path.parent() {
             fs::create_dir_all(parent)
-                .map_err(|error| format!("Failed to create target folder: {}", error))?;
+                .map_err(|error| format!("Failed to create temp target folder: {}", error))?;
         }
 
-        let mut output_file = File::create(&target_path)
-            .map_err(|error| format!("Failed to create target file: {}", error))?;
+        let mut output_file = File::create(&temp_file_path)
+            .map_err(|error| format!("Failed to create temp target file: {}", error))?;
 
         std::io::copy(&mut zip_file, &mut output_file)
             .map_err(|error| format!("Failed to extract zip file: {}", error))?;
     }
 
-    Ok(previews)
+    for preview in previews {
+        let temp_mod_folder = safe_join(temp_root, &preview.suggested_folder)?;
+        let final_mod_folder = safe_join(mods_dir, &preview.suggested_folder)?;
+
+        if !temp_mod_folder.exists() {
+            return Err(format!(
+                "Extracted mod folder was not found in temp folder: {}",
+                temp_mod_folder.to_string_lossy()
+            ));
+        }
+
+        if final_mod_folder.exists() {
+            return Err(format!(
+                "Target Mod folder already exists: {}",
+                final_mod_folder.to_string_lossy()
+            ));
+        }
+
+        fs::rename(&temp_mod_folder, &final_mod_folder).map_err(|error| {
+            format!(
+                "Failed to move installed mod into Mods folder: {}",
+                error
+            )
+        })?;
+    }
+
+    Ok(())
 }
 
 fn get_json_string(value: &serde_json::Value, key: &str) -> Option<String> {
