@@ -490,6 +490,13 @@
             >
               导出 Mod 列表
             </button>
+
+            <button
+              :disabled="!gamePath"
+              @click="handleExportProblemReport"
+            >
+              导出问题报告
+            </button>
           </div>
         </div>
       </section>
@@ -578,6 +585,13 @@
             @click="handleExportModList"
           >
             导出列表
+          </button>
+
+          <button
+            :disabled="!gamePath"
+            @click="handleExportProblemReport"
+          >
+            问题报告
           </button>
         </div>
       </div>
@@ -777,7 +791,7 @@ async function scanMods() {
   try {
     skippedFolders.value = [];
 
-    const foundMods = await collectModsFromFolder(modsFolder, "");
+    const foundMods = await collectModsFromFolder(modsFolder, "", true);
     mods.value = attachDependencyStatus(
       foundMods.sort((a, b) => a.name.localeCompare(b.name))
     );
@@ -785,7 +799,8 @@ async function scanMods() {
     if (await exists(disabledModsFolder)) {
       const foundDisabledMods = await collectModsFromFolder(
         disabledModsFolder,
-        ""
+        "",
+        false
       );
 
       disabledMods.value = attachDependencyStatus(
@@ -808,7 +823,8 @@ async function scanMods() {
 
 async function collectModsFromFolder(
   folderPath: string,
-  relativePath: string
+  relativePath: string,
+  trackSkippedFolders: boolean
 ): Promise<ModInfo[]> {
   const entries = await readDir(folderPath);
   const foundMods: ModInfo[] = [];
@@ -836,9 +852,13 @@ async function collectModsFromFolder(
       return foundMods;
     } catch (error) {
       console.warn(`读取 manifest 失败：${manifestPath}`, error);
-      skippedFolders.value.push(
-        `${folderLabel}：manifest.json 读取或解析失败 - ${String(error)}`
-      );
+
+      if (trackSkippedFolders) {
+        skippedFolders.value.push(
+          `${folderLabel}：manifest.json 读取或解析失败 - ${String(error)}`
+        );
+      }
+
       return foundMods;
     }
   }
@@ -855,7 +875,8 @@ async function collectModsFromFolder(
 
     const childMods = await collectModsFromFolder(
       childPath,
-      childRelativePath
+      childRelativePath,
+      trackSkippedFolders
     );
 
     foundMods.push(...childMods);
@@ -863,7 +884,13 @@ async function collectModsFromFolder(
 
   const depth = relativePath ? relativePath.split("\\").length : 0;
 
-  if (!hasManifest && foundMods.length === 0 && depth <= 2 && relativePath) {
+  if (
+    trackSkippedFolders &&
+    !hasManifest &&
+    foundMods.length === 0 &&
+    depth <= 2 &&
+    relativePath
+  ) {
     skippedFolders.value.push(`${folderLabel}：没有找到 manifest.json`);
   }
 
@@ -1104,6 +1131,60 @@ async function handleExportModList() {
   }
 }
 
+async function handleExportProblemReport() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  if (mods.value.length === 0 && disabledMods.value.length === 0) {
+    await scanMods();
+  }
+
+  if (!smapiLogAnalysis.value) {
+    try {
+      const result = await invoke<string[]>("read_latest_smapi_log");
+
+      smapiLogFileName.value = result[0] || "未知日志文件";
+      smapiLogContent.value = result[1] || "";
+      smapiLogAnalysis.value = analyzeSmapiLog(smapiLogContent.value);
+      showRawSmapiLog.value = false;
+    } catch {
+      smapiLogFileName.value = "";
+      smapiLogContent.value = "";
+      smapiLogAnalysis.value = null;
+    }
+  }
+
+  const filePath = await save({
+    title: "导出问题报告",
+    defaultPath: "junimo-box-problem-report.txt",
+    filters: [
+      {
+        name: "文本文件",
+        extensions: ["txt"],
+      },
+    ],
+  });
+
+  if (!filePath) {
+    return;
+  }
+
+  const reportText = createProblemReportText();
+
+  try {
+    await invoke("write_text_file", {
+      path: filePath,
+      content: reportText,
+    });
+
+    message.value = `已导出问题报告：${filePath}`;
+  } catch (error) {
+    message.value = `导出问题报告失败：${String(error)}`;
+  }
+}
+
 async function handleReadLatestSmapiLog() {
   try {
     const result = await invoke<string[]>("read_latest_smapi_log");
@@ -1247,6 +1328,155 @@ function createExportModInfo(mod: ModInfo) {
     contentPackFor: mod.contentPackFor,
     dependencies: mod.dependencies,
   };
+}
+
+function createProblemReportText() {
+  const lines: string[] = [];
+
+  lines.push("Junimo Box 问题报告");
+  lines.push("=".repeat(40));
+  lines.push(`导出时间：${new Date().toLocaleString()}`);
+  lines.push("");
+
+  lines.push("[游戏环境]");
+  lines.push(`游戏路径：${gamePath.value || "未选择"}`);
+  lines.push(`Stardew Valley：${stardewExists.value ? "已找到" : "未找到"}`);
+  lines.push(`SMAPI：${smapiExists.value ? "已安装" : "未安装"}`);
+  lines.push(`Mods 文件夹：${modsFolderExists.value ? "已找到" : "未找到"}`);
+  lines.push("");
+
+  lines.push("[Mod 统计]");
+  lines.push(`已启用 Mods：${mods.value.length}`);
+  lines.push(`已禁用 Mods：${disabledMods.value.length}`);
+  lines.push(`缺失依赖：${missingDependencies.value.length}`);
+  lines.push(`未识别文件夹：${skippedFolders.value.length}`);
+  lines.push("");
+
+  lines.push("[缺失依赖]");
+  if (missingDependencies.value.length === 0) {
+    lines.push("无");
+  } else {
+    for (const dependency of missingDependencies.value) {
+      lines.push(`- ${dependency.uniqueId}`);
+      lines.push(
+        `  被 ${dependency.requiredBy.length} 个 Mod 需要：${dependency.requiredBy.join("、")}`
+      );
+    }
+  }
+  lines.push("");
+
+  lines.push("[未识别文件夹]");
+  if (skippedFolders.value.length === 0) {
+    lines.push("无");
+  } else {
+    for (const folder of skippedFolders.value) {
+      lines.push(`- ${folder}`);
+    }
+  }
+  lines.push("");
+
+  lines.push("[SMAPI 日志诊断]");
+  if (!smapiLogAnalysis.value) {
+    lines.push("未读取到 SMAPI 日志，或日志目录不存在。");
+  } else {
+    const analysis = smapiLogAnalysis.value;
+
+    lines.push(`日志文件：${smapiLogFileName.value || "未知"}`);
+    lines.push(`SMAPI 版本：${analysis.smapiVersion || "未识别"}`);
+    lines.push(`游戏版本：${analysis.gameVersion || "未识别"}`);
+    lines.push(`Mods 路径：${analysis.modsPath || "未识别"}`);
+    lines.push(`警告数量：${analysis.warningLines.length}`);
+    lines.push(`错误数量：${analysis.errorLines.length}`);
+    lines.push("");
+
+    lines.push("[诊断建议]");
+    if (analysis.suggestions.length === 0) {
+      lines.push("无");
+    } else {
+      for (const suggestion of analysis.suggestions) {
+        lines.push(`- ${suggestion}`);
+      }
+    }
+    lines.push("");
+
+    lines.push("[受影响的游戏文件]");
+    if (analysis.affectedAssets.length === 0) {
+      lines.push("无");
+    } else {
+      for (const asset of analysis.affectedAssets) {
+        lines.push(`- ${asset}`);
+      }
+    }
+    lines.push("");
+
+    lines.push("[被 SMAPI 跳过的 Mod]");
+    if (analysis.skippedMods.length === 0) {
+      lines.push("无");
+    } else {
+      for (const skippedMod of analysis.skippedMods) {
+        lines.push(`- ${skippedMod.path}`);
+        lines.push(`  原因：${skippedMod.reason}`);
+      }
+    }
+    lines.push("");
+
+    lines.push("[错误行]");
+    if (analysis.errorLines.length === 0) {
+      lines.push("无");
+    } else {
+      for (const line of analysis.errorLines) {
+        lines.push(line);
+      }
+    }
+    lines.push("");
+
+    lines.push("[警告行]");
+    if (analysis.warningLines.length === 0) {
+      lines.push("无");
+    } else {
+      for (const line of analysis.warningLines) {
+        lines.push(line);
+      }
+    }
+  }
+
+  lines.push("");
+  lines.push("[已启用 Mods]");
+  if (mods.value.length === 0) {
+    lines.push("无");
+  } else {
+    for (const mod of mods.value) {
+      lines.push(formatModForReport(mod));
+    }
+  }
+
+  lines.push("");
+  lines.push("[已禁用 Mods]");
+  if (disabledMods.value.length === 0) {
+    lines.push("无");
+  } else {
+    for (const mod of disabledMods.value) {
+      lines.push(formatModForReport(mod));
+    }
+  }
+
+  lines.push("");
+  lines.push("=".repeat(40));
+  lines.push("由 Junimo Box 生成");
+
+  return lines.join("\n");
+}
+
+function formatModForReport(mod: ModInfo) {
+  const parts = [
+    mod.name || "未知 Mod",
+    mod.author ? `作者：${mod.author}` : "作者：未知",
+    mod.version ? `版本：${mod.version}` : "版本：未知",
+    mod.uniqueId ? `UniqueID：${mod.uniqueId}` : "UniqueID：未知",
+    `文件夹：${mod.folderName}`,
+  ];
+
+  return `- ${parts.join(" / ")}`;
 }
 
 function getFolderName(path: string) {
