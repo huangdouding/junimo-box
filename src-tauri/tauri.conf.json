@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "junimo-box",
+  "productName": "Junimo Box",
   "version": "0.1.0",
   "identifier": "com.tauri-app.junimo-box",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "junimo-box",
+        "title": "Junimo Box",
         "width": 800,
         "height": 600
       }

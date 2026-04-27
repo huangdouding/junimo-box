@@ -1,46 +1,64 @@
 <template>
-  <div class="container">
-    <h1>🌿 Junimo Box</h1>
+  <main class="app">
+    <section class="hero">
+      <h1>🌿 Junimo Box</h1>
 
-    <p class="subtitle">
-      Stardew Valley Mod Manager & Launcher
-    </p>
-
-    <button @click="handleSelectPath">
-      选择游戏目录
-    </button>
-
-    <div v-if="gamePath" class="card">
-      <p>
-        <strong>当前路径：</strong>
-        {{ gamePath }}
+      <p class="subtitle">
+        Stardew Valley Mod Manager & Launcher
       </p>
 
-      <p>
-        <strong>Stardew Valley：</strong>
-        <span :class="stardewExists ? 'ok' : 'bad'">
-          {{ stardewExists ? "已找到" : "未找到" }}
-        </span>
-      </p>
+      <div class="actions">
+        <button @click="handleSelectPath">
+          选择游戏目录
+        </button>
 
-      <p>
-        <strong>SMAPI：</strong>
-        <span :class="smapiExists ? 'ok' : 'bad'">
-          {{ smapiExists ? "已安装" : "未安装" }}
-        </span>
-      </p>
-    </div>
-  </div>
+        <button
+          v-if="gamePath"
+          class="secondary"
+          @click="handleLaunchGame"
+        >
+          启动游戏
+        </button>
+      </div>
+
+      <div v-if="gamePath" class="card">
+        <p>
+          <strong>当前路径：</strong>
+          {{ gamePath }}
+        </p>
+
+        <p>
+          <strong>Stardew Valley：</strong>
+          <span :class="stardewExists ? 'ok' : 'bad'">
+            {{ stardewExists ? "已找到" : "未找到" }}
+          </span>
+        </p>
+
+        <p>
+          <strong>SMAPI：</strong>
+          <span :class="smapiExists ? 'ok' : 'bad'">
+            {{ smapiExists ? "已安装" : "未安装" }}
+          </span>
+        </p>
+
+        <p v-if="message" class="message">
+          {{ message }}
+        </p>
+      </div>
+    </section>
+  </main>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { exists } from "@tauri-apps/plugin-fs";
 
 const gamePath = ref("");
 const stardewExists = ref(false);
 const smapiExists = ref(false);
+const message = ref("");
 
 async function handleSelectPath() {
   const selected = await open({
@@ -54,36 +72,84 @@ async function handleSelectPath() {
   }
 
   gamePath.value = selected;
+  message.value = "";
 
-  const stardewExe = `${selected}\\Stardew Valley.exe`;
-  const smapiExe = `${selected}\\StardewModdingAPI.exe`;
+  await checkGameFiles(selected);
+}
+
+async function checkGameFiles(selectedPath: string) {
+  const stardewExe = `${selectedPath}\\Stardew Valley.exe`;
+  const smapiExe = `${selectedPath}\\StardewModdingAPI.exe`;
 
   stardewExists.value = await exists(stardewExe);
   smapiExists.value = await exists(smapiExe);
 }
+
+async function handleLaunchGame() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const smapiExe = `${gamePath.value}\\StardewModdingAPI.exe`;
+  const stardewExe = `${gamePath.value}\\Stardew Valley.exe`;
+
+  const targetExe = smapiExists.value ? smapiExe : stardewExe;
+
+  if (!smapiExists.value && !stardewExists.value) {
+    message.value = "未找到 Stardew Valley.exe，无法启动游戏。";
+    return;
+  }
+
+  try {
+    await invoke("launch_game", {
+      path: targetExe,
+    });
+
+    message.value = smapiExists.value
+      ? "正在通过 SMAPI 启动游戏..."
+      : "正在启动原版 Stardew Valley...";
+  } catch (error) {
+    message.value = `启动失败：${String(error)}`;
+  }
+}
 </script>
 
 <style scoped>
-.container {
-  min-height: 100vh;
+.app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
   background: #f5efe3;
   color: #2d241b;
+  font-family: system-ui, sans-serif;
+}
+
+.hero {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 64px 32px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 22px;
-  font-family: system-ui, sans-serif;
 }
 
 h1 {
   font-size: 44px;
+  line-height: 1;
   margin: 0;
 }
 
 .subtitle {
   color: #7a6652;
   margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
 }
 
 button {
@@ -100,8 +166,17 @@ button:hover {
   background: #5d944f;
 }
 
+button.secondary {
+  background: #8b6f47;
+}
+
+button.secondary:hover {
+  background: #755d3c;
+}
+
 .card {
   width: min(620px, 90vw);
+  box-sizing: border-box;
   padding: 20px;
   border-radius: 18px;
   background: #fffaf0;
@@ -115,6 +190,12 @@ button:hover {
 
 .bad {
   color: #c0392b;
+  font-weight: 700;
+}
+
+.message {
+  margin-top: 16px;
+  color: #7a4f22;
   font-weight: 700;
 }
 </style>
