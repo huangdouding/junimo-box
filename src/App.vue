@@ -497,6 +497,55 @@
             >
               导出问题报告
             </button>
+
+            <button @click="handlePreviewZipMod">
+              预览 ZIP Mod
+            </button>
+          </div>
+        </div>
+
+        <div v-if="zipModPreviews.length > 0" class="panel">
+          <div class="panel-header">
+            <h3>ZIP Mod 安装预览</h3>
+            <span>{{ zipModPreviews.length }} 个</span>
+          </div>
+
+          <p class="muted-text">
+            当前压缩包：{{ selectedZipPath }}
+          </p>
+
+          <div class="mods-list zip-preview-list">
+            <article
+              v-for="mod in zipModPreviews"
+              :key="mod.unique_id || mod.manifest_path"
+              class="mod-item"
+            >
+              <div class="mod-main">
+                <h4>{{ mod.name }}</h4>
+
+                <p class="mod-meta">
+                  {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+                </p>
+
+                <p class="mod-description">
+                  {{ mod.description || "没有描述。" }}
+                </p>
+
+                <p class="mod-description">
+                  UniqueID：{{ mod.unique_id || "未提供" }}
+                </p>
+
+                <p class="mod-description">
+                  manifest：{{ mod.manifest_path }}
+                </p>
+              </div>
+
+              <div class="mod-actions">
+                <span class="mod-folder">
+                  {{ mod.suggested_folder }}
+                </span>
+              </div>
+            </article>
           </div>
         </div>
       </section>
@@ -593,6 +642,10 @@
           >
             问题报告
           </button>
+
+          <button @click="handlePreviewZipMod">
+            ZIP 预览
+          </button>
         </div>
       </div>
 
@@ -653,6 +706,16 @@ type SmapiLogAnalysis = {
   suggestions: string[];
 };
 
+type ZipModPreview = {
+  name: string;
+  author: string;
+  version: string;
+  description: string;
+  unique_id: string;
+  manifest_path: string;
+  suggested_folder: string;
+};
+
 const navItems: Array<{
   id: ViewId;
   label: string;
@@ -683,6 +746,9 @@ const smapiLogContent = ref("");
 const smapiLogAnalysis = ref<SmapiLogAnalysis | null>(null);
 const showRawSmapiLog = ref(false);
 
+const selectedZipPath = ref("");
+const zipModPreviews = ref<ZipModPreview[]>([]);
+
 const currentViewMeta = computed(() => {
   const map: Record<
     ViewId,
@@ -710,7 +776,7 @@ const currentViewMeta = computed(() => {
     tools: {
       eyebrow: "Toolbox",
       title: "工具箱",
-      description: "打开常用目录，导出 Mod 列表和问题排查资料。",
+      description: "打开常用目录，导出 Mod 列表、问题报告和预览 ZIP Mod。",
     },
     settings: {
       eyebrow: "Settings",
@@ -1182,6 +1248,41 @@ async function handleExportProblemReport() {
     message.value = `已导出问题报告：${filePath}`;
   } catch (error) {
     message.value = `导出问题报告失败：${String(error)}`;
+  }
+}
+
+async function handlePreviewZipMod() {
+  const selected = await open({
+    directory: false,
+    multiple: false,
+    title: "选择 Mod ZIP 压缩包",
+    filters: [
+      {
+        name: "ZIP 压缩包",
+        extensions: ["zip"],
+      },
+    ],
+  });
+
+  if (typeof selected !== "string") {
+    return;
+  }
+
+  selectedZipPath.value = selected;
+  zipModPreviews.value = [];
+
+  try {
+    const previews = await invoke<ZipModPreview[]>("preview_zip_mods", {
+      zipPath: selected,
+    });
+
+    zipModPreviews.value = previews;
+
+    message.value = `ZIP 预览完成：找到 ${previews.length} 个 Mod。`;
+  } catch (error) {
+    selectedZipPath.value = selected;
+    zipModPreviews.value = [];
+    message.value = `ZIP 预览失败：${String(error)}`;
   }
 }
 
@@ -2040,6 +2141,10 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   margin: 0;
   color: #7a6652;
   line-height: 1.5;
+}
+
+.zip-preview-list {
+  margin-top: 14px;
 }
 
 .right-panel {

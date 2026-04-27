@@ -1,6 +1,10 @@
+use serde::Serialize;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use zip::ZipArchive;
 
 #[tauri::command]
 fn launch_game(path: String) -> Result<(), String> {
@@ -10,6 +14,7 @@ fn launch_game(path: String) -> Result<(), String> {
 
     Ok(())
 }
+
 #[tauri::command]
 fn open_folder(path: String) -> Result<(), String> {
     Command::new("explorer")
@@ -19,6 +24,7 @@ fn open_folder(path: String) -> Result<(), String> {
 
     Ok(())
 }
+
 #[tauri::command]
 fn move_folder(from: String, to: String) -> Result<(), String> {
     let from_path = Path::new(&from);
@@ -42,13 +48,14 @@ fn move_folder(from: String, to: String) -> Result<(), String> {
 
     Ok(())
 }
+
 #[tauri::command]
 fn write_text_file(path: String, content: String) -> Result<(), String> {
-    std::fs::write(&path, content)
-        .map_err(|error| format!("Failed to write file: {}", error))?;
+    fs::write(&path, content).map_err(|error| format!("Failed to write file: {}", error))?;
 
     Ok(())
 }
+
 fn get_smapi_log_dir() -> Result<PathBuf, String> {
     let appdata = std::env::var("APPDATA")
         .map_err(|_| "Failed to read APPDATA environment variable".to_string())?;
@@ -57,6 +64,7 @@ fn get_smapi_log_dir() -> Result<PathBuf, String> {
         .join("StardewValley")
         .join("ErrorLogs"))
 }
+
 #[tauri::command]
 fn get_smapi_log_folder() -> Result<String, String> {
     let log_dir = get_smapi_log_dir()?;
@@ -110,19 +118,119 @@ fn read_latest_smapi_log() -> Result<Vec<String>, String> {
     Ok(vec![file_name, content])
 }
 
+#[derive(Serialize)]
+struct ZipModPreview {
+    name: String,
+    author: String,
+    version: String,
+    description: String,
+    unique_id: String,
+    manifest_path: String,
+    suggested_folder: String,
+}
+
+#[tauri::command]
+fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
+    let file =
+        File::open(&zip_path).map_err(|error| format!("Failed to open zip file: {}", error))?;
+
+    let mut archive =
+        ZipArchive::new(file).map_err(|error| format!("Failed to read zip archive: {}", error))?;
+
+    let mut previews = Vec::new();
+
+    for index in 0..archive.len() {
+        let mut file = archive
+            .by_index(index)
+            .map_err(|error| format!("Failed to read zip entry: {}", error))?;
+
+        if file.is_dir() {
+            continue;
+        }
+
+        let entry_name = file.name().replace("/", "\\");
+
+        if entry_name.contains("__MACOSX") {
+            continue;
+        }
+
+        if !entry_name.to_lowercase().ends_with("manifest.json") {
+            continue;
+        }
+
+        let mut manifest_text = String::new();
+
+        file.read_to_string(&mut manifest_text)
+            .map_err(|error| format!("Failed to read manifest.json: {}", error))?;
+
+        let manifest: serde_json::Value = json5::from_str(&manifest_text).map_err(|error| {
+            format!(
+                "Failed to parse manifest.json at {}: {}",
+                entry_name, error
+            )
+        })?;
+
+        let name = get_json_string(&manifest, "Name")
+            .unwrap_or_else(|| get_folder_from_manifest_path(&entry_name));
+
+        let author = get_json_string(&manifest, "Author").unwrap_or_default();
+        let version = get_json_string(&manifest, "Version").unwrap_or_default();
+        let description = get_json_string(&manifest, "Description").unwrap_or_default();
+        let unique_id = get_json_string(&manifest, "UniqueID").unwrap_or_default();
+        let suggested_folder = get_folder_from_manifest_path(&entry_name);
+
+        previews.push(ZipModPreview {
+            name,
+            author,
+            version,
+            description,
+            unique_id,
+            manifest_path: entry_name,
+            suggested_folder,
+        });
+    }
+
+    if previews.is_empty() {
+        return Err("No manifest.json found in this zip file.".to_string());
+    }
+
+    Ok(previews)
+}
+
+fn get_json_string(value: &serde_json::Value, key: &str) -> Option<String> {
+    value
+        .get(key)
+        .and_then(|item| item.as_str())
+        .map(|item| item.to_string())
+}
+
+fn get_folder_from_manifest_path(manifest_path: &str) -> String {
+    let parts: Vec<&str> = manifest_path
+        .split('\\')
+        .filter(|part| !part.is_empty())
+        .collect();
+
+    if parts.len() >= 2 {
+        return parts[parts.len() - 2].to_string();
+    }
+
+    "UnknownMod".to_string()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-    launch_game,
-    open_folder,
-    move_folder,
-    write_text_file,
-    get_smapi_log_folder,
-    read_latest_smapi_log
-])
+            launch_game,
+            open_folder,
+            move_folder,
+            write_text_file,
+            get_smapi_log_folder,
+            read_latest_smapi_log,
+            preview_zip_mods
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
