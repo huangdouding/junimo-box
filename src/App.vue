@@ -2968,9 +2968,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .content {
   min-width: 0;
   height: 100%;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: 24px 28px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .content-header {
@@ -3011,6 +3014,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
 }
 
 .notice,
@@ -3951,7 +3955,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   height: 100%;
   padding: 16px 14px;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
   background: rgba(255, 250, 240, 0.62);
   border-left: 1px solid rgba(92, 70, 48, 0.14);
   display: flex;
@@ -4189,8 +4193,9 @@ button.secondary:hover:not(:disabled) {
 }
 
 .scrollable-mods-list {
-  max-height: calc(100vh - 285px);
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
 }
 
@@ -4446,12 +4451,6 @@ button.secondary:hover:not(:disabled) {
 @media (max-width: 980px) {
   .mods-alert-grid {
     grid-template-columns: 1fr;
-  }
-
-  .scrollable-mods-list {
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
   }
 }
 
@@ -4829,22 +4828,36 @@ button.secondary:hover:not(:disabled) {
 }
 
 
-/* v0.2.1：Mods 页面固定外层，只让 Mod 列表内部滚动 */
-.content.content-fixed {
+/* v0.2.1：统一滚动结构，避免双滚动
+   - app-shell / content / right-panel 不滚动
+   - 普通页面在 view-stack 内部滚动
+   - Mods 页面只让 Mod 列表内部滚动
+   - 弹出小卡片自己滚动
+*/
+.content {
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
   min-height: 0 !important;
 }
 
-.content.content-fixed .content-header,
-.content.content-fixed .notice {
+.content-header,
+.notice {
   flex-shrink: 0 !important;
 }
 
-.mods-page-fixed {
+.content > .view-stack {
   flex: 1 !important;
   min-height: 0 !important;
+}
+
+.content > .view-stack:not(.mods-page-fixed) {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 6px;
+}
+
+.content > .mods-page-fixed {
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
@@ -4885,12 +4898,9 @@ button.secondary:hover:not(:disabled) {
   padding-right: 6px !important;
 }
 
-/* 避免右侧栏产生第二条外层滚动条 */
 .right-panel {
   overflow: hidden !important;
 }
-
-
 
 /* v0.2.0：Profiles 页面轻量化 */
 .profiles-page {
@@ -5091,5 +5101,57 @@ button.secondary:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
+/* v0.2.1：Profile 编辑卡片只保留列表内部滚动，取消卡片外层滚动 */
+.profile-card-overlay {
+  overflow: hidden !important;
+}
 
+.profile-editor-card,
+.compact-profile-editor {
+  max-height: calc(100vh - 48px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+}
+
+/* 卡片顶部区域固定，不参与滚动 */
+.profile-card-header,
+.profile-editor-grid,
+.profile-editor-summary,
+.profile-editor-footer {
+  flex-shrink: 0 !important;
+}
+
+/* 只有 Mod 勾选列表滚动 */
+.profile-select-list,
+.compact-profile-select-list {
+  flex: 1 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 6px !important;
+}
+
+/* 底部按钮始终贴在卡片底部 */
+.profile-editor-footer {
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(92, 70, 48, 0.12);
+  background: #fffaf0;
+}
+
+/* 小屏幕下也只保留列表内部滚动 */
+@media (max-width: 820px) {
+  .profile-editor-card,
+  .compact-profile-editor {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+  }
+
+  .profile-editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
 </style>
