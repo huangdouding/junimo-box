@@ -599,33 +599,71 @@
       </section>
 
       <section v-if="activeView === 'tools'" class="view-stack">
-        <div class="panel compact-panel">
-          <div class="panel-header">
-            <h3>工具箱</h3>
-            <span>快捷操作</span>
-          </div>
+        <div class="toolbox-grid">
+          <article class="panel tool-section-card">
+            <div class="tool-section-header">
+              <div class="tool-section-icon">📁</div>
+              <div>
+                <h3>文件夹</h3>
+                <p>快速打开常用目录，方便手动检查文件。</p>
+              </div>
+            </div>
 
-          <div class="tool-grid">
-            <button @click="handleOpenGameFolder">打开游戏目录</button>
+            <div class="tool-section-actions">
+              <button class="tool-action-button" @click="handleOpenGameFolder">
+                打开游戏目录
+              </button>
 
-            <button :disabled="!modsFolderExists" @click="handleOpenModsFolder">
-              打开 Mods 文件夹
-            </button>
+              <button
+                class="tool-action-button"
+                :disabled="!modsFolderExists"
+                @click="handleOpenModsFolder"
+              >
+                打开 Mods 文件夹
+              </button>
 
-            <button @click="handleOpenSmapiLogFolder">打开日志文件夹</button>
+              <button class="tool-action-button" @click="handleOpenSmapiLogFolder">
+                打开日志文件夹
+              </button>
+            </div>
+          </article>
 
-            <button
-              :disabled="mods.length === 0 && disabledMods.length === 0"
-              @click="handleExportModList"
-            >
-              导出 Mod 列表
-            </button>
+          <article class="panel tool-section-card">
+            <div class="tool-section-header">
+              <div class="tool-section-icon">📤</div>
+              <div>
+                <h3>导出</h3>
+                <p>导出 Mod 列表或问题报告，方便备份和求助。</p>
+              </div>
+            </div>
 
-            <button :disabled="!gamePath" @click="handleExportProblemReport">
-              导出问题报告
-            </button>
+            <div class="tool-section-actions">
+              <button
+                class="tool-action-button"
+                :disabled="mods.length === 0 && disabledMods.length === 0"
+                @click="handleExportModList"
+              >
+                导出 Mod 列表
+              </button>
 
-            <button @click="handlePreviewZipMod">预览 ZIP Mod</button>
+              <button
+                class="tool-action-button"
+                :disabled="!gamePath"
+                @click="handleExportProblemReport"
+              >
+                导出问题报告
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel tool-section-card zip-tool-card">
+          <div class="tool-section-header">
+            <div class="tool-section-icon">📦</div>
+            <div>
+              <h3>安装 ZIP Mod</h3>
+              <p>拖拽或选择 ZIP 压缩包，先预览和检查依赖，再安装到 Mods 文件夹。</p>
+            </div>
           </div>
 
           <div
@@ -633,13 +671,23 @@
             :class="{ active: isZipDragOver }"
             @click="handlePreviewZipMod"
           >
-            <div class="zip-drop-icon">📦</div>
+            <div class="zip-drop-icon">＋</div>
             <div>
               <strong>拖拽 ZIP Mod 到这里</strong>
-              <p>把下载好的 .zip 文件拖进窗口，Junimo Box 会自动生成安装预览；也可以点击这里手动选择。</p>
+              <p>拖入 .zip 后会自动生成安装预览，不会直接安装。</p>
             </div>
           </div>
-        </div>
+
+          <div class="zip-tool-actions">
+            <button @click="handlePreviewZipMod">
+              选择 ZIP 文件
+            </button>
+
+            <span class="zip-tool-hint">
+              支持安装前依赖检查和临时目录安全解压。
+            </span>
+          </div>
+        </article>
 
         <div
           v-if="zipModPreviews.length > 0"
@@ -3206,6 +3254,79 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.toolbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tool-section-card {
+  padding: 18px;
+}
+
+.tool-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tool-section-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: #f6ead8;
+  font-size: 22px;
+}
+
+.tool-section-header h3 {
+  margin: 0 0 5px;
+  font-size: 21px;
+}
+
+.tool-section-header p {
+  margin: 0;
+  color: #7a6652;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.tool-section-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tool-action-button {
+  min-height: 42px;
+}
+
+.zip-tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.zip-tool-card .tool-section-header {
+  margin-bottom: 0;
+}
+
+.zip-tool-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.zip-tool-hint {
+  color: #7a6652;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .setting-actions {
   margin-top: 16px;
 }
@@ -4417,7 +4538,12 @@ button.secondary:hover:not(:disabled) {
   .status-grid,
   .summary-row,
   .tool-grid,
+  .toolbox-grid,
   .diagnosis-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-section-actions {
     grid-template-columns: 1fr;
   }
 
