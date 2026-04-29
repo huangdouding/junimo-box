@@ -103,6 +103,7 @@
                 <strong :class="smapiExists ? 'ok' : 'bad'">
                   {{ smapiExists ? "已安装" : "未安装" }}
                 </strong>
+                <small v-if="smapiExists">版本：{{ smapiDetectedVersion || "未识别" }}</small>
               </div>
 
               <div class="status-card">
@@ -682,6 +683,11 @@
             </strong>
           </div>
 
+          <div v-if="smapiExists" class="tool-status-row">
+            <span>SMAPI 版本</span>
+            <strong>{{ smapiDetectedVersion || "未识别" }}</strong>
+          </div>
+
           <div class="tool-section-actions">
             <button
               class="tool-action-button"
@@ -1165,6 +1171,11 @@
           </strong>
         </div>
 
+        <div v-if="smapiExists" class="info-line">
+          <span>SMAPI 版本</span>
+          <strong>{{ smapiDetectedVersion || "未识别" }}</strong>
+        </div>
+
         <div class="info-line">
           <span>Mods 文件夹</span>
           <strong :class="modsFolderExists ? 'ok' : 'bad'">
@@ -1183,6 +1194,21 @@
             {{ missingDependencies.length }}
           </strong>
         </div>
+
+        <div class="info-line">
+          <span>启动前检查</span>
+          <strong :class="launchHealthStatus.className">
+            {{ launchHealthStatus.label }}
+          </strong>
+        </div>
+
+        <button
+          class="side-check-button"
+          :disabled="!gamePath"
+          @click="handleRunLaunchCheck"
+        >
+          检查环境
+        </button>
       </div>
 
       <div class="side-card path-card">
@@ -1208,6 +1234,14 @@ const PROFILES_STORAGE_KEY = "junimo-box-profiles";
 type ViewId = "overview" | "mods" | "logs" | "tools" | "profiles" | "settings";
 type ModStatusFilter = "all" | "enabled" | "disabled";
 type ModDependencyFilter = "all" | "missing";
+type LaunchTarget = "smapi" | "vanilla";
+type LaunchIssueLevel = "error" | "warning";
+
+type LaunchCheckIssue = {
+  level: LaunchIssueLevel;
+  title: string;
+  detail?: string;
+};
 
 type ViewMeta = {
   eyebrow: string;
@@ -1352,6 +1386,7 @@ const activeView = ref<ViewId>("mods");
 const gamePath = ref("");
 const stardewExists = ref(false);
 const smapiExists = ref(false);
+const smapiDetectedVersion = ref("");
 const modsFolderExists = ref(false);
 const isSmapiInstalling = ref(false);
 const smapiInstallerOpened = ref(false);
@@ -1609,6 +1644,34 @@ const selectedMod = computed<DisplayModInfo | null>(() => {
   }
 
   return allDisplayMods.value.find((mod) => getModKey(mod) === selectedModKey.value) || null;
+});
+
+const duplicateEnabledUniqueIds = computed(() => getDuplicateUniqueIds(mods.value));
+
+const launchHealthStatus = computed(() => {
+  if (!gamePath.value) {
+    return { label: "未配置", className: "bad" };
+  }
+
+  if (!stardewExists.value) {
+    return { label: "异常", className: "bad" };
+  }
+
+  const warningCount =
+    missingDependencies.value.length +
+    skippedFolders.value.length +
+    duplicateEnabledUniqueIds.value.length +
+    (modsFolderExists.value ? 0 : 1);
+
+  if (!smapiExists.value) {
+    return { label: "缺少 SMAPI", className: "bad" };
+  }
+
+  if (warningCount > 0) {
+    return { label: `${warningCount} 个警告`, className: "bad" };
+  }
+
+  return { label: "正常", className: "ok" };
 });
 
 onMounted(async () => {
@@ -1903,6 +1966,7 @@ async function handleSelectPath() {
   message.value = "";
   mods.value = [];
   disabledMods.value = [];
+  smapiDetectedVersion.value = "";
   skippedFolders.value = [];
   missingDependencies.value = [];
   lastInstalledZipMods.value = [];
@@ -1922,6 +1986,12 @@ async function checkGameFiles(selectedPath: string) {
   stardewExists.value = await exists(stardewExe);
   smapiExists.value = await exists(smapiExe);
   modsFolderExists.value = await exists(modsFolder);
+
+  if (smapiExists.value) {
+    await refreshSmapiVersionFromLatestLog();
+  } else {
+    smapiDetectedVersion.value = "";
+  }
 }
 
 async function scanMods() {
@@ -2099,7 +2169,13 @@ async function handleRecheckSmapiInstall() {
 
   if (smapiExists.value) {
     smapiInstallerOpened.value = false;
-    setNotice("success", "已检测到 StardewModdingAPI.exe，SMAPI 安装完成。");
+    await refreshSmapiVersionFromLatestLog();
+    setNotice(
+      "success",
+      smapiDetectedVersion.value
+        ? `已检测到 StardewModdingAPI.exe，SMAPI ${smapiDetectedVersion.value} 安装完成。`
+        : "已检测到 StardewModdingAPI.exe，SMAPI 安装完成。"
+    );
     await scanMods();
     return;
   }
@@ -2111,44 +2187,182 @@ async function handleRecheckSmapiInstall() {
 }
 
 async function handleLaunchSmapi() {
-  if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+  const checkResult = await runLaunchEnvironmentCheck("smapi", false);
+
+  if (!checkResult.canLaunch) {
+    setNotice("error", formatLaunchIssues("启动前检查未通过", checkResult.errors));
     return;
   }
 
-  await checkGameFiles(gamePath.value);
+  try {
+    await invoke("launch_game", {
+      path: `${gamePath.value}\\StardewModdingAPI.exe`,
+    });
 
-  if (!smapiExists.value) {
-    message.value = "未找到 StardewModdingAPI.exe，无法启动 SMAPI。";
-    return;
+    if (checkResult.warnings.length > 0) {
+      setNotice(
+        "warning",
+        `启动前发现 ${checkResult.warnings.length} 个警告，仍正在通过 SMAPI 启动游戏。${formatLaunchIssues("", checkResult.warnings)}`
+      );
+      return;
+    }
+
+    setNotice("success", "启动前检查通过，正在通过 SMAPI 启动游戏...");
+  } catch (error) {
+    setNotice("error", `启动失败：${String(error)}`);
   }
-
-  await launchExecutable(`${gamePath.value}\\StardewModdingAPI.exe`, "正在通过 SMAPI 启动游戏...");
 }
 
 async function handleLaunchVanilla() {
-  if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+  const checkResult = await runLaunchEnvironmentCheck("vanilla", false);
+
+  if (!checkResult.canLaunch) {
+    setNotice("error", formatLaunchIssues("启动前检查未通过", checkResult.errors));
     return;
+  }
+
+  try {
+    await invoke("launch_game", {
+      path: `${gamePath.value}\\Stardew Valley.exe`,
+    });
+
+    setNotice("success", "启动前检查通过，正在启动原版 Stardew Valley...");
+  } catch (error) {
+    setNotice("error", `启动失败：${String(error)}`);
+  }
+}
+
+async function handleRunLaunchCheck() {
+  await runLaunchEnvironmentCheck("smapi", true);
+}
+
+async function runLaunchEnvironmentCheck(
+  target: LaunchTarget,
+  showResult: boolean
+): Promise<{ canLaunch: boolean; errors: LaunchCheckIssue[]; warnings: LaunchCheckIssue[] }> {
+  const issues = await collectLaunchIssues(target);
+  const errors = issues.filter((issue) => issue.level === "error");
+  const warnings = issues.filter((issue) => issue.level === "warning");
+
+  if (showResult) {
+    if (errors.length > 0) {
+      setNotice("error", formatLaunchIssues("启动前检查未通过", errors));
+    } else if (warnings.length > 0) {
+      setNotice("warning", formatLaunchIssues(`启动前发现 ${warnings.length} 个警告`, warnings));
+    } else {
+      setNotice("success", "启动前环境检查通过，可以启动 SMAPI。");
+    }
+  }
+
+  return {
+    canLaunch: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+async function collectLaunchIssues(target: LaunchTarget): Promise<LaunchCheckIssue[]> {
+  const issues: LaunchCheckIssue[] = [];
+
+  if (!gamePath.value) {
+    issues.push({
+      level: "error",
+      title: "尚未选择 Stardew Valley 游戏目录。",
+    });
+    return issues;
   }
 
   await checkGameFiles(gamePath.value);
 
   if (!stardewExists.value) {
-    message.value = "未找到 Stardew Valley.exe，无法启动原版游戏。";
-    return;
+    issues.push({
+      level: "error",
+      title: "未找到 Stardew Valley.exe。",
+      detail: "请确认当前选择的是 Stardew Valley 安装目录。",
+    });
   }
 
-  await launchExecutable(`${gamePath.value}\\Stardew Valley.exe`, "正在启动原版 Stardew Valley...");
+  if (target === "smapi" && !smapiExists.value) {
+    issues.push({
+      level: "error",
+      title: "未找到 StardewModdingAPI.exe。",
+      detail: "请先安装 SMAPI，或确认 SMAPI 已安装到当前游戏目录。",
+    });
+  }
+
+  if (target === "smapi") {
+    if (!modsFolderExists.value) {
+      issues.push({
+        level: "warning",
+        title: "未找到 Mods 文件夹。",
+        detail: "SMAPI 可以启动，但当前不会加载任何 Mod。",
+      });
+    } else if (mods.value.length === 0 && disabledMods.value.length === 0) {
+      await scanMods();
+    }
+
+    if (missingDependencies.value.length > 0) {
+      const preview = missingDependencies.value
+        .slice(0, 3)
+        .map((dependency) => dependency.uniqueId)
+        .join("、");
+
+      issues.push({
+        level: "warning",
+        title: `发现 ${missingDependencies.value.length} 项缺失依赖。`,
+        detail: preview ? `例如：${preview}` : undefined,
+      });
+    }
+
+    if (skippedFolders.value.length > 0) {
+      issues.push({
+        level: "warning",
+        title: `发现 ${skippedFolders.value.length} 个未识别文件夹。`,
+        detail: "这些文件夹可能不是有效 Mod，或 manifest.json 读取失败。",
+      });
+    }
+
+    if (duplicateEnabledUniqueIds.value.length > 0) {
+      issues.push({
+        level: "warning",
+        title: `发现 ${duplicateEnabledUniqueIds.value.length} 个重复 UniqueID。`,
+        detail: duplicateEnabledUniqueIds.value.slice(0, 3).join("、"),
+      });
+    }
+  }
+
+  return issues;
 }
 
-async function launchExecutable(path: string, successMessage: string) {
-  try {
-    await invoke("launch_game", { path });
-    message.value = successMessage;
-  } catch (error) {
-    message.value = `启动失败：${String(error)}`;
+function formatLaunchIssues(title: string, issues: LaunchCheckIssue[]) {
+  const lines = issues
+    .slice(0, 5)
+    .map((issue) => {
+      const detail = issue.detail ? `：${issue.detail}` : "";
+      return `\n- ${issue.title}${detail}`;
+    })
+    .join("");
+
+  const more = issues.length > 5 ? `\n- 还有 ${issues.length - 5} 个问题未显示。` : "";
+
+  return `${title}${lines}${more}`.trim();
+}
+
+function getDuplicateUniqueIds(modList: ModInfo[]) {
+  const countMap = new Map<string, number>();
+
+  for (const mod of modList) {
+    if (!mod.uniqueId) {
+      continue;
+    }
+
+    countMap.set(mod.uniqueId, (countMap.get(mod.uniqueId) || 0) + 1);
   }
+
+  return Array.from(countMap.entries())
+    .filter(([, count]) => count > 1)
+    .map(([uniqueId]) => uniqueId)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 async function handleOpenGameFolder() {
@@ -2476,6 +2690,18 @@ async function handleInstallZipMod() {
   }
 }
 
+async function refreshSmapiVersionFromLatestLog() {
+  try {
+    const result = await invoke<string[]>("read_latest_smapi_log");
+    const content = result[1] || "";
+    const analysis = analyzeSmapiLog(content);
+
+    smapiDetectedVersion.value = analysis.smapiVersion || "";
+  } catch {
+    smapiDetectedVersion.value = "";
+  }
+}
+
 async function handleReadLatestSmapiLog() {
   try {
     const result = await invoke<string[]>("read_latest_smapi_log");
@@ -2483,6 +2709,7 @@ async function handleReadLatestSmapiLog() {
     smapiLogFileName.value = result[0] || "未知日志文件";
     smapiLogContent.value = result[1] || "";
     smapiLogAnalysis.value = analyzeSmapiLog(smapiLogContent.value);
+    smapiDetectedVersion.value = smapiLogAnalysis.value.smapiVersion || smapiDetectedVersion.value;
     showRawSmapiLog.value = false;
 
     message.value = `已读取并分析最新 SMAPI 日志：${smapiLogFileName.value}`;
@@ -3334,6 +3561,14 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .summary-row strong,
 .setting-block strong {
   word-break: break-all;
+}
+
+.status-card small {
+  display: block;
+  margin-top: 5px;
+  color: #7a6652;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .summary-row {
@@ -4995,6 +5230,20 @@ button.secondary:hover:not(:disabled) {
   .compact-card-actions {
     justify-content: flex-start;
   }
+}
+
+
+.side-check-button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #8b6f47;
+  font-size: 13px;
+}
+
+.side-check-button:hover:not(:disabled) {
+  background: #755d3c;
 }
 
 @media (max-width: 1100px) {
