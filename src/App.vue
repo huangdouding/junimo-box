@@ -270,6 +270,9 @@
                     <span class="status-badge" :class="mod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
                       {{ mod.isDisabled ? "已禁用" : "已启用" }}
                     </span>
+                                        <span class="status-badge type-badge">
+                      {{ mod.modType.label }}
+                    </span>
                     <span v-if="mod.hasMissingRequiredDependency" class="status-badge missing-badge">
                       缺失依赖
                     </span>
@@ -691,6 +694,21 @@ type MissingDependency = {
   requiredBy: string[];
 };
 
+type ModTypeId =
+  | "smapi-plugin"
+  | "content-patcher-pack"
+  | "fashion-sense-pack"
+  | "json-assets-pack"
+  | "generic-mod-config-menu"
+  | "stardew-valley-expanded-pack"
+  | "content-pack"
+  | "unknown";
+
+type ModTypeInfo = {
+  id: ModTypeId;
+  label: string;
+};
+
 type ModInfo = {
   name: string;
   author: string;
@@ -698,6 +716,7 @@ type ModInfo = {
   description: string;
   uniqueId: string;
   folderName: string;
+  entryDll: string;
   dependencies: ModDependency[];
   contentPackFor?: ModDependency;
 };
@@ -705,6 +724,7 @@ type ModInfo = {
 type DisplayModInfo = ModInfo & {
   isDisabled: boolean;
   hasMissingRequiredDependency: boolean;
+  modType: ModTypeInfo;
 };
 
 type SkippedModInfo = {
@@ -845,6 +865,7 @@ const filteredMods = computed<DisplayModInfo[]>(() => {
       mod.description,
       mod.uniqueId,
       mod.folderName,
+      mod.modType.label,
     ]
       .join(" ")
       .toLowerCase()
@@ -974,6 +995,7 @@ async function collectModsFromFolder(
         description: manifest.Description || "",
         uniqueId: manifest.UniqueID || "",
         folderName: folderLabel,
+        entryDll: manifest.EntryDll || "",
         dependencies: normalizeDependencies(manifest.Dependencies),
         contentPackFor: normalizeContentPackFor(manifest.ContentPackFor),
       });
@@ -1367,6 +1389,60 @@ function createDisplayMod(mod: ModInfo, isDisabled: boolean): DisplayModInfo {
     ...mod,
     isDisabled,
     hasMissingRequiredDependency: modHasMissingRequiredDependency(mod),
+    modType: detectModType(mod),
+  };
+}
+
+function detectModType(mod: ModInfo): ModTypeInfo {
+  const contentPackFor = mod.contentPackFor?.uniqueId || "";
+
+  const contentPackTypeMap: Record<string, ModTypeInfo> = {
+    "Pathoschild.ContentPatcher": {
+      id: "content-patcher-pack",
+      label: "CP 内容包",
+    },
+    "PeacefulEnd.FashionSense": {
+      id: "fashion-sense-pack",
+      label: "Fashion Sense",
+    },
+    "spacechase0.JsonAssets": {
+      id: "json-assets-pack",
+      label: "Json Assets",
+    },
+    "FlashShifter.StardewValleyExpandedCP": {
+      id: "stardew-valley-expanded-pack",
+      label: "SVE 内容包",
+    },
+  };
+
+  if (contentPackFor && contentPackTypeMap[contentPackFor]) {
+    return contentPackTypeMap[contentPackFor];
+  }
+
+  if (contentPackFor) {
+    return {
+      id: "content-pack",
+      label: "内容包",
+    };
+  }
+
+  if (mod.uniqueId === "spacechase0.GenericModConfigMenu") {
+    return {
+      id: "generic-mod-config-menu",
+      label: "GMCM",
+    };
+  }
+
+  if (mod.entryDll) {
+    return {
+      id: "smapi-plugin",
+      label: "SMAPI 插件",
+    };
+  }
+
+  return {
+    id: "unknown",
+    label: "未知类型",
   };
 }
 
@@ -1477,6 +1553,8 @@ function createExportModInfo(mod: ModInfo) {
     description: mod.description,
     uniqueId: mod.uniqueId,
     folderName: mod.folderName,
+    entryDll: mod.entryDll,
+    modType: detectModType(mod),
     contentPackFor: mod.contentPackFor,
     dependencies: mod.dependencies,
   };
@@ -1613,6 +1691,7 @@ function formatModForReport(mod: ModInfo): string {
     mod.author ? `作者：${mod.author}` : "作者：未知",
     mod.version ? `版本：${mod.version}` : "版本：未知",
     mod.uniqueId ? `UniqueID：${mod.uniqueId}` : "UniqueID：未知",
+    `类型：${detectModType(mod).label}`,
     `文件夹：${mod.folderName}`,
   ];
 
@@ -2142,6 +2221,11 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .missing-badge {
   background: #f1c8bc;
   color: #9f493c;
+}
+
+.type-badge {
+  background: #e8dac0;
+  color: #6f5636;
 }
 
 .mod-meta {
