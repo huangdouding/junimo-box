@@ -28,7 +28,10 @@
       </div>
     </aside>
 
-    <section class="content">
+    <section
+      class="content"
+      :class="{ 'content-fixed': activeView === 'mods' }"
+    >
       <header class="content-header">
         <div>
           <p class="eyebrow">{{ currentViewMeta.eyebrow }}</p>
@@ -144,7 +147,7 @@
         </div>
       </section>
 
-      <section v-if="activeView === 'mods'" class="view-stack mods-view">
+      <section v-if="activeView === 'mods'" class="view-stack mods-view mods-page-fixed">
         <div class="panel filter-panel">
           <div class="filter-top-row">
             <div class="search-box">
@@ -279,10 +282,16 @@
                 }"
                 @click="selectMod(mod)"
               >
-                <div class="mod-main">
-                  <div class="mod-title-row">
-                    <h4>{{ mod.name }}</h4>
-                    <div class="mod-badges">
+                <div class="mod-card-content">
+                  <div class="mod-card-main-row">
+                    <div class="mod-title-block">
+                      <h4>{{ mod.name }}</h4>
+                      <p class="mod-meta">
+                        {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+                      </p>
+                    </div>
+
+                    <div class="mod-badges compact-badges">
                       <span class="status-badge" :class="mod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
                         {{ mod.isDisabled ? "已禁用" : "已启用" }}
                       </span>
@@ -295,40 +304,35 @@
                     </div>
                   </div>
 
-                  <p class="mod-meta">
-                    {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
-                  </p>
-
                   <p class="mod-description compact-description">
                     {{ mod.description || "没有描述。" }}
                   </p>
 
-                  <div class="mod-extra-row">
-                    <span>{{ mod.uniqueId || "未提供 UniqueID" }}</span>
-                    <span>{{ mod.folderName }}</span>
+                  <div class="mod-card-footer">
+                    <span class="folder-chip">{{ mod.folderName }}</span>
+
+                    <div class="mod-actions compact-card-actions">
+                      <button class="tiny-button ghost-button" @click.stop="handleOpenDisplayedModFolder(mod)">
+                        打开
+                      </button>
+
+                      <button
+                        v-if="mod.isDisabled"
+                        class="tiny-button"
+                        @click.stop="handleEnableMod(mod.folderName)"
+                      >
+                        启用
+                      </button>
+
+                      <button
+                        v-else
+                        class="tiny-button danger"
+                        @click.stop="handleDisableMod(mod.folderName)"
+                      >
+                        禁用
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                <div class="mod-actions compact-card-actions">
-                  <button class="tiny-button" @click.stop="handleOpenDisplayedModFolder(mod)">
-                    打开
-                  </button>
-
-                  <button
-                    v-if="mod.isDisabled"
-                    class="tiny-button"
-                    @click.stop="handleEnableMod(mod.folderName)"
-                  >
-                    启用
-                  </button>
-
-                  <button
-                    v-else
-                    class="tiny-button danger"
-                    @click.stop="handleDisableMod(mod.folderName)"
-                  >
-                    禁用
-                  </button>
                 </div>
               </article>
             </div>
@@ -4636,6 +4640,136 @@ button.secondary:hover:not(:disabled) {
   }
 }
 
+
+
+/* v0.2：Mod 列表卡片密度优化 */
+.compact-mod-card {
+  padding: 12px 13px;
+  border-radius: 16px;
+  display: block;
+  border: 1px solid rgba(92, 70, 48, 0.08);
+}
+
+.compact-mod-card.warning {
+  border-color: rgba(159, 73, 60, 0.28);
+  background: #f9e8d3;
+}
+
+.compact-mod-card.disabled {
+  opacity: 0.7;
+}
+
+.mod-card-content {
+  min-width: 0;
+}
+
+.mod-card-main-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.mod-title-block {
+  min-width: 0;
+}
+
+.mod-title-block h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-mod-card .mod-meta {
+  margin: 0;
+  font-size: 12px;
+}
+
+.compact-badges {
+  max-width: 260px;
+  gap: 5px;
+}
+
+.compact-badges .status-badge {
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+.compact-mod-card .compact-description {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.42;
+  color: #5c4630;
+  -webkit-line-clamp: 2;
+}
+
+.mod-card-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.folder-chip {
+  min-width: 0;
+  max-width: 62%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(226, 209, 184, 0.75);
+  color: #6b5238;
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-card-actions {
+  min-width: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-card-actions .tiny-button {
+  width: auto;
+  min-width: 48px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.ghost-button {
+  background: #a58a68;
+}
+
+.ghost-button:hover:not(:disabled) {
+  background: #8b6f47;
+}
+
+.scrollable-mods-list {
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .mod-card-main-row,
+  .mod-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .folder-chip {
+    max-width: 100%;
+  }
+
+  .compact-card-actions {
+    justify-content: flex-start;
+  }
+}
+
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 205px minmax(0, 1fr);
@@ -4673,4 +4807,67 @@ button.secondary:hover:not(:disabled) {
     align-items: flex-start;
   }
 }
+
+
+/* v0.2.1：Mods 页面固定外层，只让 Mod 列表内部滚动 */
+.content.content-fixed {
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+}
+
+.content.content-fixed .content-header,
+.content.content-fixed .notice {
+  flex-shrink: 0 !important;
+}
+
+.mods-page-fixed {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.mods-page-fixed > .filter-panel,
+.mods-page-fixed > .mods-alert-grid,
+.mods-page-fixed > .empty-state {
+  flex-shrink: 0 !important;
+}
+
+.mods-page-fixed > .mods-workspace {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.mods-page-fixed .mods-list-panel {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.mods-page-fixed .mods-list-panel .panel-header {
+  flex-shrink: 0 !important;
+}
+
+.mods-page-fixed .scrollable-mods-list {
+  flex: 1 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 6px !important;
+}
+
+/* 避免右侧栏产生第二条外层滚动条 */
+.right-panel {
+  overflow: hidden !important;
+}
+
 </style>
