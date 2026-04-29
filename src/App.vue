@@ -256,7 +256,7 @@
               <div>
                 <h3>Mod 列表</h3>
                 <p class="detail-subtitle">
-                  点击列表项查看完整信息和依赖状态。
+                  点击列表项打开独立详情卡片。
                 </p>
               </div>
               <span>{{ filteredMods.length }} 个</span>
@@ -329,139 +329,139 @@
             </div>
           </div>
 
-          <aside class="panel mod-detail-panel side-detail-panel">
-            <template v-if="selectedMod">
-              <div class="panel-header">
-                <div>
-                  <h3>Mod 详情</h3>
-                  <p class="detail-subtitle">{{ selectedMod.name }}</p>
-                </div>
 
-                <div class="panel-actions">
-                  <span class="status-badge" :class="selectedMod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
-                    {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="detail-main">
-                <div class="mod-badges detail-badges">
-                  <span class="status-badge type-badge">{{ selectedMod.modType.label }}</span>
-                  <span v-if="selectedMod.hasMissingRequiredDependency" class="status-badge missing-badge">
-                    缺失依赖
-                  </span>
-                </div>
-
-                <p class="detail-description">
-                  {{ selectedMod.description || "没有描述。" }}
-                </p>
-
-                <div class="detail-actions detail-actions-inline">
-                  <button class="tiny-button" @click="handleOpenDisplayedModFolder(selectedMod)">
-                    打开文件夹
-                  </button>
-
-                  <button
-                    v-if="selectedMod.isDisabled"
-                    class="tiny-button"
-                    @click="handleEnableMod(selectedMod.folderName)"
-                  >
-                    启用 Mod
-                  </button>
-
-                  <button
-                    v-else
-                    class="tiny-button danger"
-                    @click="handleDisableMod(selectedMod.folderName)"
-                  >
-                    禁用 Mod
-                  </button>
-                </div>
-
-                <div class="detail-grid side-detail-grid">
-                  <div>
-                    <span>作者</span>
-                    <strong>{{ selectedMod.author || "未知作者" }}</strong>
-                  </div>
-                  <div>
-                    <span>版本</span>
-                    <strong>{{ selectedMod.version || "未知版本" }}</strong>
-                  </div>
-                  <div>
-                    <span>UniqueID</span>
-                    <strong>{{ selectedMod.uniqueId || "未提供" }}</strong>
-                  </div>
-                  <div>
-                    <span>文件夹</span>
-                    <strong>{{ selectedMod.folderName }}</strong>
-                  </div>
-                  <div>
-                    <span>EntryDll</span>
-                    <strong>{{ selectedMod.entryDll || "无" }}</strong>
-                  </div>
-                  <div>
-                    <span>当前状态</span>
-                    <strong :class="selectedMod.isDisabled ? 'optional' : 'ok'">
-                      {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-
-              <div class="detail-dependencies side-dependencies">
-                <h4>依赖关系</h4>
-
-                <p v-if="!selectedMod.contentPackFor && selectedMod.dependencies.length === 0" class="muted-text">
-                  这个 Mod 没有声明依赖。
-                </p>
-
-                <div v-else class="dependency-detail-list">
-                  <div v-if="selectedMod.contentPackFor" class="dependency-detail-item">
-                    <span>内容包依赖</span>
-                    <strong :class="selectedMod.contentPackFor.isInstalled ? 'ok' : 'bad'">
-                      {{ selectedMod.contentPackFor.uniqueId }}
-                      {{ selectedMod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
-                    </strong>
-                  </div>
-
-                  <div
-                    v-for="dependency in selectedMod.dependencies"
-                    :key="dependency.uniqueId"
-                    class="dependency-detail-item"
-                  >
-                    <span>{{ dependency.isRequired ? "必需依赖" : "可选依赖" }}</span>
-                    <strong
-                      :class="
-                        dependency.isInstalled
-                          ? 'ok'
-                          : dependency.isRequired
-                            ? 'bad'
-                            : 'optional'
-                      "
-                    >
-                      {{ dependency.uniqueId }}
-                      {{
-                        dependency.isInstalled
-                          ? "已安装"
-                          : dependency.isRequired
-                            ? "缺失"
-                            : "可选未安装"
-                      }}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <div v-else class="empty-detail-state">
-              <div class="empty-detail-icon">📦</div>
-              <h3>选择一个 Mod</h3>
-              <p>从左侧列表中点击 Mod，可以在这里查看详情、依赖和操作入口。</p>
-            </div>
-          </aside>
         </div>
 
-        <div v-else-if="gamePath && allDisplayMods.length > 0" class="empty-state">
+        <div
+          v-if="selectedMod"
+          class="mod-detail-overlay"
+          @click.self="closeModDetail"
+        >
+          <section class="mod-detail-card">
+            <div class="mod-detail-card-header">
+              <div>
+                <p class="eyebrow">Mod Detail</p>
+                <h3>{{ selectedMod.name }}</h3>
+                <p>{{ selectedMod.modType.label }} · {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}</p>
+              </div>
+
+              <button class="tiny-button" @click="closeModDetail">
+                关闭
+              </button>
+            </div>
+
+            <div class="mod-badges detail-badges">
+              <span class="status-badge" :class="selectedMod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
+                {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+              </span>
+              <span class="status-badge type-badge">{{ selectedMod.modType.label }}</span>
+              <span v-if="selectedMod.hasMissingRequiredDependency" class="status-badge missing-badge">
+                缺失依赖
+              </span>
+            </div>
+
+            <p class="detail-description">
+              {{ selectedMod.description || "没有描述。" }}
+            </p>
+
+            <div class="detail-actions detail-actions-inline">
+              <button class="tiny-button" @click="handleOpenDisplayedModFolder(selectedMod)">
+                打开文件夹
+              </button>
+
+              <button
+                v-if="selectedMod.isDisabled"
+                class="tiny-button"
+                @click="handleEnableMod(selectedMod.folderName)"
+              >
+                启用 Mod
+              </button>
+
+              <button
+                v-else
+                class="tiny-button danger"
+                @click="handleDisableMod(selectedMod.folderName)"
+              >
+                禁用 Mod
+              </button>
+            </div>
+
+            <div class="detail-grid detail-card-grid">
+              <div>
+                <span>作者</span>
+                <strong>{{ selectedMod.author || "未知作者" }}</strong>
+              </div>
+              <div>
+                <span>版本</span>
+                <strong>{{ selectedMod.version || "未知版本" }}</strong>
+              </div>
+              <div>
+                <span>UniqueID</span>
+                <strong>{{ selectedMod.uniqueId || "未提供" }}</strong>
+              </div>
+              <div>
+                <span>文件夹</span>
+                <strong>{{ selectedMod.folderName }}</strong>
+              </div>
+              <div>
+                <span>EntryDll</span>
+                <strong>{{ selectedMod.entryDll || "无" }}</strong>
+              </div>
+              <div>
+                <span>当前状态</span>
+                <strong :class="selectedMod.isDisabled ? 'optional' : 'ok'">
+                  {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+                </strong>
+              </div>
+            </div>
+
+            <div class="detail-dependencies">
+              <h4>依赖关系</h4>
+
+              <p v-if="!selectedMod.contentPackFor && selectedMod.dependencies.length === 0" class="muted-text">
+                这个 Mod 没有声明依赖。
+              </p>
+
+              <div v-else class="dependency-detail-list">
+                <div v-if="selectedMod.contentPackFor" class="dependency-detail-item">
+                  <span>内容包依赖</span>
+                  <strong :class="selectedMod.contentPackFor.isInstalled ? 'ok' : 'bad'">
+                    {{ selectedMod.contentPackFor.uniqueId }}
+                    {{ selectedMod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
+                  </strong>
+                </div>
+
+                <div
+                  v-for="dependency in selectedMod.dependencies"
+                  :key="dependency.uniqueId"
+                  class="dependency-detail-item"
+                >
+                  <span>{{ dependency.isRequired ? "必需依赖" : "可选依赖" }}</span>
+                  <strong
+                    :class="
+                      dependency.isInstalled
+                        ? 'ok'
+                        : dependency.isRequired
+                          ? 'bad'
+                          : 'optional'
+                    "
+                  >
+                    {{ dependency.uniqueId }}
+                    {{
+                      dependency.isInstalled
+                        ? "已安装"
+                        : dependency.isRequired
+                          ? "缺失"
+                          : "可选未安装"
+                    }}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div v-if="gamePath && allDisplayMods.length > 0 && filteredMods.length === 0" class="empty-state">
           <h3>没有符合条件的 Mod</h3>
           <p>试试清空搜索词，或者切换筛选条件。</p>
         </div>
@@ -2229,6 +2229,10 @@ function selectMod(mod: DisplayModInfo) {
   selectedModKey.value = getModKey(mod);
 }
 
+function closeModDetail() {
+  selectedModKey.value = "";
+}
+
 function isSelectedMod(mod: DisplayModInfo): boolean {
   return selectedModKey.value === getModKey(mod);
 }
@@ -3755,7 +3759,7 @@ button.secondary:hover:not(:disabled) {
 
 .mods-workspace {
   display: grid;
-  grid-template-columns: minmax(430px, 1fr) minmax(340px, 420px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -3808,6 +3812,52 @@ button.secondary:hover:not(:disabled) {
 
 .compact-card-actions .tiny-button {
   width: 72px;
+}
+
+.mod-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(45, 36, 27, 0.3);
+  backdrop-filter: blur(2px);
+}
+
+.mod-detail-card {
+  width: min(780px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 24px;
+  background: #fffaf0;
+  box-shadow: 0 24px 70px rgba(45, 36, 27, 0.24);
+  border: 1px solid rgba(111, 168, 95, 0.35);
+}
+
+.mod-detail-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.mod-detail-card-header h3 {
+  margin: 4px 0 6px;
+  font-size: 24px;
+}
+
+.mod-detail-card-header p {
+  margin: 0;
+  color: #7a6652;
+  line-height: 1.45;
+}
+
+.detail-card-grid {
+  margin-top: 14px;
 }
 
 .side-detail-panel {
