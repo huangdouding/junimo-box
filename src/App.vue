@@ -690,10 +690,23 @@
             >
               {{ isSmapiInstalling ? smapiInstallStageMessage || "正在安装 SMAPI..." : smapiExists ? "更新 / 重装 SMAPI" : "下载并安装 SMAPI" }}
             </button>
+
+            <button
+              v-if="smapiInstallerOpened"
+              class="tool-action-button secondary-action"
+              :disabled="isSmapiInstalling"
+              @click="handleRecheckSmapiInstall"
+            >
+              我已完成安装，重新检测
+            </button>
           </div>
 
           <p v-if="isSmapiInstalling" class="tool-section-note smapi-install-stage-text">
             {{ smapiInstallStageMessage || "正在准备 SMAPI 安装..." }}
+          </p>
+
+          <p v-if="smapiInstallerOpened && !isSmapiInstalling" class="tool-section-note smapi-install-stage-text">
+            SMAPI {{ smapiInstallerVersion || "" }} 安装器已打开。请按官方安装器提示完成安装，完成后点击“我已完成安装，重新检测”。
           </p>
 
           <p class="tool-section-note">
@@ -1117,8 +1130,21 @@
           {{ isSmapiInstalling ? smapiInstallStageMessage || "正在安装 SMAPI..." : smapiExists ? "更新 / 重装 SMAPI" : "安装 SMAPI" }}
         </button>
 
+        <button
+          v-if="smapiInstallerOpened"
+          class="launch-button smapi-recheck-button"
+          :disabled="isSmapiInstalling"
+          @click="handleRecheckSmapiInstall"
+        >
+          我已完成安装，重新检测
+        </button>
+
         <p v-if="isSmapiInstalling" class="side-install-stage">
           {{ smapiInstallStageMessage || "正在准备 SMAPI 安装..." }}
+        </p>
+
+        <p v-if="smapiInstallerOpened && !isSmapiInstalling" class="side-install-stage">
+          安装器已打开。完成安装后请重新检测。
         </p>
       </div>
 
@@ -1328,6 +1354,8 @@ const stardewExists = ref(false);
 const smapiExists = ref(false);
 const modsFolderExists = ref(false);
 const isSmapiInstalling = ref(false);
+const smapiInstallerOpened = ref(false);
+const smapiInstallerVersion = ref("");
 const smapiInstallStageMessage = ref("");
 const smapiInstallDownloadedBytes = ref(0);
 type NoticeType = "success" | "info" | "warning" | "error";
@@ -2018,7 +2046,7 @@ async function collectModsFromFolder(
 
 async function handleInstallSmapi() {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    setNotice("error", "请先选择游戏目录。");
     return;
   }
 
@@ -2034,7 +2062,9 @@ async function handleInstallSmapi() {
   }
 
   isSmapiInstalling.value = true;
-  smapiInstallStageMessage.value = "正在读取下载源...";
+  smapiInstallerOpened.value = false;
+  smapiInstallerVersion.value = "";
+  smapiInstallStageMessage.value = "正在读取 SMAPI 下载源...";
   smapiInstallDownloadedBytes.value = 0;
   setNotice("info", smapiInstallStageMessage.value);
 
@@ -2043,21 +2073,41 @@ async function handleInstallSmapi() {
       gamePath: gamePath.value,
     });
 
-    await checkGameFiles(gamePath.value);
+    smapiInstallerOpened.value = true;
+    smapiInstallerVersion.value = result.version || "";
+    smapiInstallStageMessage.value = "SMAPI 官方安装器已打开。";
 
-    if (smapiExists.value) {
-      setNotice("success", `SMAPI ${result.version} 安装完成，已检测到 StardewModdingAPI.exe。`);
-    } else {
-      setNotice(
-        "warning",
-        "SMAPI 安装器已运行，但还没有检测到 StardewModdingAPI.exe。请确认安装器是否完成。"
-      );
-    }
+    setNotice(
+      "success",
+      `SMAPI ${result.version} 安装器已打开。请在安装器中完成安装，然后点击“我已完成安装，重新检测”。`
+    );
   } catch (error) {
+    smapiInstallerOpened.value = false;
     setNotice("error", `安装 SMAPI 失败：${String(error)}`);
   } finally {
     isSmapiInstalling.value = false;
   }
+}
+
+async function handleRecheckSmapiInstall() {
+  if (!gamePath.value) {
+    setNotice("error", "请先选择游戏目录。");
+    return;
+  }
+
+  await checkGameFiles(gamePath.value);
+
+  if (smapiExists.value) {
+    smapiInstallerOpened.value = false;
+    setNotice("success", "已检测到 StardewModdingAPI.exe，SMAPI 安装完成。");
+    await scanMods();
+    return;
+  }
+
+  setNotice(
+    "warning",
+    "仍未检测到 StardewModdingAPI.exe。请确认 SMAPI 安装器已经完成安装，并且安装到了当前选择的 Stardew Valley 目录。"
+  );
 }
 
 async function handleLaunchSmapi() {
@@ -5260,6 +5310,23 @@ button.secondary:hover:not(:disabled) {
   }
 }
 
+
+.secondary-action {
+  background: #8b6f47;
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: #755d3c;
+}
+
+.smapi-recheck-button {
+  background: #8b6f47;
+}
+
+.smapi-recheck-button:hover:not(:disabled) {
+  background: #755d3c;
+}
+
 </style>
 
 
@@ -5272,4 +5339,21 @@ button.secondary:hover:not(:disabled) {
   line-height: 1.45;
   word-break: break-word;
 }
+
+.secondary-action {
+  background: #8b6f47;
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: #755d3c;
+}
+
+.smapi-recheck-button {
+  background: #8b6f47;
+}
+
+.smapi-recheck-button:hover:not(:disabled) {
+  background: #755d3c;
+}
+
 </style>
