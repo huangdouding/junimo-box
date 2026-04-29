@@ -63,8 +63,13 @@
         </div>
       </header>
 
-      <div v-if="message" class="notice">
-        {{ message }}
+      <div
+        v-if="notice"
+        class="notice"
+        :class="`notice-${notice.type}`"
+      >
+        <span class="notice-icon">{{ noticeIcon }}</span>
+        <span>{{ notice.text }}</span>
       </div>
 
       <section v-if="activeView === 'overview'" class="view-stack">
@@ -1235,7 +1240,43 @@ const gamePath = ref("");
 const stardewExists = ref(false);
 const smapiExists = ref(false);
 const modsFolderExists = ref(false);
-const message = ref("");
+type NoticeType = "success" | "info" | "warning" | "error";
+
+type NoticePayload = {
+  type: NoticeType;
+  text: string;
+};
+
+const notice = ref<NoticePayload | null>(null);
+
+const noticeIcon = computed(() => {
+  if (!notice.value) {
+    return "";
+  }
+
+  const iconMap: Record<NoticeType, string> = {
+    success: "✅",
+    info: "ℹ️",
+    warning: "⚠️",
+    error: "❌",
+  };
+
+  return iconMap[notice.value.type];
+});
+
+const message = {
+  get value() {
+    return notice.value?.text ?? "";
+  },
+  set value(text: string) {
+    if (!text) {
+      clearNotice();
+      return;
+    }
+
+    setNotice(inferNoticeType(text), text);
+  },
+};
 
 const mods = ref<ModInfo[]>([]);
 const disabledMods = ref<ModInfo[]>([]);
@@ -1329,6 +1370,50 @@ const viewMetaMap: Record<ViewId, ViewMeta> = {
     description: "管理本地路径和 Junimo Box 基础偏好。",
   },
 };
+
+function setNotice(type: NoticeType, text: string) {
+  notice.value = { type, text };
+}
+
+function clearNotice() {
+  notice.value = null;
+}
+
+function inferNoticeType(text: string): NoticeType {
+  if (
+    text.includes("但发现") ||
+    text.includes("跳过") ||
+    text.includes("缺失") ||
+    text.includes("未安装")
+  ) {
+    return "warning";
+  }
+
+  if (
+    text.includes("失败") ||
+    text.includes("错误") ||
+    text.includes("无法") ||
+    text.includes("请先") ||
+    text.includes("请选择") ||
+    text.includes("请拖入") ||
+    text.includes("请至少") ||
+    text.includes("未找到") ||
+    text.includes("没有找到")
+  ) {
+    return "error";
+  }
+
+  if (
+    text.includes("已") ||
+    text.includes("完成") ||
+    text.includes("正常") ||
+    text.includes("成功")
+  ) {
+    return "success";
+  }
+
+  return "info";
+}
 
 const currentViewMeta = computed<ViewMeta>(() => viewMetaMap[activeView.value]);
 
@@ -2917,6 +3002,34 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   padding: 13px 18px;
   color: #7a4f22;
   font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(122, 79, 34, 0.1);
+}
+
+.notice-icon {
+  flex-shrink: 0;
+}
+
+.notice-success {
+  background: #e8f3df;
+  color: #2f6f3c;
+}
+
+.notice-info {
+  background: rgba(255, 250, 240, 0.92);
+  color: #7a4f22;
+}
+
+.notice-warning {
+  background: #f8e7c8;
+  color: #7a4f22;
+}
+
+.notice-error {
+  background: #f7dfd8;
+  color: #8f2f22;
 }
 
 .panel {
