@@ -189,6 +189,135 @@
           </p>
         </div>
 
+        <div v-if="selectedMod" class="panel mod-detail-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Mod 详情</h3>
+              <p class="detail-subtitle">{{ selectedMod.name }}</p>
+            </div>
+
+            <div class="panel-actions">
+              <span class="status-badge" :class="selectedMod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
+                {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+              </span>
+              <button class="tiny-button" @click="selectedModKey = ''">关闭</button>
+            </div>
+          </div>
+
+          <div class="detail-layout">
+            <div class="detail-main">
+              <div class="mod-badges detail-badges">
+                <span class="status-badge type-badge">{{ selectedMod.modType.label }}</span>
+                <span v-if="selectedMod.hasMissingRequiredDependency" class="status-badge missing-badge">
+                  缺失依赖
+                </span>
+              </div>
+
+              <p class="detail-description">
+                {{ selectedMod.description || "没有描述。" }}
+              </p>
+
+              <div class="detail-grid">
+                <div>
+                  <span>作者</span>
+                  <strong>{{ selectedMod.author || "未知作者" }}</strong>
+                </div>
+                <div>
+                  <span>版本</span>
+                  <strong>{{ selectedMod.version || "未知版本" }}</strong>
+                </div>
+                <div>
+                  <span>UniqueID</span>
+                  <strong>{{ selectedMod.uniqueId || "未提供" }}</strong>
+                </div>
+                <div>
+                  <span>文件夹</span>
+                  <strong>{{ selectedMod.folderName }}</strong>
+                </div>
+                <div>
+                  <span>EntryDll</span>
+                  <strong>{{ selectedMod.entryDll || "无" }}</strong>
+                </div>
+                <div>
+                  <span>当前状态</span>
+                  <strong :class="selectedMod.isDisabled ? 'optional' : 'ok'">
+                    {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-side">
+              <h4>操作</h4>
+              <div class="detail-actions">
+                <button class="tiny-button" @click="handleOpenDisplayedModFolder(selectedMod)">
+                  打开文件夹
+                </button>
+
+                <button
+                  v-if="selectedMod.isDisabled"
+                  class="tiny-button"
+                  @click="handleEnableMod(selectedMod.folderName)"
+                >
+                  启用 Mod
+                </button>
+
+                <button
+                  v-else
+                  class="tiny-button danger"
+                  @click="handleDisableMod(selectedMod.folderName)"
+                >
+                  禁用 Mod
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-dependencies">
+            <h4>依赖关系</h4>
+
+            <p v-if="!selectedMod.contentPackFor && selectedMod.dependencies.length === 0" class="muted-text">
+              这个 Mod 没有声明依赖。
+            </p>
+
+            <div v-else class="dependency-detail-list">
+              <div v-if="selectedMod.contentPackFor" class="dependency-detail-item">
+                <span>内容包依赖</span>
+                <strong :class="selectedMod.contentPackFor.isInstalled ? 'ok' : 'bad'">
+                  {{ selectedMod.contentPackFor.uniqueId }}
+                  {{ selectedMod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
+                </strong>
+              </div>
+
+              <div
+                v-for="dependency in selectedMod.dependencies"
+                :key="dependency.uniqueId"
+                class="dependency-detail-item"
+              >
+                <span>{{ dependency.isRequired ? "必需依赖" : "可选依赖" }}</span>
+                <strong
+                  :class="
+                    dependency.isInstalled
+                      ? 'ok'
+                      : dependency.isRequired
+                        ? 'bad'
+                        : 'optional'
+                  "
+                >
+                  {{ dependency.uniqueId }}
+                  {{
+                    dependency.isInstalled
+                      ? "已安装"
+                      : dependency.isRequired
+                        ? "缺失"
+                        : "可选未安装"
+                  }}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-if="lastInstalledZipMods.length > 0" class="panel">
           <div class="panel-header">
             <h3>最近安装</h3>
@@ -259,9 +388,14 @@
           <div class="mods-list">
             <article
               v-for="mod in filteredMods"
-              :key="`${mod.isDisabled ? 'disabled' : 'enabled'}-${mod.uniqueId || mod.folderName}`"
-              class="mod-item"
-              :class="{ disabled: mod.isDisabled, warning: mod.hasMissingRequiredDependency }"
+              :key="getModKey(mod)"
+              class="mod-item selectable-mod-item"
+              :class="{
+                disabled: mod.isDisabled,
+                warning: mod.hasMissingRequiredDependency,
+                selected: isSelectedMod(mod),
+              }"
+              @click="selectMod(mod)"
             >
               <div class="mod-main">
                 <div class="mod-title-row">
@@ -292,44 +426,6 @@
                   <span>文件夹：{{ mod.folderName }}</span>
                 </div>
 
-                <div
-                  v-if="mod.contentPackFor || mod.dependencies.length > 0"
-                  class="dependencies"
-                >
-                  <p v-if="mod.contentPackFor" class="dependency-line">
-                    内容包依赖：
-                    <span :class="mod.contentPackFor.isInstalled ? 'ok' : 'bad'">
-                      {{ mod.contentPackFor.uniqueId }}
-                      {{ mod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
-                    </span>
-                  </p>
-
-                  <p
-                    v-for="dependency in mod.dependencies"
-                    :key="dependency.uniqueId"
-                    class="dependency-line"
-                  >
-                    依赖：
-                    <span
-                      :class="
-                        dependency.isInstalled
-                          ? 'ok'
-                          : dependency.isRequired
-                            ? 'bad'
-                            : 'optional'
-                      "
-                    >
-                      {{ dependency.uniqueId }}
-                      {{
-                        dependency.isInstalled
-                          ? "已安装"
-                          : dependency.isRequired
-                            ? "缺失"
-                            : "可选未安装"
-                      }}
-                    </span>
-                  </p>
-                </div>
               </div>
 
               <div class="mod-actions">
@@ -338,14 +434,14 @@
                 </span>
 
                 <div class="mod-button-row">
-                  <button class="tiny-button" @click="handleOpenDisplayedModFolder(mod)">
+                  <button class="tiny-button" @click.stop="handleOpenDisplayedModFolder(mod)">
                     打开
                   </button>
 
                   <button
                     v-if="mod.isDisabled"
                     class="tiny-button"
-                    @click="handleEnableMod(mod.folderName)"
+                    @click.stop="handleEnableMod(mod.folderName)"
                   >
                     启用
                   </button>
@@ -353,7 +449,7 @@
                   <button
                     v-else
                     class="tiny-button danger"
-                    @click="handleDisableMod(mod.folderName)"
+                    @click.stop="handleDisableMod(mod.folderName)"
                   >
                     禁用
                   </button>
@@ -628,6 +724,92 @@
         </div>
       </section>
 
+
+      <section v-if="activeView === 'profiles'" class="view-stack">
+        <div class="panel compact-panel">
+          <div class="panel-header">
+            <h3>配置方案 Profiles</h3>
+            <span>{{ profiles.length }} 个</span>
+          </div>
+
+          <p class="muted-text">
+            保存当前已启用的 Mods 组合，之后可以一键切换到对应配置。第一版按文件夹名保存，不会删除任何文件。
+          </p>
+
+          <div class="profile-create-row">
+            <input
+              v-model="newProfileName"
+              class="profile-input"
+              placeholder="例如：日常游玩 / 美化截图 / 多人联机"
+              @keydown.enter="handleSaveCurrentProfile"
+            />
+
+            <button
+              :disabled="!gamePath || mods.length === 0"
+              @click="handleSaveCurrentProfile"
+            >
+              保存当前配置
+            </button>
+          </div>
+        </div>
+
+        <div v-if="profiles.length > 0" class="panel">
+          <div class="panel-header">
+            <h3>已有配置</h3>
+            <span>点击应用会移动 Mods / Disabled Mods</span>
+          </div>
+
+          <div class="profile-list">
+            <article
+              v-for="profile in profiles"
+              :key="profile.id"
+              class="profile-card"
+            >
+              <div class="profile-main">
+                <h4>{{ profile.name }}</h4>
+                <p>
+                  {{ profile.enabledFolderNames.length }} 个启用 Mod · 更新于 {{ formatDateTime(profile.updatedAt) }}
+                </p>
+
+                <div class="profile-mod-preview">
+                  <span
+                    v-for="folderName in profile.enabledFolderNames.slice(0, 8)"
+                    :key="folderName"
+                  >
+                    {{ folderName }}
+                  </span>
+                  <span v-if="profile.enabledFolderNames.length > 8">
+                    +{{ profile.enabledFolderNames.length - 8 }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="profile-actions">
+                <button
+                  class="tiny-button"
+                  :disabled="!gamePath"
+                  @click="handleApplyProfile(profile)"
+                >
+                  应用
+                </button>
+
+                <button
+                  class="tiny-button danger"
+                  @click="handleDeleteProfile(profile.id)"
+                >
+                  删除
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <h3>还没有配置方案</h3>
+          <p>先在 Mods 页面启用你想要的一组 Mod，然后回到这里保存当前配置。</p>
+        </div>
+      </section>
+
       <section v-if="activeView === 'settings'" class="view-stack">
         <div class="panel compact-panel">
           <div class="panel-header">
@@ -726,8 +908,9 @@ import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
 
 const STORAGE_KEY = "junimo-box-game-path";
+const PROFILES_STORAGE_KEY = "junimo-box-profiles";
 
-type ViewId = "overview" | "mods" | "logs" | "tools" | "settings";
+type ViewId = "overview" | "mods" | "logs" | "tools" | "profiles" | "settings";
 type ModStatusFilter = "all" | "enabled" | "disabled";
 type ModDependencyFilter = "all" | "missing";
 
@@ -824,11 +1007,20 @@ type ZipDependencyRow = {
   className: string;
 };
 
+type ModProfile = {
+  id: string;
+  name: string;
+  enabledFolderNames: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
   { id: "overview", label: "总览", icon: "🏡" },
   { id: "mods", label: "Mods", icon: "📦" },
   { id: "logs", label: "日志", icon: "📜" },
   { id: "tools", label: "工具箱", icon: "🧰" },
+  { id: "profiles", label: "配置", icon: "🧩" },
   { id: "settings", label: "设置", icon: "⚙️" },
 ];
 
@@ -874,6 +1066,9 @@ let unlistenDragDrop: (() => void) | null = null;
 const modSearchQuery = ref("");
 const modStatusFilter = ref<ModStatusFilter>("all");
 const modDependencyFilter = ref<ModDependencyFilter>("all");
+const selectedModKey = ref("");
+const profiles = ref<ModProfile[]>([]);
+const newProfileName = ref("");
 
 const enabledModUniqueIds = computed(() =>
   new Set(mods.value.map((mod) => mod.uniqueId).filter(Boolean))
@@ -926,6 +1121,11 @@ const viewMetaMap: Record<ViewId, ViewMeta> = {
     title: "工具箱",
     description: "打开常用目录，导出报告，预览并安装 ZIP Mod。",
   },
+  profiles: {
+    eyebrow: "Profiles",
+    title: "配置方案",
+    description: "保存、查看并应用不同的 Mod 启用组合。",
+  },
   settings: {
     eyebrow: "Settings",
     title: "设置",
@@ -975,7 +1175,16 @@ const filteredMods = computed<DisplayModInfo[]>(() => {
   });
 });
 
+const selectedMod = computed<DisplayModInfo | null>(() => {
+  if (!selectedModKey.value) {
+    return null;
+  }
+
+  return allDisplayMods.value.find((mod) => getModKey(mod) === selectedModKey.value) || null;
+});
+
 onMounted(async () => {
+  loadProfiles();
   await setupZipDragDrop();
 
   const savedPath = localStorage.getItem(STORAGE_KEY);
@@ -996,6 +1205,165 @@ onUnmounted(() => {
   }
 });
 
+
+function loadProfiles() {
+  try {
+    const rawProfiles = localStorage.getItem(PROFILES_STORAGE_KEY);
+
+    if (!rawProfiles) {
+      profiles.value = [];
+      return;
+    }
+
+    const parsedProfiles = JSON.parse(rawProfiles) as ModProfile[];
+
+    profiles.value = Array.isArray(parsedProfiles)
+      ? parsedProfiles.filter(
+          (profile) =>
+            profile &&
+            typeof profile.id === "string" &&
+            typeof profile.name === "string" &&
+            Array.isArray(profile.enabledFolderNames)
+        )
+      : [];
+  } catch (error) {
+    profiles.value = [];
+    message.value = `读取配置方案失败：${String(error)}`;
+  }
+}
+
+function saveProfiles() {
+  localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profiles.value));
+}
+
+function createProfileId() {
+  return `profile-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function formatDateTime(value: string) {
+  if (!value) {
+    return "未知时间";
+  }
+
+  return new Date(value).toLocaleString();
+}
+
+function getCurrentEnabledFolderNames() {
+  return mods.value
+    .map((mod) => mod.folderName)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function handleSaveCurrentProfile() {
+  const name = newProfileName.value.trim();
+
+  if (!name) {
+    message.value = "请先输入配置方案名称。";
+    return;
+  }
+
+  if (mods.value.length === 0) {
+    message.value = "当前没有已启用 Mod，无法保存配置方案。";
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const enabledFolderNames = getCurrentEnabledFolderNames();
+  const existingProfile = profiles.value.find((profile) => profile.name === name);
+
+  if (existingProfile) {
+    existingProfile.enabledFolderNames = enabledFolderNames;
+    existingProfile.updatedAt = now;
+    message.value = `已覆盖配置方案：${name}`;
+  } else {
+    profiles.value.unshift({
+      id: createProfileId(),
+      name,
+      enabledFolderNames,
+      createdAt: now,
+      updatedAt: now,
+    });
+    message.value = `已保存配置方案：${name}`;
+  }
+
+  newProfileName.value = "";
+  saveProfiles();
+}
+
+function handleDeleteProfile(profileId: string) {
+  const targetProfile = profiles.value.find((profile) => profile.id === profileId);
+  profiles.value = profiles.value.filter((profile) => profile.id !== profileId);
+  saveProfiles();
+  message.value = targetProfile ? `已删除配置方案：${targetProfile.name}` : "已删除配置方案。";
+}
+
+async function handleApplyProfile(profile: ModProfile) {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const targetEnabledFolders = new Set(profile.enabledFolderNames);
+  const errors: string[] = [];
+  let enabledCount = 0;
+  let disabledCount = 0;
+
+  for (const mod of [...disabledMods.value]) {
+    if (!targetEnabledFolders.has(mod.folderName)) {
+      continue;
+    }
+
+    const from = `${gamePath.value}\\Disabled Mods\\${mod.folderName}`;
+    const to = `${gamePath.value}\\Mods\\${mod.folderName}`;
+
+    try {
+      if (await exists(to)) {
+        errors.push(`启用跳过：Mods 中已存在 ${mod.folderName}`);
+        continue;
+      }
+
+      await invoke("move_folder", { from, to });
+      enabledCount += 1;
+    } catch (error) {
+      errors.push(`启用失败：${mod.folderName} - ${String(error)}`);
+    }
+  }
+
+  for (const mod of [...mods.value]) {
+    if (targetEnabledFolders.has(mod.folderName)) {
+      continue;
+    }
+
+    const from = `${gamePath.value}\\Mods\\${mod.folderName}`;
+    const to = `${gamePath.value}\\Disabled Mods\\${mod.folderName}`;
+
+    try {
+      if (await exists(to)) {
+        errors.push(`禁用跳过：Disabled Mods 中已存在 ${mod.folderName}`);
+        continue;
+      }
+
+      await invoke("move_folder", { from, to });
+      disabledCount += 1;
+    } catch (error) {
+      errors.push(`禁用失败：${mod.folderName} - ${String(error)}`);
+    }
+  }
+
+  await checkGameFiles(gamePath.value);
+  await scanMods();
+  selectedModKey.value = "";
+
+  if (errors.length > 0) {
+    message.value = `已应用配置：${profile.name}。启用 ${enabledCount} 个，禁用 ${disabledCount} 个；有 ${errors.length} 个操作被跳过或失败。${errors.slice(0, 2).join("；")}`;
+  } else {
+    message.value = `已应用配置：${profile.name}。启用 ${enabledCount} 个，禁用 ${disabledCount} 个。`;
+  }
+
+  activeView.value = "mods";
+}
+
 async function handleSelectPath() {
   const selected = await open({
     directory: true,
@@ -1014,6 +1382,7 @@ async function handleSelectPath() {
   skippedFolders.value = [];
   missingDependencies.value = [];
   lastInstalledZipMods.value = [];
+  selectedModKey.value = "";
 
   localStorage.setItem(STORAGE_KEY, selected);
 
@@ -1271,6 +1640,7 @@ async function handleDisableMod(folderName: string) {
   try {
     await invoke("move_folder", { from, to });
     message.value = `已禁用 Mod：${folderName}`;
+    selectedModKey.value = "";
     await scanMods();
   } catch (error) {
     message.value = `禁用 Mod 失败：${String(error)}`;
@@ -1299,6 +1669,7 @@ async function handleEnableMod(folderName: string) {
   try {
     await invoke("move_folder", { from, to });
     message.value = `已启用 Mod：${folderName}`;
+    selectedModKey.value = "";
     await scanMods();
   } catch (error) {
     message.value = `启用 Mod 失败：${String(error)}`;
@@ -1625,6 +1996,18 @@ function getZipDependencyRows(mod: ZipModPreview): ZipDependencyRow[] {
         className,
       };
     });
+}
+
+function getModKey(mod: DisplayModInfo): string {
+  return `${mod.isDisabled ? "disabled" : "enabled"}-${mod.uniqueId || mod.folderName}`;
+}
+
+function selectMod(mod: DisplayModInfo) {
+  selectedModKey.value = getModKey(mod);
+}
+
+function isSelectedMod(mod: DisplayModInfo): boolean {
+  return selectedModKey.value === getModKey(mod);
 }
 
 function clearModFilters() {
@@ -2803,6 +3186,125 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   line-height: 1.5;
 }
 
+
+.mod-detail-panel {
+  border: 1px solid rgba(111, 168, 95, 0.28);
+}
+
+.detail-subtitle {
+  margin: 4px 0 0;
+  color: #7a6652;
+  font-size: 14px;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 16px;
+}
+
+.detail-badges {
+  margin-bottom: 10px;
+}
+
+.detail-description {
+  margin: 0 0 14px;
+  color: #4b3a2a;
+  line-height: 1.55;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-grid > div {
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: #f6ead8;
+  min-width: 0;
+}
+
+.detail-grid span {
+  display: block;
+  margin-bottom: 5px;
+  color: #7a6652;
+  font-size: 12px;
+}
+
+.detail-grid strong {
+  display: block;
+  word-break: break-all;
+  font-size: 13px;
+}
+
+.detail-side {
+  padding: 14px;
+  border-radius: 16px;
+  background: #f6ead8;
+  align-self: start;
+}
+
+.detail-side h4,
+.detail-dependencies h4 {
+  margin: 0 0 10px;
+}
+
+.detail-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-actions .tiny-button {
+  width: 100%;
+}
+
+.detail-dependencies {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(92, 70, 48, 0.14);
+}
+
+.dependency-detail-list {
+  display: grid;
+  gap: 8px;
+}
+
+.dependency-detail-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f6ead8;
+}
+
+.dependency-detail-item span {
+  color: #7a6652;
+  flex-shrink: 0;
+}
+
+.dependency-detail-item strong {
+  text-align: right;
+  word-break: break-all;
+}
+
+.selectable-mod-item {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, outline-color 0.15s ease;
+}
+
+.selectable-mod-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(67, 47, 27, 0.1);
+}
+
+.selectable-mod-item.selected {
+  outline: 2px solid rgba(111, 168, 95, 0.75);
+  background: #edf5e4;
+}
+
 .right-panel {
   height: 100%;
   padding: 16px 14px;
@@ -2964,6 +3466,92 @@ button.secondary:hover:not(:disabled) {
   margin: 0;
   color: #2f8f46;
   font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .detail-layout,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.profile-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.profile-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid rgba(92, 70, 48, 0.18);
+  border-radius: 14px;
+  background: #fffaf0;
+  color: #2d241b;
+  font-size: 14px;
+  outline: none;
+}
+
+.profile-input:focus {
+  border-color: rgba(111, 168, 95, 0.75);
+  box-shadow: 0 0 0 3px rgba(111, 168, 95, 0.14);
+}
+
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f6ead8;
+}
+
+.profile-main {
+  min-width: 0;
+}
+
+.profile-main h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.profile-main p {
+  margin: 0 0 10px;
+  color: #7a6652;
+  font-size: 14px;
+}
+
+.profile-mod-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.profile-mod-preview span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #e2d1b8;
+  color: #5c4630;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
 }
 
 @media (max-width: 1100px) {
