@@ -751,93 +751,100 @@
           </div>
         </div>
 
-        <div v-if="isProfileEditorOpen" class="panel profile-editor-panel">
-          <div class="panel-header">
-            <div>
-              <h3>{{ profileEditorMode === 'edit' ? '编辑配置' : '新建配置' }}</h3>
-              <p class="muted-text">
-                勾选这个配置要启用的 Mod。保存后，点击“应用”会按这份列表移动 Mods / Disabled Mods。
-              </p>
-            </div>
-
-            <button class="tiny-button" @click="closeProfileEditor">
-              关闭
-            </button>
-          </div>
-
-          <div class="profile-editor-grid">
-            <label class="profile-field">
-              <span>配置名称</span>
-              <input
-                v-model="profileDraftName"
-                class="profile-input"
-                placeholder="例如：日常游玩 / SVE / 多人联机"
-              />
-            </label>
-
-            <label class="profile-field">
-              <span>搜索 Mod</span>
-              <input
-                v-model="profileDraftSearchQuery"
-                class="profile-input"
-                placeholder="按名称、作者、文件夹或类型搜索"
-              />
-            </label>
-          </div>
-
-          <div class="profile-editor-summary">
-            <span>已选择 {{ profileDraftEnabledFolders.length }} / {{ profileSelectableMods.length }} 个 Mod</span>
-
-            <div class="profile-editor-actions">
-              <button class="tiny-button" @click="selectAllProfileMods">
-                全选
-              </button>
-              <button class="tiny-button" @click="clearProfileDraft">
-                清空
-              </button>
-            </div>
-          </div>
-
-          <div class="profile-select-list">
-            <label
-              v-for="mod in filteredProfileSelectableMods"
-              :key="mod.folderName"
-              class="profile-select-item"
-              :class="{ selected: isProfileFolderSelected(mod.folderName) }"
-            >
-              <input
-                type="checkbox"
-                :checked="isProfileFolderSelected(mod.folderName)"
-                @change="toggleProfileFolder(mod.folderName)"
-              />
-
-              <div class="profile-select-main">
-                <strong>{{ mod.name }}</strong>
-                <p>{{ mod.author || '未知作者' }} · v{{ mod.version || '未知版本' }}</p>
-                <span>{{ mod.folderName }}</span>
+        <div
+          v-if="isProfileEditorOpen"
+          class="profile-card-overlay"
+          @click.self="closeProfileEditor"
+        >
+          <section class="profile-editor-card">
+            <div class="profile-card-header">
+              <div>
+                <p class="eyebrow">Profile Editor</p>
+                <h3>{{ profileEditorMode === 'edit' ? '编辑配置' : '新建配置' }}</h3>
+                <p>
+                  勾选这个配置要启用的 Mod。保存后，点击“应用”会按这份列表移动 Mods / Disabled Mods。
+                </p>
               </div>
 
-              <div class="profile-select-tags">
-                <span class="mod-type">{{ mod.modType.label }}</span>
-                <span :class="mod.isDisabled ? 'status-badge disabled' : 'status-badge enabled'">
-                  {{ mod.isDisabled ? '当前禁用' : '当前启用' }}
-                </span>
+              <button class="tiny-button" @click="closeProfileEditor">
+                关闭
+              </button>
+            </div>
+
+            <div class="profile-editor-grid">
+              <label class="profile-field">
+                <span>配置名称</span>
+                <input
+                  v-model="profileDraftName"
+                  class="profile-input"
+                  placeholder="例如：日常游玩 / SVE / 多人联机"
+                />
+              </label>
+
+              <label class="profile-field">
+                <span>搜索 Mod</span>
+                <input
+                  v-model="profileDraftSearchQuery"
+                  class="profile-input"
+                  placeholder="按名称、作者、文件夹或类型搜索"
+                />
+              </label>
+            </div>
+
+            <div class="profile-editor-summary">
+              <span>已选择 {{ profileDraftEnabledFolders.length }} / {{ profileSelectableMods.length }} 个 Mod</span>
+
+              <div class="profile-editor-actions">
+                <button class="tiny-button" @click="selectAllProfileMods">
+                  全选
+                </button>
+                <button class="tiny-button" @click="clearProfileDraft">
+                  清空
+                </button>
               </div>
-            </label>
-          </div>
+            </div>
 
-          <div class="profile-editor-footer">
-            <button
-              :disabled="!profileDraftName.trim() || profileDraftEnabledFolders.length === 0"
-              @click="handleSaveProfileDraft"
-            >
-              保存配置
-            </button>
+            <div class="profile-select-list">
+              <label
+                v-for="mod in filteredProfileSelectableMods"
+                :key="mod.folderName"
+                class="profile-select-item"
+                :class="{ selected: isProfileFolderSelected(mod.folderName) }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="isProfileFolderSelected(mod.folderName)"
+                  @change="toggleProfileFolder(mod.folderName)"
+                />
 
-            <button class="secondary" @click="closeProfileEditor">
-              取消
-            </button>
-          </div>
+                <div class="profile-select-main">
+                  <strong>{{ mod.name }}</strong>
+                  <p>{{ mod.author || '未知作者' }} · v{{ mod.version || '未知版本' }}</p>
+                  <span>{{ mod.folderName }}</span>
+                </div>
+
+                <div class="profile-select-tags">
+                  <span class="mod-type">{{ mod.modType.label }}</span>
+                  <span :class="mod.isDisabled ? 'status-badge disabled' : 'status-badge enabled'">
+                    {{ mod.isDisabled ? '当前禁用' : '当前启用' }}
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            <div class="profile-editor-footer">
+              <button
+                :disabled="!profileDraftName.trim() || profileDraftEnabledFolders.length === 0"
+                @click="handleSaveProfileDraft"
+              >
+                保存配置
+              </button>
+
+              <button class="secondary" @click="closeProfileEditor">
+                取消
+              </button>
+            </div>
+          </section>
         </div>
 
         <div v-if="profiles.length > 0" class="panel">
@@ -3995,8 +4002,46 @@ button.secondary:hover:not(:disabled) {
   margin-top: 16px;
 }
 
-.profile-editor-panel {
+.profile-card-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(45, 36, 27, 0.28);
+  backdrop-filter: blur(2px);
+}
+
+.profile-editor-card {
+  width: min(860px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 24px;
+  background: #fffaf0;
+  box-shadow: 0 24px 70px rgba(45, 36, 27, 0.24);
   border: 1px solid rgba(111, 168, 95, 0.35);
+}
+
+.profile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.profile-card-header h3 {
+  margin: 4px 0 6px;
+  font-size: 22px;
+}
+
+.profile-card-header p {
+  margin: 0;
+  color: #7a6652;
+  line-height: 1.45;
 }
 
 .profile-editor-grid {
@@ -4033,7 +4078,7 @@ button.secondary:hover:not(:disabled) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  max-height: 440px;
+  max-height: 360px;
   overflow: auto;
   padding-right: 4px;
 }
@@ -4111,6 +4156,23 @@ button.secondary:hover:not(:disabled) {
   .profile-editor-grid,
   .profile-select-list {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-card-overlay {
+    padding: 12px;
+    align-items: stretch;
+  }
+
+  .profile-editor-card {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    border-radius: 20px;
+  }
+
+  .profile-card-header {
+    flex-direction: column;
   }
 }
 
