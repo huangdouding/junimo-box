@@ -201,61 +201,26 @@
               筛选已启用
             </p>
           </div>
-        </div>
 
-        <div
-          v-if="lastInstalledZipMods.length > 0 || (mods.length > 0 && missingDependencies.length > 0)"
-          class="mods-alert-grid"
-        >
-          <div v-if="lastInstalledZipMods.length > 0" class="panel compact-panel install-summary-panel">
-            <div class="panel-header">
-              <h3>最近安装</h3>
-              <span>{{ lastInstalledZipMods.length }} 个</span>
-            </div>
-
-            <div class="recent-install-list">
-              <span
-                v-for="mod in lastInstalledZipMods.slice(0, 4)"
-                :key="mod.unique_id || mod.manifest_path"
-              >
-                {{ mod.name || mod.suggested_folder }}
-              </span>
-              <span v-if="lastInstalledZipMods.length > 4">
-                +{{ lastInstalledZipMods.length - 4 }}
-              </span>
-            </div>
-
-            <div v-if="missingDependencies.length > 0" class="install-warning compact-result-box">
-              <strong>⚠️ 安装后发现缺失依赖</strong>
-              <p>有 {{ missingDependencies.length }} 项必需依赖未安装。</p>
-            </div>
-
-            <div v-else class="install-success compact-result-box">
-              <strong>✅ 依赖检查正常</strong>
-              <p>当前已启用 Mod 没有发现缺失的必需依赖。</p>
-            </div>
+          <div v-if="lastInstalledZipMods.length > 0" class="inline-install-summary">
+            <span>最近安装：</span>
+            <strong>
+              {{
+                lastInstalledZipMods
+                  .slice(0, 3)
+                  .map((mod) => mod.name || mod.suggested_folder)
+                  .join("、")
+              }}
+            </strong>
+            <span v-if="lastInstalledZipMods.length > 3">
+              等 {{ lastInstalledZipMods.length }} 个 Mod
+            </span>
           </div>
 
-          <div v-if="mods.length > 0 && missingDependencies.length > 0" class="panel compact-panel dependency-summary-panel">
-            <div class="panel-header">
-              <h3>依赖检查</h3>
-              <span>{{ missingDependencies.length }} 项缺失</span>
-            </div>
-
-            <div class="missing-list compact-missing-list">
-              <article
-                v-for="dependency in missingDependencies.slice(0, 4)"
-                :key="dependency.uniqueId"
-                class="missing-item"
-              >
-                <strong>{{ dependency.uniqueId }}</strong>
-                <p>被 {{ dependency.requiredBy.length }} 个 Mod 需要</p>
-              </article>
-            </div>
-
-            <p v-if="missingDependencies.length > 4" class="muted-text">
-              还有 {{ missingDependencies.length - 4 }} 项缺失依赖，请在相关 Mod 详情中查看。
-            </p>
+          <div v-if="mods.length > 0 && missingDependencies.length > 0" class="inline-dependency-summary">
+            <span>依赖提醒：</span>
+            <strong>{{ missingDependencies.length }} 项缺失依赖</strong>
+            <span>，请在相关 Mod 详情中查看。</span>
           </div>
         </div>
 
@@ -742,13 +707,43 @@
             </div>
           </div>
 
+          <div class="url-zip-box">
+            <div class="url-zip-header">
+              <strong>从链接安装 ZIP</strong>
+              <span>支持直接 .zip 下载链接</span>
+            </div>
+
+            <div class="url-zip-form">
+              <input
+                v-model="urlZipInput"
+                class="url-zip-input"
+                type="text"
+                placeholder="粘贴 Mod ZIP 下载链接，例如 https://.../mod.zip"
+                :disabled="isUrlZipDownloading"
+                @keydown.enter="handleDownloadZipFromUrl"
+              />
+
+              <button
+                class="url-zip-button"
+                :disabled="!gamePath || isUrlZipDownloading || !urlZipInput.trim()"
+                @click="handleDownloadZipFromUrl"
+              >
+                {{ isUrlZipDownloading ? "下载中..." : "下载并预览" }}
+              </button>
+            </div>
+
+            <p v-if="urlZipDownloadMessage" class="tool-section-note url-zip-status">
+              {{ urlZipDownloadMessage }}
+            </p>
+          </div>
+
           <div class="zip-tool-actions">
             <button @click="handlePreviewZipMod">
               选择 ZIP 文件
             </button>
 
             <span class="zip-tool-hint">
-              支持安装前依赖检查和临时目录安全解压。
+              支持安装前依赖检查、链接下载和临时目录安全解压。
             </span>
           </div>
         </article>
@@ -1351,6 +1346,13 @@ type SmapiInstallResult = {
   installer_path: string;
 };
 
+type UrlZipDownloadResult = {
+  download_url: string;
+  zip_path: string;
+  file_name: string;
+  file_size: number;
+};
+
 type SmapiInstallStagePayload = {
   stage: string;
   message: string;
@@ -1495,6 +1497,9 @@ const selectedZipPath = ref("");
 const zipModPreviews = ref<ZipModPreview[]>([]);
 const lastInstalledZipMods = ref<ZipModPreview[]>([]);
 const isZipDragOver = ref(false);
+const urlZipInput = ref("");
+const isUrlZipDownloading = ref(false);
+const urlZipDownloadMessage = ref("");
 
 let unlistenDragDrop: (() => void) | null = null;
 let unlistenSmapiInstallStage: UnlistenFn | null = null;
@@ -2912,6 +2917,46 @@ async function setupZipDragDrop() {
     });
   } catch (error) {
     console.warn("注册 ZIP 拖拽事件失败", error);
+  }
+}
+
+async function handleDownloadZipFromUrl() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const url = urlZipInput.value.trim();
+
+  if (!url) {
+    message.value = "请先输入 ZIP 下载链接。";
+    return;
+  }
+
+  if (!url.toLowerCase().startsWith("http://") && !url.toLowerCase().startsWith("https://")) {
+    message.value = "请输入以 http:// 或 https:// 开头的 ZIP 下载链接。";
+    return;
+  }
+
+  isUrlZipDownloading.value = true;
+  urlZipDownloadMessage.value = "正在下载 ZIP Mod，下载速度取决于链接来源和网络环境...";
+  activeView.value = "tools";
+
+  try {
+    const result = await invoke<UrlZipDownloadResult>("download_zip_from_url", {
+      url,
+      gamePath: gamePath.value,
+    });
+
+    urlZipDownloadMessage.value = `下载完成：${result.file_name}，正在生成安装预览...`;
+    urlZipInput.value = "";
+
+    await previewZipPath(result.zip_path);
+  } catch (error) {
+    urlZipDownloadMessage.value = "";
+    message.value = `下载 ZIP Mod 失败：${String(error)}`;
+  } finally {
+    isUrlZipDownloading.value = false;
   }
 }
 
@@ -5594,9 +5639,10 @@ button.secondary:hover:not(:disabled) {
 
 
 /* v0.2.1：统一滚动结构，避免双滚动
-   - app-shell / content / right-panel 不滚动
+   - app-shell / content 不滚动
    - 普通页面在 view-stack 内部滚动
    - Mods 页面只让 Mod 列表内部滚动
+   - 右侧栏自己内部滚动
    - 弹出小卡片自己滚动
 */
 .content {
@@ -5664,7 +5710,35 @@ button.secondary:hover:not(:disabled) {
 }
 
 .right-panel {
-  overflow: hidden !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  padding-right: 10px !important;
+}
+
+.right-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.right-panel::-webkit-scrollbar-thumb {
+  background: rgba(92, 70, 48, 0.28);
+  border-radius: 999px;
+}
+
+.right-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.right-panel .launch-card,
+.right-panel .side-card {
+  flex-shrink: 0;
+}
+
+.right-panel .launch-button,
+.right-panel .secondary,
+.right-panel button {
+  min-height: 42px;
 }
 
 /* v0.2.0：Profiles 页面轻量化 */
@@ -5896,6 +5970,159 @@ button.secondary:hover:not(:disabled) {
   min-width: 52px;
 }
 
+/* v0.4.0：从链接安装 ZIP */
+.url-zip-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f6ead8;
+  border: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.url-zip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.url-zip-header strong {
+  font-size: 15px;
+}
+
+.url-zip-header span {
+  color: #7a6652;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.url-zip-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.url-zip-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(92, 70, 48, 0.22);
+  border-radius: 13px;
+  padding: 11px 13px;
+  background: #fffaf0;
+  color: #2d241b;
+  font-size: 14px;
+}
+
+.url-zip-input:disabled {
+  opacity: 0.65;
+}
+
+.url-zip-button {
+  white-space: nowrap;
+}
+
+.url-zip-status {
+  margin-top: 10px !important;
+}
+
+@media (max-width: 760px) {
+  .url-zip-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* v0.3.0：修复 Profile 编辑小卡片双滚动 */
+.profile-card-overlay {
+  overflow: hidden !important;
+}
+
+.profile-editor-card,
+.compact-profile-editor {
+  max-height: calc(100vh - 48px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+}
+
+.profile-card-header,
+.profile-editor-grid,
+.profile-editor-summary,
+.profile-editor-footer {
+  flex-shrink: 0 !important;
+}
+
+.profile-select-list,
+.compact-profile-select-list {
+  flex: 1 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 6px !important;
+}
+
+.profile-editor-footer {
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(92, 70, 48, 0.12) !important;
+  background: #fffaf0 !important;
+}
+
+@media (max-width: 820px) {
+  .profile-editor-card,
+  .compact-profile-editor {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+  }
+
+  .profile-editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* v0.4.0：安装结果改为轻量行内提示，避免顶开 Mod 列表 */
+.inline-install-summary,
+.inline-dependency-summary {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inline-install-summary {
+  background: rgba(229, 245, 219, 0.9);
+  border: 1px solid rgba(111, 168, 95, 0.22);
+  color: #2f7d3e;
+}
+
+.inline-install-summary span {
+  color: #4f7d48;
+}
+
+.inline-install-summary strong {
+  color: #1f6d34;
+}
+
+.inline-dependency-summary {
+  background: rgba(255, 243, 205, 0.9);
+  border: 1px solid rgba(161, 119, 55, 0.22);
+  color: #8a5a18;
+}
+
+.inline-dependency-summary span {
+  color: #8a6a3d;
+}
+
+.inline-dependency-summary strong {
+  color: #7a4b11;
+}
+
 </style>
 
 
@@ -5936,6 +6163,71 @@ button.secondary:hover:not(:disabled) {
 .profile-actions.compact-profile-actions .tiny-button {
   min-width: 52px;
 }
+
+/* v0.4.0：从链接安装 ZIP */
+.url-zip-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f6ead8;
+  border: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.url-zip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.url-zip-header strong {
+  font-size: 15px;
+}
+
+.url-zip-header span {
+  color: #7a6652;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.url-zip-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.url-zip-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(92, 70, 48, 0.22);
+  border-radius: 13px;
+  padding: 11px 13px;
+  background: #fffaf0;
+  color: #2d241b;
+  font-size: 14px;
+}
+
+.url-zip-input:disabled {
+  opacity: 0.65;
+}
+
+.url-zip-button {
+  white-space: nowrap;
+}
+
+.url-zip-status {
+  margin-top: 10px !important;
+}
+
+@media (max-width: 760px) {
+  .url-zip-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* v0.3.0：修复 Profile 编辑小卡片双滚动 */
 .profile-card-overlay {
   overflow: hidden !important;
@@ -5950,7 +6242,6 @@ button.secondary:hover:not(:disabled) {
   min-height: 0 !important;
 }
 
-/* 顶部标题、输入框、搜索、统计、底部按钮都固定 */
 .profile-card-header,
 .profile-editor-grid,
 .profile-editor-summary,
@@ -5958,7 +6249,6 @@ button.secondary:hover:not(:disabled) {
   flex-shrink: 0 !important;
 }
 
-/* 只有 Mod 勾选列表内部滚动 */
 .profile-select-list,
 .compact-profile-select-list {
   flex: 1 !important;
@@ -5969,7 +6259,6 @@ button.secondary:hover:not(:disabled) {
   padding-right: 6px !important;
 }
 
-/* 底部按钮固定在卡片底部 */
 .profile-editor-footer {
   margin-top: 12px !important;
   padding-top: 12px !important;
@@ -5977,7 +6266,6 @@ button.secondary:hover:not(:disabled) {
   background: #fffaf0 !important;
 }
 
-/* 小屏幕下也只保留列表内部滚动 */
 @media (max-width: 820px) {
   .profile-editor-card,
   .compact-profile-editor {
@@ -5989,4 +6277,44 @@ button.secondary:hover:not(:disabled) {
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* v0.4.0：安装结果改为轻量行内提示，避免顶开 Mod 列表 */
+.inline-install-summary,
+.inline-dependency-summary {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inline-install-summary {
+  background: rgba(229, 245, 219, 0.9);
+  border: 1px solid rgba(111, 168, 95, 0.22);
+  color: #2f7d3e;
+}
+
+.inline-install-summary span {
+  color: #4f7d48;
+}
+
+.inline-install-summary strong {
+  color: #1f6d34;
+}
+
+.inline-dependency-summary {
+  background: rgba(255, 243, 205, 0.9);
+  border: 1px solid rgba(161, 119, 55, 0.22);
+  color: #8a5a18;
+}
+
+.inline-dependency-summary span {
+  color: #8a6a3d;
+}
+
+.inline-dependency-summary strong {
+  color: #7a4b11;
+}
+
 </style>

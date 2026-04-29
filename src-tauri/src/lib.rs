@@ -429,12 +429,84 @@ struct SmapiInstallResult {
     installer_path: String,
 }
 
+#[derive(Serialize)]
+struct UrlZipDownloadResult {
+    download_url: String,
+    zip_path: String,
+    file_name: String,
+    file_size: u64,
+}
+
 #[derive(Serialize, Clone)]
 struct SmapiInstallStagePayload {
     stage: String,
     message: String,
     version: Option<String>,
     downloaded_bytes: Option<u64>,
+}
+
+#[tauri::command]
+async fn download_zip_from_url(url: String, game_path: String) -> Result<UrlZipDownloadResult, String> {
+    tauri::async_runtime::spawn_blocking(move || download_zip_from_url_blocking(url, game_path))
+        .await
+        .map_err(|error| format!("ZIP download task failed: {}", error))?
+}
+
+fn download_zip_from_url_blocking(url: String, game_path: String) -> Result<UrlZipDownloadResult, String> {
+    let trimmed_url = url.trim().to_string();
+
+    if !is_http_url(&trimmed_url) {
+        return Err("请输入有效的 http 或 https ZIP 下载链接。".to_string());
+    }
+
+    let game_dir = Path::new(&game_path);
+
+    if !game_dir.exists() {
+        return Err(format!("Game folder does not exist: {}", game_path));
+    }
+
+    let client = Client::builder()
+        .user_agent("Junimo Box")
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(300))
+        .build()
+        .map_err(|error| format!("Failed to create HTTP client: {}", error))?;
+
+    let downloads_dir = game_dir.join("Junimo Box Downloads").join("Mods");
+    fs::create_dir_all(&downloads_dir)
+        .map_err(|error| format!("Failed to create Mod download folder: {}", error))?;
+
+    let file_name = infer_zip_file_name_from_url(&trimmed_url);
+    let target_path = unique_download_path(&downloads_dir, &file_name);
+
+    download_generic_zip_file(&client, &trimmed_url, &target_path)?;
+
+    let metadata = fs::metadata(&target_path)
+        .map_err(|error| format!("Failed to read downloaded ZIP metadata: {}", error))?;
+    let file_size = metadata.len();
+
+    if file_size == 0 {
+        let _ = fs::remove_file(&target_path);
+        return Err("下载到的 ZIP 文件为空，请检查下载链接或网络连接。".to_string());
+    }
+
+    if file_size < 1024 {
+        let _ = fs::remove_file(&target_path);
+        return Err(format!(
+            "下载到的 ZIP 文件过小：{}，下载可能失败。",
+            format_bytes(file_size)
+        ));
+    }
+
+    Ok(UrlZipDownloadResult {
+        download_url: trimmed_url,
+        zip_path: target_path.to_string_lossy().to_string(),
+        file_name: target_path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| file_name),
+        file_size,
+    })
 }
 
 #[tauri::command]
@@ -1031,6 +1103,225 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
+
+fn is_http_url(url: &str) -> bool {
+    let lower = url.to_lowercase();
+    lower.starts_with("https://") || lower.starts_with("http://")
+}
+
+fn infer_zip_file_name_from_url(url: &str) -> String {
+    let without_query = url.split('?').next().unwrap_or(url);
+    let without_fragment = without_query.split('#').next().unwrap_or(without_query);
+
+    let raw_name = without_fragment
+        .rsplit('/')
+        .next()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("downloaded-mod.zip");
+
+    let mut file_name = sanitize_file_name(raw_name);
+
+    if !file_name.to_lowercase().ends_with(".zip") {
+        file_name = format!("{}.zip", file_name.trim_end_matches('.'));
+    }
+
+    if file_name == ".zip" || file_name.trim().is_empty() {
+        file_name = format!("downloaded-mod-{}.zip", current_timestamp().unwrap_or(0));
+    }
+
+    file_name
+}
+
+fn unique_download_path(folder: &Path, file_name: &str) -> PathBuf {
+    let mut candidate = folder.join(file_name);
+
+    if !candidate.exists() {
+        return candidate;
+    }
+
+    let stem = Path::new(file_name)
+        .file_stem()
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "downloaded-mod".to_string());
+    let extension = Path::new(file_name)
+        .extension()
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "zip".to_string());
+
+    for index in 1..1000 {
+        candidate = folder.join(format!("{}-{}.{}", stem, index, extension));
+
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+
+    folder.join(format!("{}-{}.{}", stem, current_timestamp().unwrap_or(0), extension))
+}
+
+fn download_generic_zip_file(client: &Client, url: &str, target_path: &Path) -> Result<(), String> {
+    match download_generic_zip_file_parallel(client, url, target_path) {
+        Ok(()) => Ok(()),
+        Err(parallel_error) => {
+            eprintln!(
+                "Parallel URL ZIP download failed, falling back to single connection: {}",
+                parallel_error
+            );
+
+            download_generic_zip_file_single(client, url, target_path).map_err(|single_error| {
+                format!(
+                    "多线程下载失败：{}；普通下载也失败：{}",
+                    parallel_error, single_error
+                )
+            })
+        }
+    }
+}
+
+fn download_generic_zip_file_parallel(client: &Client, url: &str, target_path: &Path) -> Result<(), String> {
+    const THREAD_COUNT: u64 = 8;
+    const MIN_PARALLEL_SIZE: u64 = 2 * 1024 * 1024;
+
+    let file_size = get_remote_file_size(client, url)?;
+
+    if file_size < MIN_PARALLEL_SIZE {
+        return Err(format!(
+            "file is too small for parallel download: {}",
+            format_bytes(file_size)
+        ));
+    }
+
+    let temp_path = target_path.with_extension("zip.download");
+    clear_download_artifacts(target_path, THREAD_COUNT)?;
+
+    let mut handles = Vec::new();
+    let chunk_size = (file_size + THREAD_COUNT - 1) / THREAD_COUNT;
+
+    for index in 0..THREAD_COUNT {
+        let start = index * chunk_size;
+
+        if start >= file_size {
+            continue;
+        }
+
+        let end = ((index + 1) * chunk_size - 1).min(file_size - 1);
+        let expected_size = end - start + 1;
+        let part_path = part_path_for(target_path, index);
+        let url = url.to_string();
+        let client = client.clone();
+
+        let handle = thread::spawn(move || -> Result<(), String> {
+            let range_header = format!("bytes={}-{}", start, end);
+
+            let mut response = client
+                .get(&url)
+                .header(USER_AGENT, "Junimo Box")
+                .header("Range", range_header)
+                .send()
+                .map_err(|error| format!("part {} request failed: {}", index, error))?;
+
+            if response.status().as_u16() != 206 {
+                return Err(format!(
+                    "server did not return partial content for part {}: {}",
+                    index,
+                    response.status()
+                ));
+            }
+
+            let mut output_file = File::create(&part_path)
+                .map_err(|error| format!("failed to create part {} file: {}", index, error))?;
+
+            let part_size = std::io::copy(&mut response, &mut output_file)
+                .map_err(|error| format!("failed to save part {}: {}", index, error))?;
+
+            output_file
+                .flush()
+                .map_err(|error| format!("failed to flush part {}: {}", index, error))?;
+
+            if part_size != expected_size {
+                return Err(format!(
+                    "part {} size mismatch: expected {}, got {}",
+                    index,
+                    format_bytes(expected_size),
+                    format_bytes(part_size)
+                ));
+            }
+
+            Ok(())
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle
+            .join()
+            .map_err(|_| "parallel download thread panicked".to_string())??;
+    }
+
+    merge_download_parts(target_path, &temp_path, THREAD_COUNT, file_size)?;
+
+    if target_path.exists() {
+        fs::remove_file(target_path)
+            .map_err(|error| format!("Failed to replace old download file: {}", error))?;
+    }
+
+    fs::rename(&temp_path, target_path)
+        .map_err(|error| format!("Failed to finalize downloaded file: {}", error))?;
+
+    Ok(())
+}
+
+fn download_generic_zip_file_single(client: &Client, url: &str, target_path: &Path) -> Result<(), String> {
+    let temp_path = target_path.with_extension("zip.download");
+
+    if temp_path.exists() {
+        fs::remove_file(&temp_path)
+            .map_err(|error| format!("Failed to clear old temp download file: {}", error))?;
+    }
+
+    let mut response = client
+        .get(url)
+        .header(USER_AGENT, "Junimo Box")
+        .send()
+        .map_err(|error| format!("Request failed. Please check your network connection: {}", error))?
+        .error_for_status()
+        .map_err(|error| format!("Download failed: {}", error))?;
+
+    let mut output_file = File::create(&temp_path)
+        .map_err(|error| format!("Failed to create temp download file: {}", error))?;
+
+    let downloaded_size = std::io::copy(&mut response, &mut output_file)
+        .map_err(|error| format!("Failed to save downloaded file: {}", error))?;
+
+    output_file
+        .flush()
+        .map_err(|error| format!("Failed to flush downloaded file: {}", error))?;
+
+    if downloaded_size == 0 {
+        let _ = fs::remove_file(&temp_path);
+        return Err("下载到的 ZIP 文件为空，请检查下载链接或网络连接。".to_string());
+    }
+
+    if downloaded_size < 1024 {
+        let _ = fs::remove_file(&temp_path);
+        return Err(format!(
+            "下载到的 ZIP 文件过小：{}，下载可能失败。",
+            format_bytes(downloaded_size)
+        ));
+    }
+
+    if target_path.exists() {
+        fs::remove_file(target_path)
+            .map_err(|error| format!("Failed to replace old download file: {}", error))?;
+    }
+
+    fs::rename(&temp_path, target_path)
+        .map_err(|error| format!("Failed to finalize downloaded file: {}", error))?;
+
+    Ok(())
+}
+
 fn extract_zip_archive(zip_path: &Path, target_dir: &Path) -> Result<(), String> {
     let file =
         File::open(zip_path).map_err(|error| format!("Failed to open zip archive: {}", error))?;
@@ -1270,6 +1561,7 @@ pub fn run() {
             read_latest_smapi_log,
             preview_zip_mods,
             install_zip_mods,
+            download_zip_from_url,
             install_latest_smapi
         ])
         .run(tauri::generate_context!())
