@@ -899,6 +899,20 @@
               <strong>基于当前启用创建</strong>
               <span>先带入当前已启用的 {{ mods.length }} 个 Mod</span>
             </button>
+
+            <button
+              class="profile-action-card"
+              :disabled="profiles.length === 0"
+              @click="handleExportAllProfiles"
+            >
+              <strong>导出全部配置</strong>
+              <span>保存为 Junimo Box 配置 JSON</span>
+            </button>
+
+            <button class="profile-action-card" @click="handleImportProfiles">
+              <strong>导入配置</strong>
+              <span>从 JSON 文件导入一个或多个配置</span>
+            </button>
           </div>
         </div>
 
@@ -1030,6 +1044,27 @@
                   @click="startEditProfile(profile)"
                 >
                   编辑
+                </button>
+
+                <button
+                  class="tiny-button"
+                  @click="handleRenameProfile(profile)"
+                >
+                  重命名
+                </button>
+
+                <button
+                  class="tiny-button"
+                  @click="handleCopyProfile(profile)"
+                >
+                  复制
+                </button>
+
+                <button
+                  class="tiny-button"
+                  @click="handleExportProfile(profile)"
+                >
+                  导出
                 </button>
 
                 <button
@@ -1356,6 +1391,21 @@ type ModProfile = {
   enabledFolderNames: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+type ProfileExportItem = {
+  name: string;
+  enabledFolderNames: string[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type ProfileExportFile = {
+  app: "Junimo Box";
+  type: "mod-profiles";
+  version: 1;
+  exportedAt: string;
+  profiles: ProfileExportItem[];
 };
 
 const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
@@ -1823,6 +1873,264 @@ function clearProfileDraft() {
 
 function toggleProfilePreview(profileId: string) {
   expandedProfileId.value = expandedProfileId.value === profileId ? "" : profileId;
+}
+
+function createProfileExportItem(profile: ModProfile): ProfileExportItem {
+  return {
+    name: profile.name,
+    enabledFolderNames: [...profile.enabledFolderNames].sort((a, b) => a.localeCompare(b)),
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+}
+
+function createProfileExportFile(profileItems: ProfileExportItem[]): ProfileExportFile {
+  return {
+    app: "Junimo Box",
+    type: "mod-profiles",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    profiles: profileItems,
+  };
+}
+
+function sanitizeExportFileName(value: string) {
+  return value
+    .trim()
+    .replace(/[<>:"/\\|?*]+/g, "_")
+    .replace(/\s+/g, " ")
+    .slice(0, 60) || "profile";
+}
+
+function makeUniqueProfileName(baseName: string, ignoredProfileId = "") {
+  const base = baseName.trim() || "未命名配置";
+  const existingNames = new Set(
+    profiles.value
+      .filter((profile) => profile.id !== ignoredProfileId)
+      .map((profile) => profile.name)
+  );
+
+  if (!existingNames.has(base)) {
+    return base;
+  }
+
+  let index = 2;
+  let candidate = `${base} 副本`;
+
+  while (existingNames.has(candidate)) {
+    candidate = `${base} 副本 ${index}`;
+    index += 1;
+  }
+
+  return candidate;
+}
+
+function normalizeProfileImportItem(item: unknown): ProfileExportItem | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const raw = item as {
+    name?: unknown;
+    enabledFolderNames?: unknown;
+    createdAt?: unknown;
+    updatedAt?: unknown;
+  };
+
+  if (typeof raw.name !== "string" || !Array.isArray(raw.enabledFolderNames)) {
+    return null;
+  }
+
+  const enabledFolderNames = raw.enabledFolderNames
+    .filter((folderName): folderName is string => typeof folderName === "string" && folderName.trim().length > 0)
+    .map((folderName) => folderName.trim());
+
+  if (enabledFolderNames.length === 0) {
+    return null;
+  }
+
+  return {
+    name: raw.name.trim() || "导入的配置",
+    enabledFolderNames: Array.from(new Set(enabledFolderNames)).sort((a, b) => a.localeCompare(b)),
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
+  };
+}
+
+function parseProfileImportFile(content: string): ProfileExportItem[] {
+  const parsed = JSON.parse(content) as unknown;
+
+  if (!parsed || typeof parsed !== "object") {
+    return [];
+  }
+
+  const raw = parsed as {
+    profiles?: unknown;
+    profile?: unknown;
+    name?: unknown;
+    enabledFolderNames?: unknown;
+  };
+
+  if (Array.isArray(raw.profiles)) {
+    return raw.profiles
+      .map(normalizeProfileImportItem)
+      .filter((profile): profile is ProfileExportItem => profile !== null);
+  }
+
+  if (raw.profile) {
+    const profile = normalizeProfileImportItem(raw.profile);
+    return profile ? [profile] : [];
+  }
+
+  const singleProfile = normalizeProfileImportItem(raw);
+  return singleProfile ? [singleProfile] : [];
+}
+
+async function handleExportProfile(profile: ModProfile) {
+  const filePath = await save({
+    title: "导出配置方案",
+    defaultPath: `${sanitizeExportFileName(profile.name)}.junimo-profile.json`,
+    filters: [
+      {
+        name: "Junimo Box 配置方案",
+        extensions: ["json"],
+      },
+    ],
+  });
+
+  if (!filePath) {
+    return;
+  }
+
+  const exportFile = createProfileExportFile([createProfileExportItem(profile)]);
+
+  try {
+    await invoke("write_text_file", {
+      path: filePath,
+      content: JSON.stringify(exportFile, null, 2),
+    });
+
+    setNotice("success", `已导出配置方案：${profile.name}`);
+  } catch (error) {
+    setNotice("error", `导出配置方案失败：${String(error)}`);
+  }
+}
+
+async function handleExportAllProfiles() {
+  if (profiles.value.length === 0) {
+    setNotice("warning", "当前没有可导出的配置方案。");
+    return;
+  }
+
+  const filePath = await save({
+    title: "导出全部配置方案",
+    defaultPath: "junimo-box-profiles.json",
+    filters: [
+      {
+        name: "Junimo Box 配置方案",
+        extensions: ["json"],
+      },
+    ],
+  });
+
+  if (!filePath) {
+    return;
+  }
+
+  const exportFile = createProfileExportFile(profiles.value.map(createProfileExportItem));
+
+  try {
+    await invoke("write_text_file", {
+      path: filePath,
+      content: JSON.stringify(exportFile, null, 2),
+    });
+
+    setNotice("success", `已导出 ${profiles.value.length} 个配置方案。`);
+  } catch (error) {
+    setNotice("error", `导出配置方案失败：${String(error)}`);
+  }
+}
+
+async function handleImportProfiles() {
+  const selected = await open({
+    directory: false,
+    multiple: false,
+    title: "导入配置方案",
+    filters: [
+      {
+        name: "Junimo Box 配置方案",
+        extensions: ["json"],
+      },
+    ],
+  });
+
+  if (typeof selected !== "string") {
+    return;
+  }
+
+  try {
+    const content = await readTextFile(selected);
+    const importedProfiles = parseProfileImportFile(content);
+
+    if (importedProfiles.length === 0) {
+      setNotice("error", "导入失败：这个文件里没有有效的配置方案。");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const normalizedProfiles: ModProfile[] = importedProfiles.map((profile) => ({
+      id: createProfileId(),
+      name: makeUniqueProfileName(profile.name),
+      enabledFolderNames: [...profile.enabledFolderNames].sort((a, b) => a.localeCompare(b)),
+      createdAt: profile.createdAt || now,
+      updatedAt: now,
+    }));
+
+    profiles.value = [...normalizedProfiles, ...profiles.value];
+    saveProfiles();
+
+    setNotice("success", `已导入 ${normalizedProfiles.length} 个配置方案。`);
+  } catch (error) {
+    setNotice("error", `导入配置方案失败：${String(error)}`);
+  }
+}
+
+function handleRenameProfile(profile: ModProfile) {
+  const newName = window.prompt("输入新的配置方案名称：", profile.name)?.trim();
+
+  if (!newName || newName === profile.name) {
+    return;
+  }
+
+  const duplicate = profiles.value.some(
+    (item) => item.id !== profile.id && item.name === newName
+  );
+
+  if (duplicate) {
+    setNotice("error", `重命名失败：已经存在名为「${newName}」的配置方案。`);
+    return;
+  }
+
+  profile.name = newName;
+  profile.updatedAt = new Date().toISOString();
+  saveProfiles();
+  setNotice("success", `已重命名配置方案：${newName}`);
+}
+
+function handleCopyProfile(profile: ModProfile) {
+  const now = new Date().toISOString();
+  const copiedName = makeUniqueProfileName(`${profile.name} 副本`);
+
+  profiles.value.unshift({
+    id: createProfileId(),
+    name: copiedName,
+    enabledFolderNames: [...profile.enabledFolderNames].sort((a, b) => a.localeCompare(b)),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  saveProfiles();
+  setNotice("success", `已复制配置方案：${copiedName}`);
 }
 
 function handleSaveProfileDraft() {
@@ -5576,6 +5884,18 @@ button.secondary:hover:not(:disabled) {
   background: #755d3c;
 }
 
+
+/* v0.3.0：Profiles 实用操作按钮 */
+.profile-actions.compact-profile-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 360px;
+}
+
+.profile-actions.compact-profile-actions .tiny-button {
+  min-width: 52px;
+}
+
 </style>
 
 
@@ -5605,4 +5925,68 @@ button.secondary:hover:not(:disabled) {
   background: #755d3c;
 }
 
+
+/* v0.3.0：Profiles 实用操作按钮 */
+.profile-actions.compact-profile-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 360px;
+}
+
+.profile-actions.compact-profile-actions .tiny-button {
+  min-width: 52px;
+}
+/* v0.3.0：修复 Profile 编辑小卡片双滚动 */
+.profile-card-overlay {
+  overflow: hidden !important;
+}
+
+.profile-editor-card,
+.compact-profile-editor {
+  max-height: calc(100vh - 48px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+}
+
+/* 顶部标题、输入框、搜索、统计、底部按钮都固定 */
+.profile-card-header,
+.profile-editor-grid,
+.profile-editor-summary,
+.profile-editor-footer {
+  flex-shrink: 0 !important;
+}
+
+/* 只有 Mod 勾选列表内部滚动 */
+.profile-select-list,
+.compact-profile-select-list {
+  flex: 1 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 6px !important;
+}
+
+/* 底部按钮固定在卡片底部 */
+.profile-editor-footer {
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(92, 70, 48, 0.12) !important;
+  background: #fffaf0 !important;
+}
+
+/* 小屏幕下也只保留列表内部滚动 */
+@media (max-width: 820px) {
+  .profile-editor-card,
+  .compact-profile-editor {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+  }
+
+  .profile-editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
 </style>
