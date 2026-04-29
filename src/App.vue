@@ -532,6 +532,18 @@
 
             <button @click="handlePreviewZipMod">预览 ZIP Mod</button>
           </div>
+
+          <div
+            class="zip-drop-zone"
+            :class="{ active: isZipDragOver }"
+            @click="handlePreviewZipMod"
+          >
+            <div class="zip-drop-icon">📦</div>
+            <div>
+              <strong>拖拽 ZIP Mod 到这里</strong>
+              <p>把下载好的 .zip 文件拖进窗口，Junimo Box 会自动生成安装预览；也可以点击这里手动选择。</p>
+            </div>
+          </div>
         </div>
 
         <div v-if="zipModPreviews.length > 0" class="panel">
@@ -706,8 +718,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
@@ -854,6 +867,9 @@ const showRawSmapiLog = ref(false);
 const selectedZipPath = ref("");
 const zipModPreviews = ref<ZipModPreview[]>([]);
 const lastInstalledZipMods = ref<ZipModPreview[]>([]);
+const isZipDragOver = ref(false);
+
+let unlistenDragDrop: (() => void) | null = null;
 
 const modSearchQuery = ref("");
 const modStatusFilter = ref<ModStatusFilter>("all");
@@ -960,6 +976,8 @@ const filteredMods = computed<DisplayModInfo[]>(() => {
 });
 
 onMounted(async () => {
+  await setupZipDragDrop();
+
   const savedPath = localStorage.getItem(STORAGE_KEY);
 
   if (!savedPath) {
@@ -969,6 +987,13 @@ onMounted(async () => {
   gamePath.value = savedPath;
   await checkGameFiles(savedPath);
   await scanMods();
+});
+
+onUnmounted(() => {
+  if (unlistenDragDrop) {
+    unlistenDragDrop();
+    unlistenDragDrop = null;
+  }
 });
 
 async function handleSelectPath() {
@@ -1370,6 +1395,43 @@ async function handleExportProblemReport() {
   }
 }
 
+async function setupZipDragDrop() {
+  try {
+    unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
+      const payload = event.payload;
+
+      if (payload.type === "over") {
+        isZipDragOver.value = true;
+        return;
+      }
+
+      if (payload.type === "leave") {
+        isZipDragOver.value = false;
+        return;
+      }
+
+      if (payload.type === "drop") {
+        isZipDragOver.value = false;
+
+        const zipPath = payload.paths.find((path) =>
+          path.toLowerCase().endsWith(".zip")
+        );
+
+        if (!zipPath) {
+          activeView.value = "tools";
+          message.value = "请拖入 .zip 格式的 Mod 压缩包。";
+          return;
+        }
+
+        activeView.value = "tools";
+        void previewZipPath(zipPath);
+      }
+    });
+  } catch (error) {
+    console.warn("注册 ZIP 拖拽事件失败", error);
+  }
+}
+
 async function handlePreviewZipMod() {
   const selected = await open({
     directory: false,
@@ -1382,19 +1444,31 @@ async function handlePreviewZipMod() {
     return;
   }
 
-  selectedZipPath.value = selected;
+  await previewZipPath(selected);
+}
+
+async function previewZipPath(zipPath: string) {
+  if (!zipPath.toLowerCase().endsWith(".zip")) {
+    selectedZipPath.value = zipPath;
+    zipModPreviews.value = [];
+    activeView.value = "tools";
+    message.value = "请选择 .zip 格式的 Mod 压缩包。";
+    return;
+  }
+
+  selectedZipPath.value = zipPath;
   zipModPreviews.value = [];
+  activeView.value = "tools";
 
   try {
     const previews = await invoke<ZipModPreview[]>("preview_zip_mods", {
-      zipPath: selected,
+      zipPath,
     });
 
     zipModPreviews.value = previews;
-    activeView.value = "tools";
     message.value = `ZIP 预览完成：找到 ${previews.length} 个 Mod。`;
   } catch (error) {
-    selectedZipPath.value = selected;
+    selectedZipPath.value = zipPath;
     zipModPreviews.value = [];
     message.value = `ZIP 预览失败：${String(error)}`;
   }
@@ -2648,6 +2722,54 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   color: #5c4630;
   font-size: 13px;
   font-weight: 800;
+}
+
+.zip-drop-zone {
+  margin-top: 14px;
+  padding: 18px;
+  border: 2px dashed rgba(111, 168, 95, 0.45);
+  border-radius: 18px;
+  background: rgba(232, 243, 223, 0.58);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.zip-drop-zone:hover,
+.zip-drop-zone.active {
+  border-color: #6fa85f;
+  background: #e8f3df;
+  transform: translateY(-1px);
+}
+
+.zip-drop-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #fffaf0;
+  font-size: 25px;
+}
+
+.zip-drop-zone strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #2f6f3c;
+  font-size: 16px;
+}
+
+.zip-drop-zone p {
+  margin: 0;
+  color: #6f5c48;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .zip-preview-list {
