@@ -139,7 +139,7 @@
         </div>
       </section>
 
-      <section v-if="activeView === 'mods'" class="view-stack">
+      <section v-if="activeView === 'mods'" class="view-stack mods-view">
         <div class="panel filter-panel">
           <div class="filter-top-row">
             <div class="search-box">
@@ -184,256 +184,127 @@
             </div>
           </div>
 
-          <p class="filter-result-text">
-            当前显示 {{ filteredMods.length }} / {{ allDisplayMods.length }} 个 Mod。
-          </p>
-        </div>
-
-        <div v-if="selectedMod" class="panel mod-detail-panel">
-          <div class="panel-header">
-            <div>
-              <h3>Mod 详情</h3>
-              <p class="detail-subtitle">{{ selectedMod.name }}</p>
-            </div>
-
-            <div class="panel-actions">
-              <span class="status-badge" :class="selectedMod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
-                {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
-              </span>
-              <button class="tiny-button" @click="selectedModKey = ''">关闭</button>
-            </div>
-          </div>
-
-          <div class="detail-layout">
-            <div class="detail-main">
-              <div class="mod-badges detail-badges">
-                <span class="status-badge type-badge">{{ selectedMod.modType.label }}</span>
-                <span v-if="selectedMod.hasMissingRequiredDependency" class="status-badge missing-badge">
-                  缺失依赖
-                </span>
-              </div>
-
-              <p class="detail-description">
-                {{ selectedMod.description || "没有描述。" }}
-              </p>
-
-              <div class="detail-grid">
-                <div>
-                  <span>作者</span>
-                  <strong>{{ selectedMod.author || "未知作者" }}</strong>
-                </div>
-                <div>
-                  <span>版本</span>
-                  <strong>{{ selectedMod.version || "未知版本" }}</strong>
-                </div>
-                <div>
-                  <span>UniqueID</span>
-                  <strong>{{ selectedMod.uniqueId || "未提供" }}</strong>
-                </div>
-                <div>
-                  <span>文件夹</span>
-                  <strong>{{ selectedMod.folderName }}</strong>
-                </div>
-                <div>
-                  <span>EntryDll</span>
-                  <strong>{{ selectedMod.entryDll || "无" }}</strong>
-                </div>
-                <div>
-                  <span>当前状态</span>
-                  <strong :class="selectedMod.isDisabled ? 'optional' : 'ok'">
-                    {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
-                  </strong>
-                </div>
-              </div>
-            </div>
-
-            <div class="detail-side">
-              <h4>操作</h4>
-              <div class="detail-actions">
-                <button class="tiny-button" @click="handleOpenDisplayedModFolder(selectedMod)">
-                  打开文件夹
-                </button>
-
-                <button
-                  v-if="selectedMod.isDisabled"
-                  class="tiny-button"
-                  @click="handleEnableMod(selectedMod.folderName)"
-                >
-                  启用 Mod
-                </button>
-
-                <button
-                  v-else
-                  class="tiny-button danger"
-                  @click="handleDisableMod(selectedMod.folderName)"
-                >
-                  禁用 Mod
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="detail-dependencies">
-            <h4>依赖关系</h4>
-
-            <p v-if="!selectedMod.contentPackFor && selectedMod.dependencies.length === 0" class="muted-text">
-              这个 Mod 没有声明依赖。
+          <div class="filter-summary-row">
+            <p class="filter-result-text">
+              当前显示 {{ filteredMods.length }} / {{ allDisplayMods.length }} 个 Mod。
             </p>
+            <p v-if="modSearchQuery || modStatusFilter !== 'all' || modDependencyFilter !== 'all'" class="active-filter-text">
+              筛选已启用
+            </p>
+          </div>
+        </div>
 
-            <div v-else class="dependency-detail-list">
-              <div v-if="selectedMod.contentPackFor" class="dependency-detail-item">
-                <span>内容包依赖</span>
-                <strong :class="selectedMod.contentPackFor.isInstalled ? 'ok' : 'bad'">
-                  {{ selectedMod.contentPackFor.uniqueId }}
-                  {{ selectedMod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
-                </strong>
-              </div>
+        <div
+          v-if="lastInstalledZipMods.length > 0 || (mods.length > 0 && missingDependencies.length > 0)"
+          class="mods-alert-grid"
+        >
+          <div v-if="lastInstalledZipMods.length > 0" class="panel compact-panel install-summary-panel">
+            <div class="panel-header">
+              <h3>最近安装</h3>
+              <span>{{ lastInstalledZipMods.length }} 个</span>
+            </div>
 
-              <div
-                v-for="dependency in selectedMod.dependencies"
-                :key="dependency.uniqueId"
-                class="dependency-detail-item"
+            <div class="recent-install-list">
+              <span
+                v-for="mod in lastInstalledZipMods.slice(0, 4)"
+                :key="mod.unique_id || mod.manifest_path"
               >
-                <span>{{ dependency.isRequired ? "必需依赖" : "可选依赖" }}</span>
-                <strong
-                  :class="
-                    dependency.isInstalled
-                      ? 'ok'
-                      : dependency.isRequired
-                        ? 'bad'
-                        : 'optional'
-                  "
-                >
-                  {{ dependency.uniqueId }}
-                  {{
-                    dependency.isInstalled
-                      ? "已安装"
-                      : dependency.isRequired
-                        ? "缺失"
-                        : "可选未安装"
-                  }}
-                </strong>
-              </div>
+                {{ mod.name || mod.suggested_folder }}
+              </span>
+              <span v-if="lastInstalledZipMods.length > 4">
+                +{{ lastInstalledZipMods.length - 4 }}
+              </span>
+            </div>
+
+            <div v-if="missingDependencies.length > 0" class="install-warning compact-result-box">
+              <strong>⚠️ 安装后发现缺失依赖</strong>
+              <p>有 {{ missingDependencies.length }} 项必需依赖未安装。</p>
+            </div>
+
+            <div v-else class="install-success compact-result-box">
+              <strong>✅ 依赖检查正常</strong>
+              <p>当前已启用 Mod 没有发现缺失的必需依赖。</p>
             </div>
           </div>
+
+          <div v-if="mods.length > 0 && missingDependencies.length > 0" class="panel compact-panel dependency-summary-panel">
+            <div class="panel-header">
+              <h3>依赖检查</h3>
+              <span>{{ missingDependencies.length }} 项缺失</span>
+            </div>
+
+            <div class="missing-list compact-missing-list">
+              <article
+                v-for="dependency in missingDependencies.slice(0, 4)"
+                :key="dependency.uniqueId"
+                class="missing-item"
+              >
+                <strong>{{ dependency.uniqueId }}</strong>
+                <p>被 {{ dependency.requiredBy.length }} 个 Mod 需要</p>
+              </article>
+            </div>
+
+            <p v-if="missingDependencies.length > 4" class="muted-text">
+              还有 {{ missingDependencies.length - 4 }} 项缺失依赖，请在相关 Mod 详情中查看。
+            </p>
+          </div>
         </div>
 
-        <div v-if="lastInstalledZipMods.length > 0" class="panel">
-          <div class="panel-header">
-            <h3>最近安装</h3>
-            <span>{{ lastInstalledZipMods.length }} 个</span>
-          </div>
-
-          <div class="mods-list compact-mods-list">
-            <article
-              v-for="mod in lastInstalledZipMods"
-              :key="mod.unique_id || mod.manifest_path"
-              class="mod-item install-result"
-            >
-              <div class="mod-main">
-                <h4>{{ mod.name }}</h4>
-                <p class="mod-meta">
-                  {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+        <div v-if="filteredMods.length > 0" class="mods-workspace">
+          <div class="panel mods-list-panel">
+            <div class="panel-header sticky-panel-header">
+              <div>
+                <h3>Mod 列表</h3>
+                <p class="detail-subtitle">
+                  点击列表项查看完整信息和依赖状态。
                 </p>
-                <p class="mod-description">UniqueID：{{ mod.unique_id || "未提供" }}</p>
-                <p class="mod-description">安装文件夹：{{ mod.suggested_folder }}</p>
               </div>
-            </article>
-          </div>
+              <span>{{ filteredMods.length }} 个</span>
+            </div>
 
-          <div v-if="missingDependencies.length > 0" class="install-warning">
-            <strong>⚠️ 安装后发现缺失依赖</strong>
-            <p>有 {{ missingDependencies.length }} 项必需依赖未安装。请查看下方“依赖检查”面板。</p>
-          </div>
+            <div class="mods-list compact-mods-list scrollable-mods-list">
+              <article
+                v-for="mod in filteredMods"
+                :key="getModKey(mod)"
+                class="mod-item selectable-mod-item compact-mod-card"
+                :class="{
+                  disabled: mod.isDisabled,
+                  warning: mod.hasMissingRequiredDependency,
+                  selected: isSelectedMod(mod),
+                }"
+                @click="selectMod(mod)"
+              >
+                <div class="mod-main">
+                  <div class="mod-title-row">
+                    <h4>{{ mod.name }}</h4>
+                    <div class="mod-badges">
+                      <span class="status-badge" :class="mod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
+                        {{ mod.isDisabled ? "已禁用" : "已启用" }}
+                      </span>
+                      <span class="status-badge type-badge">
+                        {{ mod.modType.label }}
+                      </span>
+                      <span v-if="mod.hasMissingRequiredDependency" class="status-badge missing-badge">
+                        缺失依赖
+                      </span>
+                    </div>
+                  </div>
 
-          <div v-else class="install-success">
-            <strong>✅ 依赖检查正常</strong>
-            <p>当前已启用 Mod 没有发现缺失的必需依赖。</p>
-          </div>
-        </div>
+                  <p class="mod-meta">
+                    {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+                  </p>
 
-        <div v-if="mods.length > 0" class="panel slim-panel">
-          <div class="panel-header">
-            <h3>依赖检查</h3>
-            <span>
-              {{ missingDependencies.length === 0 ? "正常" : `${missingDependencies.length} 项缺失` }}
-            </span>
-          </div>
+                  <p class="mod-description compact-description">
+                    {{ mod.description || "没有描述。" }}
+                  </p>
 
-          <p v-if="missingDependencies.length === 0" class="success-text">
-            ✅ 所有必需依赖都已安装。
-          </p>
-
-          <div v-else class="missing-list">
-            <article
-              v-for="dependency in missingDependencies"
-              :key="dependency.uniqueId"
-              class="missing-item"
-            >
-              <strong>{{ dependency.uniqueId }}</strong>
-              <p>
-                被 {{ dependency.requiredBy.length }} 个 Mod 需要：
-                {{ dependency.requiredBy.join("、") }}
-              </p>
-            </article>
-          </div>
-        </div>
-
-        <div v-if="filteredMods.length > 0" class="panel">
-          <div class="panel-header sticky-panel-header">
-            <h3>Mod 列表</h3>
-            <span>{{ filteredMods.length }} 个</span>
-          </div>
-
-          <div class="mods-list">
-            <article
-              v-for="mod in filteredMods"
-              :key="getModKey(mod)"
-              class="mod-item selectable-mod-item"
-              :class="{
-                disabled: mod.isDisabled,
-                warning: mod.hasMissingRequiredDependency,
-                selected: isSelectedMod(mod),
-              }"
-              @click="selectMod(mod)"
-            >
-              <div class="mod-main">
-                <div class="mod-title-row">
-                  <h4>{{ mod.name }}</h4>
-                  <div class="mod-badges">
-                    <span class="status-badge" :class="mod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
-                      {{ mod.isDisabled ? "已禁用" : "已启用" }}
-                    </span>
-                                        <span class="status-badge type-badge">
-                      {{ mod.modType.label }}
-                    </span>
-                    <span v-if="mod.hasMissingRequiredDependency" class="status-badge missing-badge">
-                      缺失依赖
-                    </span>
+                  <div class="mod-extra-row">
+                    <span>{{ mod.uniqueId || "未提供 UniqueID" }}</span>
+                    <span>{{ mod.folderName }}</span>
                   </div>
                 </div>
 
-                <p class="mod-meta">
-                  {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
-                </p>
-
-                <p class="mod-description">
-                  {{ mod.description || "没有描述。" }}
-                </p>
-
-                <div class="mod-extra-row">
-                  <span>UniqueID：{{ mod.uniqueId || "未提供" }}</span>
-                  <span>文件夹：{{ mod.folderName }}</span>
-                </div>
-
-              </div>
-
-              <div class="mod-actions">
-                <span class="mod-folder desktop-folder">
-                  {{ mod.folderName }}
-                </span>
-
-                <div class="mod-button-row">
+                <div class="mod-actions compact-card-actions">
                   <button class="tiny-button" @click.stop="handleOpenDisplayedModFolder(mod)">
                     打开
                   </button>
@@ -454,15 +325,143 @@
                     禁用
                   </button>
                 </div>
-              </div>
-            </article>
+              </article>
+            </div>
           </div>
+
+          <aside class="panel mod-detail-panel side-detail-panel">
+            <template v-if="selectedMod">
+              <div class="panel-header">
+                <div>
+                  <h3>Mod 详情</h3>
+                  <p class="detail-subtitle">{{ selectedMod.name }}</p>
+                </div>
+
+                <div class="panel-actions">
+                  <span class="status-badge" :class="selectedMod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
+                    {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="detail-main">
+                <div class="mod-badges detail-badges">
+                  <span class="status-badge type-badge">{{ selectedMod.modType.label }}</span>
+                  <span v-if="selectedMod.hasMissingRequiredDependency" class="status-badge missing-badge">
+                    缺失依赖
+                  </span>
+                </div>
+
+                <p class="detail-description">
+                  {{ selectedMod.description || "没有描述。" }}
+                </p>
+
+                <div class="detail-actions detail-actions-inline">
+                  <button class="tiny-button" @click="handleOpenDisplayedModFolder(selectedMod)">
+                    打开文件夹
+                  </button>
+
+                  <button
+                    v-if="selectedMod.isDisabled"
+                    class="tiny-button"
+                    @click="handleEnableMod(selectedMod.folderName)"
+                  >
+                    启用 Mod
+                  </button>
+
+                  <button
+                    v-else
+                    class="tiny-button danger"
+                    @click="handleDisableMod(selectedMod.folderName)"
+                  >
+                    禁用 Mod
+                  </button>
+                </div>
+
+                <div class="detail-grid side-detail-grid">
+                  <div>
+                    <span>作者</span>
+                    <strong>{{ selectedMod.author || "未知作者" }}</strong>
+                  </div>
+                  <div>
+                    <span>版本</span>
+                    <strong>{{ selectedMod.version || "未知版本" }}</strong>
+                  </div>
+                  <div>
+                    <span>UniqueID</span>
+                    <strong>{{ selectedMod.uniqueId || "未提供" }}</strong>
+                  </div>
+                  <div>
+                    <span>文件夹</span>
+                    <strong>{{ selectedMod.folderName }}</strong>
+                  </div>
+                  <div>
+                    <span>EntryDll</span>
+                    <strong>{{ selectedMod.entryDll || "无" }}</strong>
+                  </div>
+                  <div>
+                    <span>当前状态</span>
+                    <strong :class="selectedMod.isDisabled ? 'optional' : 'ok'">
+                      {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="detail-dependencies side-dependencies">
+                <h4>依赖关系</h4>
+
+                <p v-if="!selectedMod.contentPackFor && selectedMod.dependencies.length === 0" class="muted-text">
+                  这个 Mod 没有声明依赖。
+                </p>
+
+                <div v-else class="dependency-detail-list">
+                  <div v-if="selectedMod.contentPackFor" class="dependency-detail-item">
+                    <span>内容包依赖</span>
+                    <strong :class="selectedMod.contentPackFor.isInstalled ? 'ok' : 'bad'">
+                      {{ selectedMod.contentPackFor.uniqueId }}
+                      {{ selectedMod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
+                    </strong>
+                  </div>
+
+                  <div
+                    v-for="dependency in selectedMod.dependencies"
+                    :key="dependency.uniqueId"
+                    class="dependency-detail-item"
+                  >
+                    <span>{{ dependency.isRequired ? "必需依赖" : "可选依赖" }}</span>
+                    <strong
+                      :class="
+                        dependency.isInstalled
+                          ? 'ok'
+                          : dependency.isRequired
+                            ? 'bad'
+                            : 'optional'
+                      "
+                    >
+                      {{ dependency.uniqueId }}
+                      {{
+                        dependency.isInstalled
+                          ? "已安装"
+                          : dependency.isRequired
+                            ? "缺失"
+                            : "可选未安装"
+                      }}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <div v-else class="empty-detail-state">
+              <div class="empty-detail-icon">📦</div>
+              <h3>选择一个 Mod</h3>
+              <p>从左侧列表中点击 Mod，可以在这里查看详情、依赖和操作入口。</p>
+            </div>
+          </aside>
         </div>
 
-        <div
-          v-else-if="gamePath && allDisplayMods.length > 0"
-          class="empty-state"
-        >
+        <div v-else-if="gamePath && allDisplayMods.length > 0" class="empty-state">
           <h3>没有符合条件的 Mod</h3>
           <p>试试清空搜索词，或者切换筛选条件。</p>
         </div>
@@ -726,37 +725,128 @@
 
 
       <section v-if="activeView === 'profiles'" class="view-stack">
-        <div class="panel compact-panel">
+        <div class="panel compact-panel profile-intro-panel">
           <div class="panel-header">
-            <h3>配置方案 Profiles</h3>
+            <div>
+              <h3>配置方案（实验）</h3>
+              <p class="muted-text">
+                配置方案会保存一组要启用的 Mod。现在可以直接在这里勾选 Mod，不用再来回切换页面。
+              </p>
+            </div>
             <span>{{ profiles.length }} 个</span>
           </div>
 
-          <p class="muted-text">
-            保存当前已启用的 Mods 组合，之后可以一键切换到对应配置。第一版按文件夹名保存，不会删除任何文件。
-          </p>
-
-          <div class="profile-create-row">
-            <input
-              v-model="newProfileName"
-              class="profile-input"
-              placeholder="例如：日常游玩 / 美化截图 / 多人联机"
-              @keydown.enter="handleSaveCurrentProfile"
-            />
+          <div class="profile-toolbar">
+            <button @click="startCreateProfile(false)">
+              新建配置
+            </button>
 
             <button
-              :disabled="!gamePath || mods.length === 0"
-              @click="handleSaveCurrentProfile"
+              class="secondary"
+              :disabled="mods.length === 0"
+              @click="startCreateProfile(true)"
             >
-              保存当前配置
+              基于当前启用创建
+            </button>
+          </div>
+        </div>
+
+        <div v-if="isProfileEditorOpen" class="panel profile-editor-panel">
+          <div class="panel-header">
+            <div>
+              <h3>{{ profileEditorMode === 'edit' ? '编辑配置' : '新建配置' }}</h3>
+              <p class="muted-text">
+                勾选这个配置要启用的 Mod。保存后，点击“应用”会按这份列表移动 Mods / Disabled Mods。
+              </p>
+            </div>
+
+            <button class="tiny-button" @click="closeProfileEditor">
+              关闭
+            </button>
+          </div>
+
+          <div class="profile-editor-grid">
+            <label class="profile-field">
+              <span>配置名称</span>
+              <input
+                v-model="profileDraftName"
+                class="profile-input"
+                placeholder="例如：日常游玩 / SVE / 多人联机"
+              />
+            </label>
+
+            <label class="profile-field">
+              <span>搜索 Mod</span>
+              <input
+                v-model="profileDraftSearchQuery"
+                class="profile-input"
+                placeholder="按名称、作者、文件夹或类型搜索"
+              />
+            </label>
+          </div>
+
+          <div class="profile-editor-summary">
+            <span>已选择 {{ profileDraftEnabledFolders.length }} / {{ profileSelectableMods.length }} 个 Mod</span>
+
+            <div class="profile-editor-actions">
+              <button class="tiny-button" @click="selectAllProfileMods">
+                全选
+              </button>
+              <button class="tiny-button" @click="clearProfileDraft">
+                清空
+              </button>
+            </div>
+          </div>
+
+          <div class="profile-select-list">
+            <label
+              v-for="mod in filteredProfileSelectableMods"
+              :key="mod.folderName"
+              class="profile-select-item"
+              :class="{ selected: isProfileFolderSelected(mod.folderName) }"
+            >
+              <input
+                type="checkbox"
+                :checked="isProfileFolderSelected(mod.folderName)"
+                @change="toggleProfileFolder(mod.folderName)"
+              />
+
+              <div class="profile-select-main">
+                <strong>{{ mod.name }}</strong>
+                <p>{{ mod.author || '未知作者' }} · v{{ mod.version || '未知版本' }}</p>
+                <span>{{ mod.folderName }}</span>
+              </div>
+
+              <div class="profile-select-tags">
+                <span class="mod-type">{{ mod.modType.label }}</span>
+                <span :class="mod.isDisabled ? 'status-badge disabled' : 'status-badge enabled'">
+                  {{ mod.isDisabled ? '当前禁用' : '当前启用' }}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <div class="profile-editor-footer">
+            <button
+              :disabled="!profileDraftName.trim() || profileDraftEnabledFolders.length === 0"
+              @click="handleSaveProfileDraft"
+            >
+              保存配置
+            </button>
+
+            <button class="secondary" @click="closeProfileEditor">
+              取消
             </button>
           </div>
         </div>
 
         <div v-if="profiles.length > 0" class="panel">
           <div class="panel-header">
-            <h3>已有配置</h3>
-            <span>点击应用会移动 Mods / Disabled Mods</span>
+            <div>
+              <h3>已有配置</h3>
+              <p class="muted-text">点击应用会移动 Mods / Disabled Mods，但不会删除任何文件。</p>
+            </div>
+            <span>{{ profiles.length }} 个</span>
           </div>
 
           <div class="profile-list">
@@ -771,15 +861,22 @@
                   {{ profile.enabledFolderNames.length }} 个启用 Mod · 更新于 {{ formatDateTime(profile.updatedAt) }}
                 </p>
 
-                <div class="profile-mod-preview">
+                <button
+                  class="profile-link-button"
+                  @click="toggleProfilePreview(profile.id)"
+                >
+                  {{ expandedProfileId === profile.id ? '收起 Mod 列表' : '查看包含的 Mod' }}
+                </button>
+
+                <div
+                  v-if="expandedProfileId === profile.id"
+                  class="profile-mod-preview"
+                >
                   <span
-                    v-for="folderName in profile.enabledFolderNames.slice(0, 8)"
+                    v-for="folderName in profile.enabledFolderNames"
                     :key="folderName"
                   >
                     {{ folderName }}
-                  </span>
-                  <span v-if="profile.enabledFolderNames.length > 8">
-                    +{{ profile.enabledFolderNames.length - 8 }}
                   </span>
                 </div>
               </div>
@@ -791,6 +888,13 @@
                   @click="handleApplyProfile(profile)"
                 >
                   应用
+                </button>
+
+                <button
+                  class="tiny-button"
+                  @click="startEditProfile(profile)"
+                >
+                  编辑
                 </button>
 
                 <button
@@ -806,7 +910,7 @@
 
         <div v-else class="empty-state">
           <h3>还没有配置方案</h3>
-          <p>先在 Mods 页面启用你想要的一组 Mod，然后回到这里保存当前配置。</p>
+          <p>点击“新建配置”，直接勾选这个配置要启用的 Mod。</p>
         </div>
       </section>
 
@@ -1068,7 +1172,13 @@ const modStatusFilter = ref<ModStatusFilter>("all");
 const modDependencyFilter = ref<ModDependencyFilter>("all");
 const selectedModKey = ref("");
 const profiles = ref<ModProfile[]>([]);
-const newProfileName = ref("");
+const isProfileEditorOpen = ref(false);
+const profileEditorMode = ref<"create" | "edit">("create");
+const editingProfileId = ref("");
+const profileDraftName = ref("");
+const profileDraftSearchQuery = ref("");
+const profileDraftEnabledFolders = ref<string[]>([]);
+const expandedProfileId = ref("");
 
 const enabledModUniqueIds = computed(() =>
   new Set(mods.value.map((mod) => mod.uniqueId).filter(Boolean))
@@ -1175,6 +1285,33 @@ const filteredMods = computed<DisplayModInfo[]>(() => {
   });
 });
 
+const profileSelectableMods = computed<DisplayModInfo[]>(() =>
+  [...allDisplayMods.value].sort((a, b) => a.name.localeCompare(b.name))
+);
+
+const filteredProfileSelectableMods = computed<DisplayModInfo[]>(() => {
+  const query = profileDraftSearchQuery.value.trim().toLowerCase();
+
+  if (!query) {
+    return profileSelectableMods.value;
+  }
+
+  return profileSelectableMods.value.filter((mod) =>
+    [
+      mod.name,
+      mod.author,
+      mod.version,
+      mod.description,
+      mod.uniqueId,
+      mod.folderName,
+      mod.modType.label,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query)
+  );
+});
+
 const selectedMod = computed<DisplayModInfo | null>(() => {
   if (!selectedModKey.value) {
     return null;
@@ -1255,40 +1392,119 @@ function getCurrentEnabledFolderNames() {
     .sort((a, b) => a.localeCompare(b));
 }
 
-function handleSaveCurrentProfile() {
-  const name = newProfileName.value.trim();
+function startCreateProfile(useCurrentEnabled: boolean) {
+  profileEditorMode.value = "create";
+  editingProfileId.value = "";
+  profileDraftName.value = "";
+  profileDraftSearchQuery.value = "";
+  profileDraftEnabledFolders.value = useCurrentEnabled ? getCurrentEnabledFolderNames() : [];
+  isProfileEditorOpen.value = true;
+
+  message.value = useCurrentEnabled
+    ? `已填入当前启用的 ${profileDraftEnabledFolders.value.length} 个 Mod，可以继续调整后保存。`
+    : "请选择这个配置要启用的 Mod。";
+}
+
+function startEditProfile(profile: ModProfile) {
+  profileEditorMode.value = "edit";
+  editingProfileId.value = profile.id;
+  profileDraftName.value = profile.name;
+  profileDraftSearchQuery.value = "";
+  profileDraftEnabledFolders.value = [...profile.enabledFolderNames];
+  isProfileEditorOpen.value = true;
+}
+
+function closeProfileEditor() {
+  isProfileEditorOpen.value = false;
+  editingProfileId.value = "";
+  profileDraftName.value = "";
+  profileDraftSearchQuery.value = "";
+  profileDraftEnabledFolders.value = [];
+}
+
+function isProfileFolderSelected(folderName: string) {
+  return profileDraftEnabledFolders.value.includes(folderName);
+}
+
+function toggleProfileFolder(folderName: string) {
+  if (isProfileFolderSelected(folderName)) {
+    profileDraftEnabledFolders.value = profileDraftEnabledFolders.value.filter(
+      (item) => item !== folderName
+    );
+    return;
+  }
+
+  profileDraftEnabledFolders.value = [...profileDraftEnabledFolders.value, folderName].sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
+function selectAllProfileMods() {
+  profileDraftEnabledFolders.value = profileSelectableMods.value
+    .map((mod) => mod.folderName)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function clearProfileDraft() {
+  profileDraftEnabledFolders.value = [];
+}
+
+function toggleProfilePreview(profileId: string) {
+  expandedProfileId.value = expandedProfileId.value === profileId ? "" : profileId;
+}
+
+function handleSaveProfileDraft() {
+  const name = profileDraftName.value.trim();
 
   if (!name) {
     message.value = "请先输入配置方案名称。";
     return;
   }
 
-  if (mods.value.length === 0) {
-    message.value = "当前没有已启用 Mod，无法保存配置方案。";
+  if (profileDraftEnabledFolders.value.length === 0) {
+    message.value = "请至少勾选一个 Mod。";
     return;
   }
 
   const now = new Date().toISOString();
-  const enabledFolderNames = getCurrentEnabledFolderNames();
-  const existingProfile = profiles.value.find((profile) => profile.name === name);
+  const enabledFolderNames = [...profileDraftEnabledFolders.value].sort((a, b) =>
+    a.localeCompare(b)
+  );
 
-  if (existingProfile) {
-    existingProfile.enabledFolderNames = enabledFolderNames;
-    existingProfile.updatedAt = now;
-    message.value = `已覆盖配置方案：${name}`;
+  if (profileEditorMode.value === "edit" && editingProfileId.value) {
+    const targetProfile = profiles.value.find((profile) => profile.id === editingProfileId.value);
+
+    if (!targetProfile) {
+      message.value = "保存失败：没有找到要编辑的配置方案。";
+      return;
+    }
+
+    targetProfile.name = name;
+    targetProfile.enabledFolderNames = enabledFolderNames;
+    targetProfile.updatedAt = now;
+    message.value = `已更新配置方案：${name}`;
   } else {
-    profiles.value.unshift({
-      id: createProfileId(),
-      name,
-      enabledFolderNames,
-      createdAt: now,
-      updatedAt: now,
-    });
-    message.value = `已保存配置方案：${name}`;
+    const existingProfile = profiles.value.find((profile) => profile.name === name);
+
+    if (existingProfile) {
+      existingProfile.enabledFolderNames = enabledFolderNames;
+      existingProfile.updatedAt = now;
+      message.value = `已覆盖同名配置方案：${name}`;
+    } else {
+      profiles.value.unshift({
+        id: createProfileId(),
+        name,
+        enabledFolderNames,
+        createdAt: now,
+        updatedAt: now,
+      });
+      message.value = `已保存配置方案：${name}`;
+    }
   }
 
-  newProfileName.value = "";
   saveProfiles();
+  closeProfileEditor();
 }
 
 function handleDeleteProfile(profileId: string) {
@@ -3468,6 +3684,191 @@ button.secondary:hover:not(:disabled) {
   font-weight: 800;
 }
 
+
+.mods-view {
+  gap: 14px;
+}
+
+.filter-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.filter-summary-row .filter-result-text {
+  margin: 0;
+}
+
+.active-filter-text {
+  margin: 0;
+  color: #6fa85f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mods-alert-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.recent-install-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recent-install-list span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #e2d1b8;
+  color: #5c4630;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.compact-result-box {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.compact-missing-list {
+  gap: 8px;
+}
+
+.compact-missing-list .missing-item {
+  padding: 10px 11px;
+}
+
+.compact-missing-list .missing-item p {
+  font-size: 13px;
+}
+
+.mods-workspace {
+  display: grid;
+  grid-template-columns: minmax(430px, 1fr) minmax(340px, 420px);
+  gap: 16px;
+  align-items: start;
+}
+
+.mods-list-panel,
+.side-detail-panel {
+  min-width: 0;
+}
+
+.mods-list-panel {
+  padding: 18px;
+}
+
+.scrollable-mods-list {
+  max-height: calc(100vh - 285px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.scrollable-mods-list::-webkit-scrollbar,
+.side-detail-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollable-mods-list::-webkit-scrollbar-thumb,
+.side-detail-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(92, 70, 48, 0.22);
+}
+
+.compact-mod-card {
+  padding: 14px;
+  align-items: flex-start;
+}
+
+.compact-mod-card .mod-title-row {
+  align-items: flex-start;
+}
+
+.compact-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.compact-card-actions {
+  min-width: 84px;
+}
+
+.compact-card-actions .tiny-button {
+  width: 72px;
+}
+
+.side-detail-panel {
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.side-detail-panel .panel-header {
+  align-items: flex-start;
+}
+
+.side-detail-panel .detail-description {
+  margin-bottom: 12px;
+}
+
+.detail-actions-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.detail-actions-inline .tiny-button {
+  width: auto;
+}
+
+.side-detail-grid {
+  grid-template-columns: 1fr;
+}
+
+.side-dependencies {
+  margin-top: 14px;
+}
+
+.empty-detail-state {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  color: #7a6652;
+}
+
+.empty-detail-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  border-radius: 20px;
+  background: #f6ead8;
+  font-size: 30px;
+}
+
+.empty-detail-state h3 {
+  margin: 0 0 8px;
+  color: #2d241b;
+}
+
+.empty-detail-state p {
+  max-width: 280px;
+  margin: 0;
+  line-height: 1.55;
+}
+
 @media (max-width: 760px) {
   .detail-layout,
   .detail-grid {
@@ -3552,6 +3953,165 @@ button.secondary:hover:not(:disabled) {
   flex-direction: column;
   gap: 8px;
   align-items: flex-end;
+}
+
+
+@media (max-width: 1320px) {
+  .mods-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .side-detail-panel {
+    position: static;
+    max-height: none;
+  }
+
+  .side-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .mods-alert-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scrollable-mods-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+
+
+.profile-intro-panel .panel-header {
+  align-items: flex-start;
+}
+
+.profile-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.profile-editor-panel {
+  border: 1px solid rgba(111, 168, 95, 0.35);
+}
+
+.profile-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.profile-field span {
+  display: block;
+  margin-bottom: 6px;
+  color: #7a6652;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profile-editor-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: #7a6652;
+  font-weight: 800;
+}
+
+.profile-editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.profile-select-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 440px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.profile-select-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 15px;
+  background: #f6ead8;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.profile-select-item.selected {
+  border-color: rgba(111, 168, 95, 0.8);
+  background: #e8f3df;
+}
+
+.profile-select-item input {
+  margin-top: 4px;
+  accent-color: #6fa85f;
+}
+
+.profile-select-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-select-main strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.profile-select-main p,
+.profile-select-main span {
+  display: block;
+  margin: 0;
+  color: #7a6652;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.profile-select-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.profile-editor-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.profile-link-button {
+  margin-top: 8px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #7a4f22;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profile-link-button:hover:not(:disabled) {
+  background: transparent;
+  color: #5d3a18;
+}
+
+@media (max-width: 1180px) {
+  .profile-editor-grid,
+  .profile-select-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1100px) {
