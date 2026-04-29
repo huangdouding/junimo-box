@@ -109,7 +109,7 @@
           <div class="panel compact-panel">
             <div class="panel-header">
               <h3>Mod 概览</h3>
-              <span>{{ mods.length + disabledMods.length }} 个</span>
+              <span>{{ totalModCount }} 个</span>
             </div>
 
             <div class="summary-row">
@@ -140,6 +140,55 @@
       </section>
 
       <section v-if="activeView === 'mods'" class="view-stack">
+        <div class="panel filter-panel">
+          <div class="filter-top-row">
+            <div class="search-box">
+              <span>🔎</span>
+              <input
+                v-model="modSearchQuery"
+                type="text"
+                placeholder="搜索 Mod 名称、作者、UniqueID、文件夹或描述..."
+              />
+            </div>
+
+            <button class="tiny-button" @click="clearModFilters">
+              清空筛选
+            </button>
+          </div>
+
+          <div class="filter-row">
+            <div class="filter-group">
+              <span class="filter-label">状态</span>
+              <button
+                v-for="option in statusFilterOptions"
+                :key="option.value"
+                class="filter-chip"
+                :class="{ active: modStatusFilter === option.value }"
+                @click="modStatusFilter = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+
+            <div class="filter-group">
+              <span class="filter-label">依赖</span>
+              <button
+                v-for="option in dependencyFilterOptions"
+                :key="option.value"
+                class="filter-chip"
+                :class="{ active: modDependencyFilter === option.value }"
+                @click="modDependencyFilter = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+
+          <p class="filter-result-text">
+            当前显示 {{ filteredMods.length }} / {{ allDisplayMods.length }} 个 Mod。
+          </p>
+        </div>
+
         <div v-if="lastInstalledZipMods.length > 0" class="panel">
           <div class="panel-header">
             <h3>最近安装</h3>
@@ -154,27 +203,18 @@
             >
               <div class="mod-main">
                 <h4>{{ mod.name }}</h4>
-
                 <p class="mod-meta">
                   {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
                 </p>
-
-                <p class="mod-description">
-                  UniqueID：{{ mod.unique_id || "未提供" }}
-                </p>
-
-                <p class="mod-description">
-                  安装文件夹：{{ mod.suggested_folder }}
-                </p>
+                <p class="mod-description">UniqueID：{{ mod.unique_id || "未提供" }}</p>
+                <p class="mod-description">安装文件夹：{{ mod.suggested_folder }}</p>
               </div>
             </article>
           </div>
 
           <div v-if="missingDependencies.length > 0" class="install-warning">
             <strong>⚠️ 安装后发现缺失依赖</strong>
-            <p>
-              有 {{ missingDependencies.length }} 项必需依赖未安装。请查看下方“依赖检查”面板。
-            </p>
+            <p>有 {{ missingDependencies.length }} 项必需依赖未安装。请查看下方“依赖检查”面板。</p>
           </div>
 
           <div v-else class="install-success">
@@ -187,11 +227,7 @@
           <div class="panel-header">
             <h3>依赖检查</h3>
             <span>
-              {{
-                missingDependencies.length === 0
-                  ? "正常"
-                  : `${missingDependencies.length} 项缺失`
-              }}
+              {{ missingDependencies.length === 0 ? "正常" : `${missingDependencies.length} 项缺失` }}
             </span>
           </div>
 
@@ -214,22 +250,30 @@
           </div>
         </div>
 
-        <div v-if="mods.length > 0" class="panel">
+        <div v-if="filteredMods.length > 0" class="panel">
           <div class="panel-header sticky-panel-header">
-            <h3>已安装 Mods</h3>
-            <span>{{ mods.length }} 个</span>
+            <h3>Mod 列表</h3>
+            <span>{{ filteredMods.length }} 个</span>
           </div>
 
           <div class="mods-list">
             <article
-              v-for="mod in mods"
-              :key="mod.uniqueId || mod.folderName"
+              v-for="mod in filteredMods"
+              :key="`${mod.isDisabled ? 'disabled' : 'enabled'}-${mod.uniqueId || mod.folderName}`"
               class="mod-item"
+              :class="{ disabled: mod.isDisabled, warning: mod.hasMissingRequiredDependency }"
             >
               <div class="mod-main">
                 <div class="mod-title-row">
                   <h4>{{ mod.name }}</h4>
-                  <span class="mod-folder mobile-folder">{{ mod.folderName }}</span>
+                  <div class="mod-badges">
+                    <span class="status-badge" :class="mod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
+                      {{ mod.isDisabled ? "已禁用" : "已启用" }}
+                    </span>
+                    <span v-if="mod.hasMissingRequiredDependency" class="status-badge missing-badge">
+                      缺失依赖
+                    </span>
+                  </div>
                 </div>
 
                 <p class="mod-meta">
@@ -239,6 +283,11 @@
                 <p class="mod-description">
                   {{ mod.description || "没有描述。" }}
                 </p>
+
+                <div class="mod-extra-row">
+                  <span>UniqueID：{{ mod.uniqueId || "未提供" }}</span>
+                  <span>文件夹：{{ mod.folderName }}</span>
+                </div>
 
                 <div
                   v-if="mod.contentPackFor || mod.dependencies.length > 0"
@@ -286,14 +335,20 @@
                 </span>
 
                 <div class="mod-button-row">
-                  <button
-                    class="tiny-button"
-                    @click="handleOpenModFolder(mod.folderName)"
-                  >
+                  <button class="tiny-button" @click="handleOpenDisplayedModFolder(mod)">
                     打开
                   </button>
 
                   <button
+                    v-if="mod.isDisabled"
+                    class="tiny-button"
+                    @click="handleEnableMod(mod.folderName)"
+                  >
+                    启用
+                  </button>
+
+                  <button
+                    v-else
                     class="tiny-button danger"
                     @click="handleDisableMod(mod.folderName)"
                   >
@@ -305,44 +360,12 @@
           </div>
         </div>
 
-        <div v-if="disabledMods.length > 0" class="panel">
-          <div class="panel-header">
-            <h3>已禁用 Mods</h3>
-            <span>{{ disabledMods.length }} 个</span>
-          </div>
-
-          <div class="mods-list">
-            <article
-              v-for="mod in disabledMods"
-              :key="mod.uniqueId || mod.folderName"
-              class="mod-item disabled"
-            >
-              <div class="mod-main">
-                <h4>{{ mod.name }}</h4>
-
-                <p class="mod-meta">
-                  {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
-                </p>
-
-                <p class="mod-description">
-                  {{ mod.description || "没有描述。" }}
-                </p>
-              </div>
-
-              <div class="mod-actions">
-                <span class="mod-folder">
-                  {{ mod.folderName }}
-                </span>
-
-                <button
-                  class="tiny-button"
-                  @click="handleEnableMod(mod.folderName)"
-                >
-                  启用
-                </button>
-              </div>
-            </article>
-          </div>
+        <div
+          v-else-if="gamePath && allDisplayMods.length > 0"
+          class="empty-state"
+        >
+          <h3>没有符合条件的 Mod</h3>
+          <p>试试清空搜索词，或者切换筛选条件。</p>
         </div>
 
         <div v-if="skippedFolders.length > 0" class="panel">
@@ -360,8 +383,7 @@
               <div class="mod-main">
                 <h4>{{ folder }}</h4>
                 <p class="mod-description">
-                  这个文件夹没有被识别为 Mod。通常是因为没有 manifest.json，
-                  或者 manifest.json 读取失败。
+                  这个文件夹没有被识别为 Mod。通常是因为没有 manifest.json，或者 manifest.json 读取失败。
                 </p>
               </div>
             </article>
@@ -369,12 +391,7 @@
         </div>
 
         <div
-          v-if="
-            gamePath &&
-            mods.length === 0 &&
-            disabledMods.length === 0 &&
-            skippedFolders.length === 0
-          "
+          v-if="gamePath && allDisplayMods.length === 0 && skippedFolders.length === 0"
           class="empty-state"
         >
           <h3>还没有扫描到 Mod</h3>
@@ -402,18 +419,14 @@
 
             <div class="diagnosis-card">
               <span>警告</span>
-              <strong
-                :class="smapiLogAnalysis.warningLines.length > 0 ? 'bad' : 'ok'"
-              >
+              <strong :class="smapiLogAnalysis.warningLines.length > 0 ? 'bad' : 'ok'">
                 {{ smapiLogAnalysis.warningLines.length }}
               </strong>
             </div>
 
             <div class="diagnosis-card">
               <span>错误</span>
-              <strong
-                :class="smapiLogAnalysis.errorLines.length > 0 ? 'bad' : 'ok'"
-              >
+              <strong :class="smapiLogAnalysis.errorLines.length > 0 ? 'bad' : 'ok'">
                 {{ smapiLogAnalysis.errorLines.length }}
               </strong>
             </div>
@@ -424,49 +437,27 @@
             <p class="code-text">{{ smapiLogAnalysis.modsPath }}</p>
           </div>
 
-          <div
-            v-if="smapiLogAnalysis.suggestions.length > 0"
-            class="diagnosis-section"
-          >
+          <div v-if="smapiLogAnalysis.suggestions.length > 0" class="diagnosis-section">
             <h4>建议处理</h4>
-
             <ul class="diagnosis-list">
-              <li
-                v-for="suggestion in smapiLogAnalysis.suggestions"
-                :key="suggestion"
-              >
+              <li v-for="suggestion in smapiLogAnalysis.suggestions" :key="suggestion">
                 {{ suggestion }}
               </li>
             </ul>
           </div>
 
-          <div
-            v-if="smapiLogAnalysis.affectedAssets.length > 0"
-            class="diagnosis-section warning-box"
-          >
+          <div v-if="smapiLogAnalysis.affectedAssets.length > 0" class="diagnosis-section warning-box">
             <h4>受影响的游戏文件</h4>
-
-            <p>
-              SMAPI 检测到游戏原始内容文件可能被修改或损坏。常见原因是旧式
-              XNB 模组覆盖了游戏文件。
-            </p>
-
+            <p>SMAPI 检测到游戏原始内容文件可能被修改或损坏。常见原因是旧式 XNB 模组覆盖了游戏文件。</p>
             <ul class="diagnosis-list">
-              <li
-                v-for="asset in smapiLogAnalysis.affectedAssets"
-                :key="asset"
-              >
+              <li v-for="asset in smapiLogAnalysis.affectedAssets" :key="asset">
                 {{ asset }}
               </li>
             </ul>
           </div>
 
-          <div
-            v-if="smapiLogAnalysis.skippedMods.length > 0"
-            class="diagnosis-section warning-box"
-          >
+          <div v-if="smapiLogAnalysis.skippedMods.length > 0" class="diagnosis-section warning-box">
             <h4>被 SMAPI 跳过的 Mod</h4>
-
             <div
               v-for="skippedMod in smapiLogAnalysis.skippedMods"
               :key="skippedMod.path"
@@ -477,18 +468,12 @@
             </div>
           </div>
 
-          <div
-            v-if="smapiLogAnalysis.errorLines.length > 0"
-            class="diagnosis-section error-box"
-          >
+          <div v-if="smapiLogAnalysis.errorLines.length > 0" class="diagnosis-section error-box">
             <h4>错误行</h4>
             <pre class="small-log">{{ smapiLogAnalysis.errorLines.join("\n") }}</pre>
           </div>
 
-          <div
-            v-if="smapiLogAnalysis.warningLines.length > 0"
-            class="diagnosis-section"
-          >
+          <div v-if="smapiLogAnalysis.warningLines.length > 0" class="diagnosis-section">
             <h4>警告行</h4>
             <pre class="small-log">{{ smapiLogAnalysis.warningLines.join("\n") }}</pre>
           </div>
@@ -497,11 +482,7 @@
         <div v-if="smapiLogContent" class="panel">
           <div class="panel-header">
             <h3>原始日志</h3>
-
-            <button
-              class="tiny-button"
-              @click="showRawSmapiLog = !showRawSmapiLog"
-            >
+            <button class="tiny-button" @click="showRawSmapiLog = !showRawSmapiLog">
               {{ showRawSmapiLog ? "收起" : "展开" }}
             </button>
           </div>
@@ -515,9 +496,7 @@
 
         <div v-if="!smapiLogContent" class="empty-state">
           <h3>还没有读取日志</h3>
-          <p>
-            点击“读取最新日志”，Junimo Box 会读取最近一次 SMAPI 日志并生成诊断摘要。
-          </p>
+          <p>点击“读取最新日志”，Junimo Box 会读取最近一次 SMAPI 日志并生成诊断摘要。</p>
         </div>
       </section>
 
@@ -525,24 +504,17 @@
         <div class="panel compact-panel">
           <div class="panel-header">
             <h3>工具箱</h3>
-            <span>文件与报告</span>
+            <span>快捷操作</span>
           </div>
 
           <div class="tool-grid">
-            <button @click="handleOpenGameFolder">
-              打开游戏目录
-            </button>
+            <button @click="handleOpenGameFolder">打开游戏目录</button>
 
-            <button
-              :disabled="!modsFolderExists"
-              @click="handleOpenModsFolder"
-            >
+            <button :disabled="!modsFolderExists" @click="handleOpenModsFolder">
               打开 Mods 文件夹
             </button>
 
-            <button @click="handleOpenSmapiLogFolder">
-              打开日志文件夹
-            </button>
+            <button @click="handleOpenSmapiLogFolder">打开日志文件夹</button>
 
             <button
               :disabled="mods.length === 0 && disabledMods.length === 0"
@@ -551,26 +523,19 @@
               导出 Mod 列表
             </button>
 
-            <button
-              :disabled="!gamePath"
-              @click="handleExportProblemReport"
-            >
+            <button :disabled="!gamePath" @click="handleExportProblemReport">
               导出问题报告
             </button>
 
-            <button @click="handlePreviewZipMod">
-              预览 ZIP Mod
-            </button>
+            <button @click="handlePreviewZipMod">预览 ZIP Mod</button>
           </div>
         </div>
 
         <div v-if="zipModPreviews.length > 0" class="panel">
           <div class="panel-header">
             <h3>ZIP Mod 安装预览</h3>
-
             <div class="panel-actions">
               <span>{{ zipModPreviews.length }} 个</span>
-
               <button
                 class="tiny-button"
                 :disabled="!gamePath"
@@ -581,9 +546,7 @@
             </div>
           </div>
 
-          <p class="muted-text path-text">
-            当前压缩包：{{ selectedZipPath }}
-          </p>
+          <p class="muted-text path-text">当前压缩包：{{ selectedZipPath }}</p>
 
           <div class="mods-list zip-preview-list">
             <article
@@ -593,28 +556,16 @@
             >
               <div class="mod-main">
                 <h4>{{ mod.name }}</h4>
-
                 <p class="mod-meta">
                   {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
                 </p>
-
-                <p class="mod-description">
-                  {{ mod.description || "没有描述。" }}
-                </p>
-
-                <p class="mod-description">
-                  UniqueID：{{ mod.unique_id || "未提供" }}
-                </p>
-
-                <p class="mod-description">
-                  manifest：{{ mod.manifest_path }}
-                </p>
+                <p class="mod-description">{{ mod.description || "没有描述。" }}</p>
+                <p class="mod-description">UniqueID：{{ mod.unique_id || "未提供" }}</p>
+                <p class="mod-description">manifest：{{ mod.manifest_path }}</p>
               </div>
 
               <div class="mod-actions">
-                <span class="mod-folder">
-                  {{ mod.suggested_folder }}
-                </span>
+                <span class="mod-folder">{{ mod.suggested_folder }}</span>
               </div>
             </article>
           </div>
@@ -634,49 +585,39 @@
           </div>
 
           <div class="setting-actions">
-            <button @click="handleSelectPath">
-              重新选择游戏目录
-            </button>
+            <button @click="handleSelectPath">重新选择游戏目录</button>
           </div>
         </div>
       </section>
     </section>
 
     <aside class="right-panel">
-      <section class="launch-card primary-launch-card">
-        <div class="launch-card-head">
-          <div class="junimo-badge">🌱</div>
-          <div>
-            <h3>启动中心</h3>
-            <p>选择加载 Mod 或启动原版</p>
-          </div>
+      <div class="launch-card">
+        <div class="junimo-badge">🌱</div>
+        <div>
+          <h3>启动中心</h3>
+          <p>管理你的星露谷 Mod 环境</p>
         </div>
 
-        <div class="launch-buttons">
-          <button
-            class="launch-button smapi-launch"
-            :disabled="!smapiExists"
-            @click="handleLaunchSmapi"
-          >
-            启动 SMAPI
-          </button>
+        <button
+          class="launch-button"
+          :disabled="!smapiExists"
+          @click="handleLaunchSmapi"
+        >
+          启动 SMAPI
+        </button>
 
-          <button
-            class="launch-button vanilla-launch"
-            :disabled="!stardewExists"
-            @click="handleLaunchVanilla"
-          >
-            启动原版
-          </button>
-        </div>
+        <button
+          class="launch-button vanilla-button"
+          :disabled="!stardewExists"
+          @click="handleLaunchVanilla"
+        >
+          启动原版
+        </button>
+      </div>
 
-        <p class="launch-note">
-          SMAPI 会加载 Mods；原版不会加载 Mods。
-        </p>
-      </section>
-
-      <section class="side-card status-card-panel">
-        <h4>环境状态</h4>
+      <div class="side-card">
+        <h4>游戏状态</h4>
 
         <div class="info-line">
           <span>Stardew Valley</span>
@@ -699,31 +640,23 @@
           </strong>
         </div>
 
-        <div class="side-metrics">
-          <div>
-            <span>启用</span>
-            <strong>{{ mods.length }}</strong>
-          </div>
-          <div>
-            <span>禁用</span>
-            <strong>{{ disabledMods.length }}</strong>
-          </div>
-          <div>
-            <span>缺依赖</span>
-            <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">
-              {{ missingDependencies.length }}
-            </strong>
-          </div>
+        <div class="info-line">
+          <span>已启用 Mods</span>
+          <strong>{{ mods.length }}</strong>
         </div>
-      </section>
 
-      <section class="side-card path-card">
-        <div class="path-card-head">
-          <h4>当前路径</h4>
-          <button class="text-button" @click="handleSelectPath">更改</button>
+        <div class="info-line">
+          <span>缺失依赖</span>
+          <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">
+            {{ missingDependencies.length }}
+          </strong>
         </div>
+      </div>
+
+      <div class="side-card path-card">
+        <h4>当前路径</h4>
         <p>{{ gamePath || "尚未选择 Stardew Valley 安装目录" }}</p>
-      </section>
+      </div>
     </aside>
   </main>
 </template>
@@ -731,13 +664,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
 
 const STORAGE_KEY = "junimo-box-game-path";
 
 type ViewId = "overview" | "mods" | "logs" | "tools" | "settings";
+type ModStatusFilter = "all" | "enabled" | "disabled";
+type ModDependencyFilter = "all" | "missing";
+
+type ViewMeta = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
 
 type ModDependency = {
   uniqueId: string;
@@ -759,6 +700,11 @@ type ModInfo = {
   folderName: string;
   dependencies: ModDependency[];
   contentPackFor?: ModDependency;
+};
+
+type DisplayModInfo = ModInfo & {
+  isDisabled: boolean;
+  hasMissingRequiredDependency: boolean;
 };
 
 type SkippedModInfo = {
@@ -787,16 +733,26 @@ type ZipModPreview = {
   suggested_folder: string;
 };
 
-const navItems: Array<{
-  id: ViewId;
-  label: string;
-  icon: string;
-}> = [
+const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
   { id: "overview", label: "总览", icon: "🏡" },
   { id: "mods", label: "Mods", icon: "📦" },
   { id: "logs", label: "日志", icon: "📜" },
   { id: "tools", label: "工具箱", icon: "🧰" },
   { id: "settings", label: "设置", icon: "⚙️" },
+];
+
+const statusFilterOptions: Array<{ value: ModStatusFilter; label: string }> = [
+  { value: "all", label: "全部" },
+  { value: "enabled", label: "已启用" },
+  { value: "disabled", label: "已禁用" },
+];
+
+const dependencyFilterOptions: Array<{
+  value: ModDependencyFilter;
+  label: string;
+}> = [
+  { value: "all", label: "全部依赖" },
+  { value: "missing", label: "缺失依赖" },
 ];
 
 const activeView = ref<ViewId>("mods");
@@ -821,43 +777,79 @@ const selectedZipPath = ref("");
 const zipModPreviews = ref<ZipModPreview[]>([]);
 const lastInstalledZipMods = ref<ZipModPreview[]>([]);
 
-const currentViewMeta = computed(() => {
-  const map: Record<
-    ViewId,
-    {
-      eyebrow: string;
-      title: string;
-      description: string;
-    }
-  > = {
-    overview: {
-      eyebrow: "Overview",
-      title: "总览",
-      description: "查看当前游戏环境、Mod 数量和依赖状态。",
-    },
-    mods: {
-      eyebrow: "Local Mods",
-      title: "本地 Mod 管理",
-      description: "扫描、查看、启用或禁用 Stardew Valley Mods。",
-    },
-    logs: {
-      eyebrow: "SMAPI Logs",
-      title: "SMAPI 日志",
-      description: "读取最近一次 SMAPI 日志，并生成基础诊断摘要。",
-    },
-    tools: {
-      eyebrow: "Toolbox",
-      title: "工具箱",
-      description: "打开常用目录，导出报告，预览并安装 ZIP Mod。",
-    },
-    settings: {
-      eyebrow: "Settings",
-      title: "设置",
-      description: "管理本地路径和 Junimo Box 基础偏好。",
-    },
-  };
+const modSearchQuery = ref("");
+const modStatusFilter = ref<ModStatusFilter>("all");
+const modDependencyFilter = ref<ModDependencyFilter>("all");
 
-  return map[activeView.value];
+const totalModCount = computed(() => mods.value.length + disabledMods.value.length);
+
+const viewMetaMap: Record<ViewId, ViewMeta> = {
+  overview: {
+    eyebrow: "Overview",
+    title: "总览",
+    description: "查看当前游戏环境、Mod 数量和依赖状态。",
+  },
+  mods: {
+    eyebrow: "Local Mods",
+    title: "本地 Mod 管理",
+    description: "搜索、筛选、查看、启用或禁用 Stardew Valley Mods。",
+  },
+  logs: {
+    eyebrow: "SMAPI Logs",
+    title: "SMAPI 日志",
+    description: "读取最近一次 SMAPI 日志，并生成基础诊断摘要。",
+  },
+  tools: {
+    eyebrow: "Toolbox",
+    title: "工具箱",
+    description: "打开常用目录，导出报告，预览并安装 ZIP Mod。",
+  },
+  settings: {
+    eyebrow: "Settings",
+    title: "设置",
+    description: "管理本地路径和 Junimo Box 基础偏好。",
+  },
+};
+
+const currentViewMeta = computed<ViewMeta>(() => viewMetaMap[activeView.value]);
+
+const allDisplayMods = computed<DisplayModInfo[]>(() => [
+  ...mods.value.map((mod) => createDisplayMod(mod, false)),
+  ...disabledMods.value.map((mod) => createDisplayMod(mod, true)),
+]);
+
+const filteredMods = computed<DisplayModInfo[]>(() => {
+  const query = modSearchQuery.value.trim().toLowerCase();
+
+  return allDisplayMods.value.filter((mod: DisplayModInfo) => {
+    if (modStatusFilter.value === "enabled" && mod.isDisabled) {
+      return false;
+    }
+
+    if (modStatusFilter.value === "disabled" && !mod.isDisabled) {
+      return false;
+    }
+
+    if (modDependencyFilter.value === "missing" && !mod.hasMissingRequiredDependency) {
+      return false;
+    }
+
+    if (!query) {
+      return true;
+    }
+
+    return [
+      mod.name,
+      mod.author,
+      mod.version,
+      mod.description,
+      mod.uniqueId,
+      mod.folderName,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
 });
 
 onMounted(async () => {
@@ -931,19 +923,17 @@ async function scanMods() {
     skippedFolders.value = [];
 
     const foundMods = await collectModsFromFolder(modsFolder, "", true);
-    mods.value = attachDependencyStatus(
-      foundMods.sort((a, b) => a.name.localeCompare(b.name))
+    const enabledMods = attachDependencyStatus(foundMods, foundMods).sort((a, b) =>
+      a.name.localeCompare(b.name)
     );
 
-    if (await exists(disabledModsFolder)) {
-      const foundDisabledMods = await collectModsFromFolder(
-        disabledModsFolder,
-        "",
-        false
-      );
+    mods.value = enabledMods;
 
-      disabledMods.value = attachDependencyStatus(
-        foundDisabledMods.sort((a, b) => a.name.localeCompare(b.name))
+    if (await exists(disabledModsFolder)) {
+      const foundDisabledMods = await collectModsFromFolder(disabledModsFolder, "", false);
+
+      disabledMods.value = attachDependencyStatus(foundDisabledMods, enabledMods).sort((a, b) =>
+        a.name.localeCompare(b.name)
       );
     } else {
       disabledMods.value = [];
@@ -1008,9 +998,7 @@ async function collectModsFromFolder(
     }
 
     const childPath = `${folderPath}\\${entry.name}`;
-    const childRelativePath = relativePath
-      ? `${relativePath}\\${entry.name}`
-      : entry.name;
+    const childRelativePath = relativePath ? `${relativePath}\\${entry.name}` : entry.name;
 
     const childMods = await collectModsFromFolder(
       childPath,
@@ -1023,29 +1011,11 @@ async function collectModsFromFolder(
 
   const depth = relativePath ? relativePath.split("\\").length : 0;
 
-  if (
-    trackSkippedFolders &&
-    !hasManifest &&
-    foundMods.length === 0 &&
-    depth <= 2 &&
-    relativePath
-  ) {
+  if (trackSkippedFolders && !hasManifest && foundMods.length === 0 && depth <= 2 && relativePath) {
     skippedFolders.value.push(`${folderLabel}：没有找到 manifest.json`);
   }
 
   return foundMods;
-}
-
-async function launchExecutable(path: string, successMessage: string) {
-  try {
-    await invoke("launch_game", {
-      path,
-    });
-
-    message.value = successMessage;
-  } catch (error) {
-    message.value = `启动失败：${String(error)}`;
-  }
 }
 
 async function handleLaunchSmapi() {
@@ -1057,12 +1027,11 @@ async function handleLaunchSmapi() {
   await checkGameFiles(gamePath.value);
 
   if (!smapiExists.value) {
-    message.value = "未找到 StardewModdingAPI.exe，无法通过 SMAPI 启动。";
+    message.value = "未找到 StardewModdingAPI.exe，无法启动 SMAPI。";
     return;
   }
 
-  const smapiExe = `${gamePath.value}\\StardewModdingAPI.exe`;
-  await launchExecutable(smapiExe, "正在通过 SMAPI 启动游戏...");
+  await launchExecutable(`${gamePath.value}\\StardewModdingAPI.exe`, "正在通过 SMAPI 启动游戏...");
 }
 
 async function handleLaunchVanilla() {
@@ -1078,8 +1047,16 @@ async function handleLaunchVanilla() {
     return;
   }
 
-  const stardewExe = `${gamePath.value}\\Stardew Valley.exe`;
-  await launchExecutable(stardewExe, "正在启动原版 Stardew Valley...");
+  await launchExecutable(`${gamePath.value}\\Stardew Valley.exe`, "正在启动原版 Stardew Valley...");
+}
+
+async function launchExecutable(path: string, successMessage: string) {
+  try {
+    await invoke("launch_game", { path });
+    message.value = successMessage;
+  } catch (error) {
+    message.value = `启动失败：${String(error)}`;
+  }
 }
 
 async function handleOpenGameFolder() {
@@ -1089,10 +1066,7 @@ async function handleOpenGameFolder() {
   }
 
   try {
-    await invoke("open_folder", {
-      path: gamePath.value,
-    });
-
+    await invoke("open_folder", { path: gamePath.value });
     message.value = "已打开游戏目录。";
   } catch (error) {
     message.value = `打开游戏目录失败：${String(error)}`;
@@ -1113,35 +1087,30 @@ async function handleOpenModsFolder() {
   }
 
   try {
-    await invoke("open_folder", {
-      path: modsFolder,
-    });
-
+    await invoke("open_folder", { path: modsFolder });
     message.value = "已打开 Mods 文件夹。";
   } catch (error) {
     message.value = `打开 Mods 文件夹失败：${String(error)}`;
   }
 }
 
-async function handleOpenModFolder(folderName: string) {
+async function handleOpenDisplayedModFolder(mod: DisplayModInfo) {
   if (!gamePath.value) {
     message.value = "请先选择游戏目录。";
     return;
   }
 
-  const modFolder = `${gamePath.value}\\Mods\\${folderName}`;
+  const rootFolder = mod.isDisabled ? "Disabled Mods" : "Mods";
+  const modFolder = `${gamePath.value}\\${rootFolder}\\${mod.folderName}`;
 
   if (!(await exists(modFolder))) {
-    message.value = `未找到 Mod 文件夹：${folderName}`;
+    message.value = `未找到 Mod 文件夹：${mod.folderName}`;
     return;
   }
 
   try {
-    await invoke("open_folder", {
-      path: modFolder,
-    });
-
-    message.value = `已打开 Mod 文件夹：${folderName}`;
+    await invoke("open_folder", { path: modFolder });
+    message.value = `已打开 Mod 文件夹：${mod.folderName}`;
   } catch (error) {
     message.value = `打开 Mod 文件夹失败：${String(error)}`;
   }
@@ -1150,18 +1119,6 @@ async function handleOpenModFolder(folderName: string) {
 async function handleDisableMod(folderName: string) {
   if (!gamePath.value) {
     message.value = "请先选择游戏目录。";
-    return;
-  }
-
-  const confirmed = await confirm(
-    `确定要禁用这个 Mod 吗？\n\n${folderName}\n\n它会被移动到 Disabled Mods 文件夹。`,
-    {
-      title: "确认禁用 Mod",
-      kind: "warning",
-    }
-  );
-
-  if (!confirmed) {
     return;
   }
 
@@ -1179,11 +1136,7 @@ async function handleDisableMod(folderName: string) {
   }
 
   try {
-    await invoke("move_folder", {
-      from,
-      to,
-    });
-
+    await invoke("move_folder", { from, to });
     message.value = `已禁用 Mod：${folderName}`;
     await scanMods();
   } catch (error) {
@@ -1194,18 +1147,6 @@ async function handleDisableMod(folderName: string) {
 async function handleEnableMod(folderName: string) {
   if (!gamePath.value) {
     message.value = "请先选择游戏目录。";
-    return;
-  }
-
-  const confirmed = await confirm(
-    `确定要启用这个 Mod 吗？\n\n${folderName}\n\n它会被移动回 Mods 文件夹。`,
-    {
-      title: "确认启用 Mod",
-      kind: "info",
-    }
-  );
-
-  if (!confirmed) {
     return;
   }
 
@@ -1223,11 +1164,7 @@ async function handleEnableMod(folderName: string) {
   }
 
   try {
-    await invoke("move_folder", {
-      from,
-      to,
-    });
-
+    await invoke("move_folder", { from, to });
     message.value = `已启用 Mod：${folderName}`;
     await scanMods();
   } catch (error) {
@@ -1244,12 +1181,7 @@ async function handleExportModList() {
   const filePath = await save({
     title: "导出 Mod 列表",
     defaultPath: "junimo-box-mod-report.json",
-    filters: [
-      {
-        name: "JSON 文件",
-        extensions: ["json"],
-      },
-    ],
+    filters: [{ name: "JSON 文件", extensions: ["json"] }],
   });
 
   if (!filePath) {
@@ -1313,12 +1245,7 @@ async function handleExportProblemReport() {
   const filePath = await save({
     title: "导出问题报告",
     defaultPath: "junimo-box-problem-report.txt",
-    filters: [
-      {
-        name: "文本文件",
-        extensions: ["txt"],
-      },
-    ],
+    filters: [{ name: "文本文件", extensions: ["txt"] }],
   });
 
   if (!filePath) {
@@ -1328,11 +1255,7 @@ async function handleExportProblemReport() {
   const reportText = createProblemReportText();
 
   try {
-    await invoke("write_text_file", {
-      path: filePath,
-      content: reportText,
-    });
-
+    await invoke("write_text_file", { path: filePath, content: reportText });
     message.value = `已导出问题报告：${filePath}`;
   } catch (error) {
     message.value = `导出问题报告失败：${String(error)}`;
@@ -1344,12 +1267,7 @@ async function handlePreviewZipMod() {
     directory: false,
     multiple: false,
     title: "选择 Mod ZIP 压缩包",
-    filters: [
-      {
-        name: "ZIP 压缩包",
-        extensions: ["zip"],
-      },
-    ],
+    filters: [{ name: "ZIP 压缩包", extensions: ["zip"] }],
   });
 
   if (typeof selected !== "string") {
@@ -1365,7 +1283,7 @@ async function handlePreviewZipMod() {
     });
 
     zipModPreviews.value = previews;
-
+    activeView.value = "tools";
     message.value = `ZIP 预览完成：找到 ${previews.length} 个 Mod。`;
   } catch (error) {
     selectedZipPath.value = selected;
@@ -1385,22 +1303,6 @@ async function handleInstallZipMod() {
     return;
   }
 
-  const modNames = zipModPreviews.value
-    .map((mod) => `- ${mod.name || mod.suggested_folder}`)
-    .join("\n");
-
-  const confirmed = await confirm(
-    `确定要安装这个 ZIP 里的 Mod 吗？\n\n${modNames}\n\nJunimo Box 会把它们解压到 Mods 文件夹。`,
-    {
-      title: "确认安装 ZIP Mod",
-      kind: "info",
-    }
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
   try {
     const installedMods = await invoke<ZipModPreview[]>("install_zip_mods", {
       zipPath: selectedZipPath.value,
@@ -1408,7 +1310,6 @@ async function handleInstallZipMod() {
     });
 
     lastInstalledZipMods.value = installedMods;
-
     selectedZipPath.value = "";
     zipModPreviews.value = [];
 
@@ -1448,15 +1349,35 @@ async function handleReadLatestSmapiLog() {
 async function handleOpenSmapiLogFolder() {
   try {
     const logFolder = await invoke<string>("get_smapi_log_folder");
-
-    await invoke("open_folder", {
-      path: logFolder,
-    });
-
+    await invoke("open_folder", { path: logFolder });
     message.value = "已打开 SMAPI 日志文件夹。";
   } catch (error) {
     message.value = `打开 SMAPI 日志文件夹失败：${String(error)}`;
   }
+}
+
+function clearModFilters() {
+  modSearchQuery.value = "";
+  modStatusFilter.value = "all";
+  modDependencyFilter.value = "all";
+}
+
+function createDisplayMod(mod: ModInfo, isDisabled: boolean): DisplayModInfo {
+  return {
+    ...mod,
+    isDisabled,
+    hasMissingRequiredDependency: modHasMissingRequiredDependency(mod),
+  };
+}
+
+function modHasMissingRequiredDependency(mod: ModInfo): boolean {
+  if (mod.contentPackFor && !mod.contentPackFor.isInstalled) {
+    return true;
+  }
+
+  return mod.dependencies.some(
+    (dependency) => dependency.isRequired && !dependency.isInstalled
+  );
 }
 
 function normalizeDependencies(rawDependencies: unknown): ModDependency[] {
@@ -1470,10 +1391,7 @@ function normalizeDependencies(rawDependencies: unknown): ModDependency[] {
         return null;
       }
 
-      const item = dependency as {
-        UniqueID?: string;
-        IsRequired?: boolean;
-      };
+      const item = dependency as { UniqueID?: string; IsRequired?: boolean };
 
       if (!item.UniqueID) {
         return null;
@@ -1488,16 +1406,12 @@ function normalizeDependencies(rawDependencies: unknown): ModDependency[] {
     .filter((dependency): dependency is ModDependency => dependency !== null);
 }
 
-function normalizeContentPackFor(
-  rawContentPackFor: unknown
-): ModDependency | undefined {
+function normalizeContentPackFor(rawContentPackFor: unknown): ModDependency | undefined {
   if (!rawContentPackFor || typeof rawContentPackFor !== "object") {
     return undefined;
   }
 
-  const item = rawContentPackFor as {
-    UniqueID?: string;
-  };
+  const item = rawContentPackFor as { UniqueID?: string };
 
   if (!item.UniqueID) {
     return undefined;
@@ -1510,9 +1424,9 @@ function normalizeContentPackFor(
   };
 }
 
-function attachDependencyStatus(modList: ModInfo[]) {
+function attachDependencyStatus(modList: ModInfo[], installedSource: ModInfo[] = modList): ModInfo[] {
   const installedUniqueIds = new Set(
-    modList.map((mod) => mod.uniqueId).filter(Boolean)
+    installedSource.map((mod) => mod.uniqueId).filter(Boolean)
   );
 
   return modList.map((mod) => ({
@@ -1551,10 +1465,7 @@ function collectMissingDependencies(modList: ModInfo[]): MissingDependency[] {
   }
 
   return Array.from(missingMap.entries())
-    .map(([uniqueId, requiredBy]) => ({
-      uniqueId,
-      requiredBy,
-    }))
+    .map(([uniqueId, requiredBy]) => ({ uniqueId, requiredBy }))
     .sort((a, b) => a.uniqueId.localeCompare(b.uniqueId));
 }
 
@@ -1571,7 +1482,7 @@ function createExportModInfo(mod: ModInfo) {
   };
 }
 
-function createProblemReportText() {
+function createProblemReportText(): string {
   const lines: string[] = [];
 
   lines.push("Junimo Box 问题报告");
@@ -1662,23 +1573,11 @@ function createProblemReportText() {
     lines.push("");
 
     lines.push("[错误行]");
-    if (analysis.errorLines.length === 0) {
-      lines.push("无");
-    } else {
-      for (const line of analysis.errorLines) {
-        lines.push(line);
-      }
-    }
+    lines.push(...(analysis.errorLines.length === 0 ? ["无"] : analysis.errorLines));
     lines.push("");
 
     lines.push("[警告行]");
-    if (analysis.warningLines.length === 0) {
-      lines.push("无");
-    } else {
-      for (const line of analysis.warningLines) {
-        lines.push(line);
-      }
-    }
+    lines.push(...(analysis.warningLines.length === 0 ? ["无"] : analysis.warningLines));
   }
 
   lines.push("");
@@ -1708,7 +1607,7 @@ function createProblemReportText() {
   return lines.join("\n");
 }
 
-function formatModForReport(mod: ModInfo) {
+function formatModForReport(mod: ModInfo): string {
   const parts = [
     mod.name || "未知 Mod",
     mod.author ? `作者：${mod.author}` : "作者：未知",
@@ -1720,7 +1619,7 @@ function formatModForReport(mod: ModInfo) {
   return `- ${parts.join(" / ")}`;
 }
 
-function getFolderName(path: string) {
+function getFolderName(path: string): string {
   const parts = path.split("\\").filter(Boolean);
   return parts[parts.length - 1] || path;
 }
@@ -1835,9 +1734,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   height: 100vh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr) 250px;
+  grid-template-columns: 218px minmax(0, 1fr) 270px;
   background:
-    radial-gradient(circle at top left, rgba(132, 184, 95, 0.14), transparent 30%),
+    radial-gradient(circle at top left, rgba(132, 184, 95, 0.16), transparent 30%),
     #f5efe3;
   color: #2d241b;
   font-family:
@@ -1848,21 +1747,21 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .sidebar {
   height: 100%;
-  padding: 16px 12px;
+  padding: 16px 14px;
   box-sizing: border-box;
-  background: linear-gradient(180deg, #5d3f2a, #3b271a);
+  background: linear-gradient(180deg, #5f432d, #3f2b1d);
   color: #fff7e8;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  border-right: 1px solid rgba(45, 36, 27, 0.25);
+  border-right: 3px solid rgba(45, 36, 27, 0.2);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px;
+  padding: 12px;
   border-radius: 17px;
   background: rgba(255, 250, 240, 0.1);
 }
@@ -1875,12 +1774,11 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   border-radius: 13px;
   background: #fffaf0;
   font-size: 22px;
-  flex-shrink: 0;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1.05;
 }
 
@@ -1938,7 +1836,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   min-width: 0;
   height: 100%;
   overflow-y: auto;
-  padding: 22px 28px;
+  padding: 24px 28px;
   box-sizing: border-box;
 }
 
@@ -1948,6 +1846,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 18px;
   align-items: flex-start;
   margin-bottom: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .content-header h2 {
@@ -1960,12 +1864,6 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   margin: 0;
   color: #7a6652;
   line-height: 1.45;
-}
-
-.header-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
 }
 
 .eyebrow {
@@ -1982,18 +1880,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 16px;
 }
 
-.overview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-}
-
 .notice,
 .panel,
 .empty-state {
   border-radius: 22px;
-  background: rgba(255, 250, 240, 0.9);
-  box-shadow: 0 10px 28px rgba(67, 47, 27, 0.08);
+  background: rgba(255, 250, 240, 0.92);
+  box-shadow: 0 10px 28px rgba(67, 47, 27, 0.09);
 }
 
 .notice {
@@ -2007,8 +1899,11 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   padding: 20px;
 }
 
-.slim-panel,
 .compact-panel {
+  padding: 18px 20px;
+}
+
+.slim-panel {
   padding: 18px 20px;
 }
 
@@ -2044,10 +1939,24 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   font-weight: 800;
 }
 
+.sticky-panel-header {
+  position: sticky;
+  top: -24px;
+  z-index: 1;
+  padding: 4px 0 10px;
+  background: rgba(255, 250, 240, 0.95);
+}
+
 .panel-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .status-grid,
@@ -2088,6 +1997,80 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.filter-panel {
+  padding: 16px;
+}
+
+.filter-top-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 15px;
+  background: #f6ead8;
+}
+
+.search-box input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #2d241b;
+  font-size: 14px;
+}
+
+.search-box input::placeholder {
+  color: #9a8065;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 12px;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  color: #7a6652;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.filter-chip {
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #eadcc8;
+  color: #5c4630;
+  font-size: 13px;
+}
+
+.filter-chip:hover,
+.filter-chip.active {
+  background: #8b6f47;
+  color: #fffaf0;
+}
+
+.filter-result-text {
+  margin: 12px 0 0;
+  color: #7a6652;
+  font-size: 13px;
+}
+
 .mods-list {
   display: flex;
   flex-direction: column;
@@ -2099,8 +2082,8 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .mod-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  justify-content: space-between;
   gap: 16px;
   padding: 16px;
   border-radius: 18px;
@@ -2108,11 +2091,11 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .mod-item.disabled {
-  opacity: 0.72;
+  opacity: 0.74;
 }
 
 .mod-item.warning {
-  background: #f7dfd8;
+  background: #f8e7c8;
 }
 
 .mod-main {
@@ -2121,15 +2104,44 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .mod-title-row {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .mod-item h4 {
   margin: 0 0 6px;
   font-size: 18px;
-  line-height: 1.2;
+}
+
+.mod-badges {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.enabled-badge {
+  background: #dcefd4;
+  color: #2f8f46;
+}
+
+.disabled-badge {
+  background: #e5d6c2;
+  color: #7a6652;
+}
+
+.missing-badge {
+  background: #f1c8bc;
+  color: #9f493c;
 }
 
 .mod-meta {
@@ -2145,19 +2157,26 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   line-height: 1.45;
 }
 
+.mod-extra-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 8px;
+  color: #7a6652;
+  font-size: 12px;
+}
+
 .mod-actions {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 8px;
 }
 
 .mod-button-row {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .mod-folder {
@@ -2170,10 +2189,6 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   font-weight: 800;
   text-align: right;
   word-break: break-all;
-}
-
-.mobile-folder {
-  display: none;
 }
 
 .dependencies {
@@ -2369,48 +2384,48 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .right-panel {
   height: 100%;
-  padding: 14px 12px;
+  padding: 16px 14px;
   box-sizing: border-box;
   overflow-y: auto;
-  background: rgba(255, 250, 240, 0.58);
-  border-left: 1px solid rgba(92, 70, 48, 0.12);
+  background: rgba(255, 250, 240, 0.62);
+  border-left: 1px solid rgba(92, 70, 48, 0.14);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .launch-card,
 .side-card {
-  padding: 14px;
+  padding: 16px;
   border-radius: 20px;
   background: #fffaf0;
-  box-shadow: 0 10px 24px rgba(67, 47, 27, 0.08);
+  box-shadow: 0 10px 26px rgba(67, 47, 27, 0.09);
 }
 
-.primary-launch-card {
-  background: linear-gradient(180deg, #fffaf0, #f6ead8);
-}
-
-.launch-card-head {
+.launch-card {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 11px;
+  grid-template-columns: 44px 1fr;
+  column-gap: 12px;
   align-items: center;
 }
 
+.launch-card .launch-button {
+  grid-column: 1 / -1;
+}
+
 .junimo-badge {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 15px;
   background: #e3f0d6;
-  font-size: 24px;
+  font-size: 25px;
 }
 
 .launch-card h3,
 .side-card h4 {
-  margin: 0 0 5px;
+  margin: 0 0 6px;
 }
 
 .launch-card p,
@@ -2422,80 +2437,39 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   word-break: break-all;
 }
 
-.launch-buttons {
-  display: grid;
-  gap: 9px;
-  margin-top: 14px;
-}
-
 .launch-button {
   width: 100%;
-  padding: 13px 14px;
+  margin-top: 14px;
+  padding: 13px 16px;
   border-radius: 15px;
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.smapi-launch {
   background: #6fa85f;
+  font-size: 16px;
+  font-weight: 800;
 }
 
-.vanilla-launch {
+.vanilla-button {
+  margin-top: 8px;
   background: #8b6f47;
 }
 
-.launch-note {
-  margin-top: 10px !important;
-  font-size: 12px !important;
+.vanilla-button:hover:not(:disabled) {
+  background: #755d3c;
 }
 
 .info-line {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 0;
+  padding: 9px 0;
   border-bottom: 1px solid rgba(92, 70, 48, 0.12);
-  font-size: 14px;
 }
 
-.info-line:last-of-type {
+.info-line:last-child {
   border-bottom: none;
 }
 
 .info-line span {
   color: #7a6652;
-}
-
-.side-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.side-metrics div {
-  padding: 9px 8px;
-  border-radius: 13px;
-  background: #f6ead8;
-}
-
-.side-metrics span {
-  display: block;
-  margin-bottom: 4px;
-  color: #7a6652;
-  font-size: 12px;
-}
-
-.side-metrics strong {
-  font-size: 16px;
-}
-
-.path-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
 }
 
 button {
@@ -2522,21 +2496,8 @@ button.secondary {
   background: #8b6f47;
 }
 
-button.secondary:hover:not(:disabled),
-.vanilla-launch:hover:not(:disabled) {
+button.secondary:hover:not(:disabled) {
   background: #755d3c;
-}
-
-.text-button {
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: #e2d1b8;
-  color: #5c4630;
-  font-size: 12px;
-}
-
-.text-button:hover:not(:disabled) {
-  background: #d5bf9f;
 }
 
 .compact-header-button {
@@ -2584,7 +2545,7 @@ button.secondary:hover:not(:disabled),
   font-weight: 800;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 205px minmax(0, 1fr);
   }
@@ -2595,22 +2556,7 @@ button.secondary:hover:not(:disabled),
 }
 
 @media (max-width: 820px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    display: none;
-  }
-
-  .content {
-    padding: 18px;
-  }
-
-  .content-header {
-    flex-direction: column;
-  }
-
+  .overview-grid,
   .status-grid,
   .summary-row,
   .tool-grid,
@@ -2618,24 +2564,17 @@ button.secondary:hover:not(:disabled),
     grid-template-columns: 1fr;
   }
 
+  .filter-top-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .mod-item {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .mod-actions {
     align-items: flex-start;
-  }
-
-  .desktop-folder {
-    display: none;
-  }
-
-  .mobile-folder {
-    display: inline-block;
-  }
-
-  .mod-button-row {
-    flex-direction: row;
   }
 }
 </style>
