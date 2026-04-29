@@ -551,6 +551,28 @@
 
           <p class="muted-text path-text">当前压缩包：{{ selectedZipPath }}</p>
 
+          <div
+            class="zip-dependency-summary"
+            :class="zipMissingRequiredDependencies.length > 0 ? 'has-warning' : 'is-ok'"
+          >
+            <strong>安装前依赖检查</strong>
+            <p v-if="zipMissingRequiredDependencies.length === 0">
+              ✅ 必需依赖已满足，或依赖也包含在这个 ZIP 中。
+            </p>
+            <p v-else>
+              ⚠️ 缺少 {{ zipMissingRequiredDependencies.length }} 项必需依赖。安装后对应 Mod 可能无法正常加载。
+            </p>
+
+            <ul v-if="zipMissingRequiredDependencies.length > 0" class="zip-missing-list">
+              <li
+                v-for="dependency in zipMissingRequiredDependencies"
+                :key="dependency.uniqueId"
+              >
+                {{ dependency.uniqueId }}：被 {{ dependency.requiredBy.join("、") }} 需要
+              </li>
+            </ul>
+          </div>
+
           <div class="mods-list zip-preview-list">
             <article
               v-for="mod in zipModPreviews"
@@ -565,9 +587,28 @@
                 <p class="mod-description">{{ mod.description || "没有描述。" }}</p>
                 <p class="mod-description">UniqueID：{{ mod.unique_id || "未提供" }}</p>
                 <p class="mod-description">manifest：{{ mod.manifest_path }}</p>
+
+                <div
+                  v-if="getZipDependencyRows(mod).length > 0"
+                  class="zip-dependencies"
+                >
+                  <p class="dependency-title">依赖检查</p>
+                  <p
+                    v-for="dependency in getZipDependencyRows(mod)"
+                    :key="dependency.uniqueId"
+                    class="dependency-line"
+                  >
+                    依赖：
+                    <span :class="dependency.className">
+                      {{ dependency.uniqueId }}
+                      {{ dependency.statusLabel }}
+                    </span>
+                  </p>
+                </div>
               </div>
 
               <div class="mod-actions">
+                <span class="mod-type">{{ getZipModType(mod).label }}</span>
                 <span class="mod-folder">{{ mod.suggested_folder }}</span>
               </div>
             </article>
@@ -743,6 +784,11 @@ type SmapiLogAnalysis = {
   suggestions: string[];
 };
 
+type ZipModDependency = {
+  unique_id: string;
+  is_required: boolean;
+};
+
 type ZipModPreview = {
   name: string;
   author: string;
@@ -751,6 +797,18 @@ type ZipModPreview = {
   unique_id: string;
   manifest_path: string;
   suggested_folder: string;
+  entry_dll: string;
+  dependencies: ZipModDependency[];
+  content_pack_for?: ZipModDependency;
+};
+
+type ZipDependencyRow = {
+  uniqueId: string;
+  isRequired: boolean;
+  isInstalled: boolean;
+  isBundled: boolean;
+  statusLabel: string;
+  className: string;
 };
 
 const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
@@ -800,6 +858,34 @@ const lastInstalledZipMods = ref<ZipModPreview[]>([]);
 const modSearchQuery = ref("");
 const modStatusFilter = ref<ModStatusFilter>("all");
 const modDependencyFilter = ref<ModDependencyFilter>("all");
+
+const enabledModUniqueIds = computed(() =>
+  new Set(mods.value.map((mod) => mod.uniqueId).filter(Boolean))
+);
+
+const zipPreviewUniqueIds = computed(() =>
+  new Set(zipModPreviews.value.map((mod) => mod.unique_id).filter(Boolean))
+);
+
+const zipMissingRequiredDependencies = computed(() => {
+  const missingMap = new Map<string, string[]>();
+
+  for (const mod of zipModPreviews.value) {
+    for (const dependency of getZipDependencyRows(mod)) {
+      if (!dependency.isRequired || dependency.isInstalled || dependency.isBundled) {
+        continue;
+      }
+
+      const requiredBy = missingMap.get(dependency.uniqueId) || [];
+      requiredBy.push(mod.name || mod.suggested_folder);
+      missingMap.set(dependency.uniqueId, requiredBy);
+    }
+  }
+
+  return Array.from(missingMap.entries())
+    .map(([uniqueId, requiredBy]) => ({ uniqueId, requiredBy }))
+    .sort((a, b) => a.uniqueId.localeCompare(b.uniqueId));
+});
 
 const totalModCount = computed(() => mods.value.length + disabledMods.value.length);
 
@@ -1376,6 +1462,95 @@ async function handleOpenSmapiLogFolder() {
   } catch (error) {
     message.value = `打开 SMAPI 日志文件夹失败：${String(error)}`;
   }
+}
+
+function getZipModType(mod: ZipModPreview): ModTypeInfo {
+  const contentPackFor = mod.content_pack_for?.unique_id || "";
+
+  const contentPackTypeMap: Record<string, ModTypeInfo> = {
+    "Pathoschild.ContentPatcher": {
+      id: "content-patcher-pack",
+      label: "CP 内容包",
+    },
+    "PeacefulEnd.FashionSense": {
+      id: "fashion-sense-pack",
+      label: "Fashion Sense",
+    },
+    "spacechase0.JsonAssets": {
+      id: "json-assets-pack",
+      label: "Json Assets",
+    },
+    "FlashShifter.StardewValleyExpandedCP": {
+      id: "stardew-valley-expanded-pack",
+      label: "SVE 内容包",
+    },
+  };
+
+  if (contentPackFor && contentPackTypeMap[contentPackFor]) {
+    return contentPackTypeMap[contentPackFor];
+  }
+
+  if (contentPackFor) {
+    return {
+      id: "content-pack",
+      label: "内容包",
+    };
+  }
+
+  if (mod.unique_id === "spacechase0.GenericModConfigMenu") {
+    return {
+      id: "generic-mod-config-menu",
+      label: "GMCM",
+    };
+  }
+
+  if (mod.entry_dll) {
+    return {
+      id: "smapi-plugin",
+      label: "SMAPI 插件",
+    };
+  }
+
+  return {
+    id: "unknown",
+    label: "未知类型",
+  };
+}
+
+function getZipDependencyRows(mod: ZipModPreview): ZipDependencyRow[] {
+  const dependencies = [
+    ...(mod.content_pack_for ? [mod.content_pack_for] : []),
+    ...(mod.dependencies || []),
+  ];
+
+  return dependencies
+    .filter((dependency) => Boolean(dependency.unique_id))
+    .map((dependency) => {
+      const isInstalled = enabledModUniqueIds.value.has(dependency.unique_id);
+      const isBundled = zipPreviewUniqueIds.value.has(dependency.unique_id);
+
+      let statusLabel = "缺失";
+      let className = dependency.is_required ? "bad" : "optional";
+
+      if (isInstalled) {
+        statusLabel = "已安装";
+        className = "ok";
+      } else if (isBundled) {
+        statusLabel = "将随 ZIP 一起安装";
+        className = "ok";
+      } else if (!dependency.is_required) {
+        statusLabel = "可选未安装";
+      }
+
+      return {
+        uniqueId: dependency.unique_id,
+        isRequired: dependency.is_required,
+        isInstalled,
+        isBundled,
+        statusLabel,
+        className,
+      };
+    });
 }
 
 function clearModFilters() {
@@ -2433,6 +2608,46 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .path-text {
   word-break: break-all;
+}
+
+.zip-dependency-summary {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.zip-dependency-summary.is-ok {
+  background: #e8f3df;
+  color: #2f6f3c;
+}
+
+.zip-dependency-summary.has-warning {
+  background: #f8e7c8;
+  color: #7a4f22;
+}
+
+.zip-dependency-summary p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.zip-missing-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+.zip-dependencies {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(92, 70, 48, 0.16);
+}
+
+.dependency-title {
+  margin: 0 0 5px;
+  color: #5c4630;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .zip-preview-list {

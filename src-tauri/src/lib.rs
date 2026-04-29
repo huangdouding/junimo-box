@@ -119,6 +119,12 @@ fn read_latest_smapi_log() -> Result<Vec<String>, String> {
 }
 
 #[derive(Serialize, Clone)]
+struct ZipModDependency {
+    unique_id: String,
+    is_required: bool,
+}
+
+#[derive(Serialize, Clone)]
 struct ZipModPreview {
     name: String,
     author: String,
@@ -127,6 +133,9 @@ struct ZipModPreview {
     unique_id: String,
     manifest_path: String,
     suggested_folder: String,
+    entry_dll: String,
+    dependencies: Vec<ZipModDependency>,
+    content_pack_for: Option<ZipModDependency>,
 }
 
 #[tauri::command]
@@ -177,7 +186,10 @@ fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
         let version = get_json_string(&manifest, "Version").unwrap_or_default();
         let description = get_json_string(&manifest, "Description").unwrap_or_default();
         let unique_id = get_json_string(&manifest, "UniqueID").unwrap_or_default();
+        let entry_dll = get_json_string(&manifest, "EntryDll").unwrap_or_default();
         let suggested_folder = get_folder_from_manifest_path(&entry_name);
+        let dependencies = get_zip_dependencies(&manifest);
+        let content_pack_for = get_zip_content_pack_for(&manifest);
 
         previews.push(ZipModPreview {
             name,
@@ -187,6 +199,9 @@ fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
             unique_id,
             manifest_path: entry_name,
             suggested_folder,
+            entry_dll,
+            dependencies,
+            content_pack_for,
         });
     }
 
@@ -238,6 +253,46 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
     install_result?;
 
     Ok(previews)
+}
+
+fn get_zip_dependencies(manifest: &serde_json::Value) -> Vec<ZipModDependency> {
+    let Some(dependencies) = manifest.get("Dependencies").and_then(|value| value.as_array()) else {
+        return Vec::new();
+    };
+
+    dependencies
+        .iter()
+        .filter_map(|dependency| {
+            let unique_id = dependency
+                .get("UniqueID")
+                .and_then(|value| value.as_str())?
+                .to_string();
+
+            let is_required = dependency
+                .get("IsRequired")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(true);
+
+            Some(ZipModDependency {
+                unique_id,
+                is_required,
+            })
+        })
+        .collect()
+}
+
+fn get_zip_content_pack_for(manifest: &serde_json::Value) -> Option<ZipModDependency> {
+    let content_pack_for = manifest.get("ContentPackFor")?;
+
+    let unique_id = content_pack_for
+        .get("UniqueID")
+        .and_then(|value| value.as_str())?
+        .to_string();
+
+    Some(ZipModDependency {
+        unique_id,
+        is_required: true,
+    })
 }
 
 fn validate_zip_install_targets(
