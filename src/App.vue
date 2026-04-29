@@ -813,29 +813,36 @@
       </section>
 
 
-      <section v-if="activeView === 'profiles'" class="view-stack">
-        <div class="panel compact-panel profile-intro-panel">
-          <div class="panel-header">
+      <section v-if="activeView === 'profiles'" class="view-stack profiles-page">
+        <div class="panel compact-panel profile-hero-panel">
+          <div class="profile-hero-main">
             <div>
+              <p class="eyebrow">Profiles</p>
               <h3>配置方案（实验）</h3>
               <p class="muted-text">
-                配置方案会保存一组要启用的 Mod。现在可以直接在这里勾选 Mod，不用再来回切换页面。
+                配置方案会保存一组要启用的 Mod。当前版本适合快速创建和测试不同组合。
               </p>
             </div>
-            <span>{{ profiles.length }} 个</span>
+
+            <div class="profile-hero-stats">
+              <span>{{ profiles.length }} 个配置</span>
+              <span>{{ totalModCount }} 个可选 Mod</span>
+            </div>
           </div>
 
-          <div class="profile-toolbar">
-            <button @click="startCreateProfile(false)">
-              新建配置
+          <div class="profile-action-cards">
+            <button class="profile-action-card primary" @click="startCreateProfile(false)">
+              <strong>＋ 新建配置</strong>
+              <span>手动勾选要启用的 Mod</span>
             </button>
 
             <button
-              class="secondary"
+              class="profile-action-card"
               :disabled="mods.length === 0"
               @click="startCreateProfile(true)"
             >
-              基于当前启用创建
+              <strong>基于当前启用创建</strong>
+              <span>先带入当前已启用的 {{ mods.length }} 个 Mod</span>
             </button>
           </div>
         </div>
@@ -845,13 +852,13 @@
           class="profile-card-overlay"
           @click.self="closeProfileEditor"
         >
-          <section class="profile-editor-card">
+          <section class="profile-editor-card compact-profile-editor">
             <div class="profile-card-header">
               <div>
                 <p class="eyebrow">Profile Editor</p>
                 <h3>{{ profileEditorMode === 'edit' ? '编辑配置' : '新建配置' }}</h3>
                 <p>
-                  勾选这个配置要启用的 Mod。保存后，点击“应用”会按这份列表移动 Mods / Disabled Mods。
+                  勾选此配置要启用的 Mod。应用配置时，其余 Mod 会移动到 Disabled Mods。
                 </p>
               </div>
 
@@ -880,7 +887,7 @@
               </label>
             </div>
 
-            <div class="profile-editor-summary">
+            <div class="profile-editor-summary compact-editor-summary">
               <span>已选择 {{ profileDraftEnabledFolders.length }} / {{ profileSelectableMods.length }} 个 Mod</span>
 
               <div class="profile-editor-actions">
@@ -893,11 +900,11 @@
               </div>
             </div>
 
-            <div class="profile-select-list">
+            <div class="profile-select-list compact-profile-select-list">
               <label
                 v-for="mod in filteredProfileSelectableMods"
                 :key="mod.folderName"
-                class="profile-select-item"
+                class="profile-select-item compact-profile-select-item"
                 :class="{ selected: isProfileFolderSelected(mod.folderName) }"
               >
                 <input
@@ -936,48 +943,25 @@
           </section>
         </div>
 
-        <div v-if="profiles.length > 0" class="panel">
-          <div class="panel-header">
-            <div>
-              <h3>已有配置</h3>
-              <p class="muted-text">点击应用会移动 Mods / Disabled Mods，但不会删除任何文件。</p>
-            </div>
-            <span>{{ profiles.length }} 个</span>
-          </div>
-
-          <div class="profile-list">
-            <article
-              v-for="profile in profiles"
-              :key="profile.id"
-              class="profile-card"
-            >
+        <div v-if="profiles.length > 0" class="profile-list-light">
+          <article
+            v-for="profile in profiles"
+            :key="profile.id"
+            class="profile-card light-profile-card"
+          >
+            <div class="profile-card-top">
               <div class="profile-main">
-                <h4>{{ profile.name }}</h4>
+                <div class="profile-title-row">
+                  <h4>{{ profile.name }}</h4>
+                  <span class="experiment-chip">实验</span>
+                </div>
+
                 <p>
                   {{ profile.enabledFolderNames.length }} 个启用 Mod · 更新于 {{ formatDateTime(profile.updatedAt) }}
                 </p>
-
-                <button
-                  class="profile-link-button"
-                  @click="toggleProfilePreview(profile.id)"
-                >
-                  {{ expandedProfileId === profile.id ? '收起 Mod 列表' : '查看包含的 Mod' }}
-                </button>
-
-                <div
-                  v-if="expandedProfileId === profile.id"
-                  class="profile-mod-preview"
-                >
-                  <span
-                    v-for="folderName in profile.enabledFolderNames"
-                    :key="folderName"
-                  >
-                    {{ folderName }}
-                  </span>
-                </div>
               </div>
 
-              <div class="profile-actions">
+              <div class="profile-actions compact-profile-actions">
                 <button
                   class="tiny-button"
                   :disabled="!gamePath"
@@ -1000,13 +984,49 @@
                   删除
                 </button>
               </div>
-            </article>
-          </div>
+            </div>
+
+            <div class="profile-card-bottom">
+              <button
+                class="profile-link-button"
+                @click="toggleProfilePreview(profile.id)"
+              >
+                {{ expandedProfileId === profile.id ? '收起包含的 Mod' : '查看包含的 Mod' }}
+              </button>
+
+              <div
+                v-if="expandedProfileId !== profile.id"
+                class="profile-preview-inline"
+              >
+                <span
+                  v-for="folderName in profile.enabledFolderNames.slice(0, 6)"
+                  :key="folderName"
+                >
+                  {{ folderName }}
+                </span>
+                <span v-if="profile.enabledFolderNames.length > 6">
+                  +{{ profile.enabledFolderNames.length - 6 }}
+                </span>
+              </div>
+
+              <div
+                v-if="expandedProfileId === profile.id"
+                class="profile-mod-preview expanded-profile-preview"
+              >
+                <span
+                  v-for="folderName in profile.enabledFolderNames"
+                  :key="folderName"
+                >
+                  {{ folderName }}
+                </span>
+              </div>
+            </div>
+          </article>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-else class="empty-state profile-empty-state">
           <h3>还没有配置方案</h3>
-          <p>点击“新建配置”，直接勾选这个配置要启用的 Mod。</p>
+          <p>点击“新建配置”，在小卡片里直接勾选要启用的 Mod。</p>
         </div>
       </section>
 
@@ -4868,6 +4888,208 @@ button.secondary:hover:not(:disabled) {
 /* 避免右侧栏产生第二条外层滚动条 */
 .right-panel {
   overflow: hidden !important;
+}
+
+
+
+/* v0.2.0：Profiles 页面轻量化 */
+.profiles-page {
+  gap: 14px;
+}
+
+.profile-hero-panel {
+  padding: 18px 20px;
+}
+
+.profile-hero-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.profile-hero-main h3 {
+  margin: 4px 0 6px;
+  font-size: 22px;
+}
+
+.profile-hero-stats {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.profile-hero-stats span,
+.experiment-chip {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #e8f3df;
+  color: #2f6f3c;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.profile-action-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.profile-action-card {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #f6ead8;
+  color: #2d241b;
+  text-align: left;
+  box-shadow: none;
+}
+
+.profile-action-card.primary {
+  background: #6fa85f;
+  color: #fffaf0;
+}
+
+.profile-action-card strong,
+.profile-action-card span {
+  display: block;
+}
+
+.profile-action-card strong {
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.profile-action-card span {
+  color: inherit;
+  opacity: 0.82;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-list-light {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.light-profile-card {
+  display: block;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #fffaf0;
+}
+
+.profile-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.profile-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.profile-title-row h4 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.profile-main p {
+  margin: 0;
+  font-size: 13px;
+  color: #7a6652;
+}
+
+.compact-profile-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-profile-actions .tiny-button {
+  min-width: 44px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.profile-card-bottom {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.profile-preview-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.profile-preview-inline span,
+.expanded-profile-preview span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f0dfc7;
+  color: #5c4630;
+  font-size: 11px;
+  font-weight: 800;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expanded-profile-preview {
+  max-height: 180px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.compact-profile-editor {
+  width: min(760px, calc(100vw - 48px));
+  max-height: calc(100vh - 72px);
+  padding: 18px;
+}
+
+.compact-editor-summary {
+  padding: 10px 0;
+}
+
+.compact-profile-select-list {
+  max-height: 320px;
+}
+
+.compact-profile-select-item {
+  padding: 10px;
+}
+
+.profile-empty-state {
+  padding: 28px;
+}
+
+@media (max-width: 820px) {
+  .profile-hero-main,
+  .profile-card-top {
+    flex-direction: column;
+  }
+
+  .profile-hero-stats,
+  .compact-profile-actions {
+    align-items: flex-start;
+  }
+
+  .profile-action-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 </style>
