@@ -641,85 +641,117 @@
           </div>
         </div>
 
-        <div v-if="zipModPreviews.length > 0" class="panel">
-          <div class="panel-header">
-            <h3>ZIP Mod 安装预览</h3>
-            <div class="panel-actions">
-              <span>{{ zipModPreviews.length }} 个</span>
+        <div
+          v-if="zipModPreviews.length > 0"
+          class="zip-preview-overlay"
+          @click.self="closeZipPreview"
+        >
+          <section class="zip-preview-card">
+            <div class="zip-preview-card-header">
+              <div>
+                <p class="eyebrow">ZIP Installer</p>
+                <h3>ZIP Mod 安装预览</h3>
+                <p>已检测到 {{ zipModPreviews.length }} 个 Mod。确认依赖状态后再安装到 Mods 文件夹。</p>
+              </div>
+
+              <button class="tiny-button" @click="closeZipPreview">
+                关闭
+              </button>
+            </div>
+
+            <p class="muted-text path-text zip-card-path">当前压缩包：{{ selectedZipPath }}</p>
+
+            <div
+              class="zip-dependency-summary"
+              :class="zipMissingRequiredDependencies.length > 0 ? 'has-warning' : 'is-ok'"
+            >
+              <strong>安装前依赖检查</strong>
+              <p v-if="zipMissingRequiredDependencies.length === 0">
+                ✅ 必需依赖已满足，或依赖也包含在这个 ZIP 中。
+              </p>
+              <p v-else>
+                ⚠️ 缺少 {{ zipMissingRequiredDependencies.length }} 项必需依赖。安装后对应 Mod 可能无法正常加载。
+              </p>
+
+              <ul v-if="zipMissingRequiredDependencies.length > 0" class="zip-missing-list">
+                <li
+                  v-for="dependency in zipMissingRequiredDependencies"
+                  :key="dependency.uniqueId"
+                >
+                  {{ dependency.uniqueId }}：被 {{ dependency.requiredBy.join("、") }} 需要
+                </li>
+              </ul>
+            </div>
+
+            <div class="zip-card-scroll">
+              <article
+                v-for="mod in zipModPreviews"
+                :key="mod.unique_id || mod.manifest_path"
+                class="zip-preview-item"
+              >
+                <div class="zip-preview-item-main">
+                  <div class="zip-preview-title-row">
+                    <h4>{{ mod.name }}</h4>
+                    <span class="mod-type">{{ getZipModType(mod).label }}</span>
+                  </div>
+
+                  <p class="mod-meta">
+                    {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+                  </p>
+
+                  <p class="mod-description compact-description">
+                    {{ mod.description || "没有描述。" }}
+                  </p>
+
+                  <div class="zip-preview-meta-grid">
+                    <div>
+                      <span>UniqueID</span>
+                      <strong>{{ mod.unique_id || "未提供" }}</strong>
+                    </div>
+                    <div>
+                      <span>目标文件夹</span>
+                      <strong>{{ mod.suggested_folder }}</strong>
+                    </div>
+                    <div class="wide">
+                      <span>manifest</span>
+                      <strong>{{ mod.manifest_path }}</strong>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="getZipDependencyRows(mod).length > 0"
+                    class="zip-dependencies"
+                  >
+                    <p class="dependency-title">依赖检查</p>
+                    <p
+                      v-for="dependency in getZipDependencyRows(mod)"
+                      :key="dependency.uniqueId"
+                      class="dependency-line"
+                    >
+                      依赖：
+                      <span :class="dependency.className">
+                        {{ dependency.uniqueId }}
+                        {{ dependency.statusLabel }}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <div class="zip-preview-footer">
+              <button class="secondary" @click="closeZipPreview">
+                取消
+              </button>
+
               <button
-                class="tiny-button"
                 :disabled="!gamePath"
                 @click="handleInstallZipMod"
               >
                 安装到 Mods
               </button>
             </div>
-          </div>
-
-          <p class="muted-text path-text">当前压缩包：{{ selectedZipPath }}</p>
-
-          <div
-            class="zip-dependency-summary"
-            :class="zipMissingRequiredDependencies.length > 0 ? 'has-warning' : 'is-ok'"
-          >
-            <strong>安装前依赖检查</strong>
-            <p v-if="zipMissingRequiredDependencies.length === 0">
-              ✅ 必需依赖已满足，或依赖也包含在这个 ZIP 中。
-            </p>
-            <p v-else>
-              ⚠️ 缺少 {{ zipMissingRequiredDependencies.length }} 项必需依赖。安装后对应 Mod 可能无法正常加载。
-            </p>
-
-            <ul v-if="zipMissingRequiredDependencies.length > 0" class="zip-missing-list">
-              <li
-                v-for="dependency in zipMissingRequiredDependencies"
-                :key="dependency.uniqueId"
-              >
-                {{ dependency.uniqueId }}：被 {{ dependency.requiredBy.join("、") }} 需要
-              </li>
-            </ul>
-          </div>
-
-          <div class="mods-list zip-preview-list">
-            <article
-              v-for="mod in zipModPreviews"
-              :key="mod.unique_id || mod.manifest_path"
-              class="mod-item"
-            >
-              <div class="mod-main">
-                <h4>{{ mod.name }}</h4>
-                <p class="mod-meta">
-                  {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
-                </p>
-                <p class="mod-description">{{ mod.description || "没有描述。" }}</p>
-                <p class="mod-description">UniqueID：{{ mod.unique_id || "未提供" }}</p>
-                <p class="mod-description">manifest：{{ mod.manifest_path }}</p>
-
-                <div
-                  v-if="getZipDependencyRows(mod).length > 0"
-                  class="zip-dependencies"
-                >
-                  <p class="dependency-title">依赖检查</p>
-                  <p
-                    v-for="dependency in getZipDependencyRows(mod)"
-                    :key="dependency.uniqueId"
-                    class="dependency-line"
-                  >
-                    依赖：
-                    <span :class="dependency.className">
-                      {{ dependency.uniqueId }}
-                      {{ dependency.statusLabel }}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              <div class="mod-actions">
-                <span class="mod-type">{{ getZipModType(mod).label }}</span>
-                <span class="mod-folder">{{ mod.suggested_folder }}</span>
-              </div>
-            </article>
-          </div>
+          </section>
         </div>
       </section>
 
@@ -2068,6 +2100,12 @@ async function previewZipPath(zipPath: string) {
   }
 }
 
+function closeZipPreview() {
+  selectedZipPath.value = "";
+  zipModPreviews.value = [];
+}
+
+
 async function handleInstallZipMod() {
   if (!gamePath.value) {
     message.value = "请先选择游戏目录。";
@@ -3294,6 +3332,125 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   word-break: break-all;
 }
 
+
+.zip-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 56;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(45, 36, 27, 0.3);
+  backdrop-filter: blur(2px);
+}
+
+.zip-preview-card {
+  width: min(880px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 24px;
+  background: #fffaf0;
+  box-shadow: 0 24px 70px rgba(45, 36, 27, 0.24);
+  border: 1px solid rgba(111, 168, 95, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+
+.zip-preview-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.zip-preview-card-header h3 {
+  margin: 4px 0 6px;
+  font-size: 24px;
+}
+
+.zip-preview-card-header p {
+  margin: 0;
+  color: #7a6652;
+  line-height: 1.45;
+}
+
+.zip-card-path {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f6ead8;
+}
+
+.zip-card-scroll {
+  overflow: auto;
+  margin-top: 14px;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.zip-preview-item {
+  padding: 15px;
+  border-radius: 18px;
+  background: #f6ead8;
+}
+
+.zip-preview-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.zip-preview-title-row h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.zip-preview-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.zip-preview-meta-grid > div {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 250, 240, 0.72);
+}
+
+.zip-preview-meta-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.zip-preview-meta-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: #7a6652;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.zip-preview-meta-grid strong {
+  display: block;
+  color: #4b3a2a;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.zip-preview-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid rgba(92, 70, 48, 0.14);
+}
+
 .zip-dependency-summary {
   margin-top: 14px;
   padding: 14px;
@@ -4223,6 +4380,25 @@ button.secondary:hover:not(:disabled) {
 
   .profile-card-header {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 760px) {
+  .zip-preview-card {
+    width: calc(100vw - 28px);
+    max-height: calc(100vh - 28px);
+    padding: 16px;
+  }
+
+  .zip-preview-card-header,
+  .zip-preview-title-row,
+  .zip-preview-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .zip-preview-meta-grid {
+    grid-template-columns: 1fr;
   }
 }
 
