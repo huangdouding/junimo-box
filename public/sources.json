@@ -1,0 +1,7 @@
+{
+  "smapi": {
+    "version": "4.5.2",
+    "downloadUrl": "https://github.com/Pathoschild/SMAPI/releases/download/4.5.2/SMAPI-4.5.2-installer.zip",
+    "fallbackUrls": []
+  }
+}
