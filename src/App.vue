@@ -666,6 +666,42 @@
           </article>
         </div>
 
+        <article class="panel tool-section-card smapi-tool-card">
+          <div class="tool-section-header">
+            <div class="tool-section-icon">🧩</div>
+            <div>
+              <h3>SMAPI 管理</h3>
+              <p>自动下载最新 SMAPI，并打开官方 Windows 安装器完成安装。</p>
+            </div>
+          </div>
+
+          <div class="tool-status-row">
+            <span>当前状态</span>
+            <strong :class="smapiExists ? 'ok' : 'bad'">
+              {{ smapiExists ? "已安装" : "未安装" }}
+            </strong>
+          </div>
+
+          <div class="tool-section-actions">
+            <button
+              class="tool-action-button"
+              :disabled="!gamePath || !stardewExists || isSmapiInstalling"
+              @click="handleInstallSmapi"
+            >
+              {{ isSmapiInstalling ? smapiInstallStageMessage || "正在安装 SMAPI..." : smapiExists ? "更新 / 重装 SMAPI" : "下载并安装 SMAPI" }}
+            </button>
+          </div>
+
+          <p v-if="isSmapiInstalling" class="tool-section-note smapi-install-stage-text">
+            {{ smapiInstallStageMessage || "正在准备 SMAPI 安装..." }}
+          </p>
+
+          <p class="tool-section-note">
+            Junimo Box 会下载 SMAPI 最新安装包，解压后运行官方 install on Windows.bat。
+            安装过程仍以 SMAPI 官方安装器为准。
+          </p>
+        </article>
+
         <article class="panel tool-section-card zip-tool-card">
           <div class="tool-section-header">
             <div class="tool-section-icon">📦</div>
@@ -1072,6 +1108,18 @@
         >
           启动原版
         </button>
+
+        <button
+          class="launch-button smapi-install-button"
+          :disabled="!gamePath || !stardewExists || isSmapiInstalling"
+          @click="handleInstallSmapi"
+        >
+          {{ isSmapiInstalling ? smapiInstallStageMessage || "正在安装 SMAPI..." : smapiExists ? "更新 / 重装 SMAPI" : "安装 SMAPI" }}
+        </button>
+
+        <p v-if="isSmapiInstalling" class="side-install-stage">
+          {{ smapiInstallStageMessage || "正在准备 SMAPI 安装..." }}
+        </p>
       </div>
 
       <div class="side-card">
@@ -1122,6 +1170,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
@@ -1200,6 +1249,20 @@ type SmapiLogAnalysis = {
   suggestions: string[];
 };
 
+type SmapiInstallResult = {
+  version: string;
+  download_url: string;
+  zip_path: string;
+  installer_path: string;
+};
+
+type SmapiInstallStagePayload = {
+  stage: string;
+  message: string;
+  version?: string | null;
+  downloaded_bytes?: number | null;
+};
+
 type ZipModDependency = {
   unique_id: string;
   is_required: boolean;
@@ -1264,6 +1327,9 @@ const gamePath = ref("");
 const stardewExists = ref(false);
 const smapiExists = ref(false);
 const modsFolderExists = ref(false);
+const isSmapiInstalling = ref(false);
+const smapiInstallStageMessage = ref("");
+const smapiInstallDownloadedBytes = ref(0);
 type NoticeType = "success" | "info" | "warning" | "error";
 
 type NoticePayload = {
@@ -1318,6 +1384,7 @@ const lastInstalledZipMods = ref<ZipModPreview[]>([]);
 const isZipDragOver = ref(false);
 
 let unlistenDragDrop: (() => void) | null = null;
+let unlistenSmapiInstallStage: UnlistenFn | null = null;
 
 const modSearchQuery = ref("");
 const modStatusFilter = ref<ModStatusFilter>("all");
@@ -1517,6 +1584,18 @@ const selectedMod = computed<DisplayModInfo | null>(() => {
 });
 
 onMounted(async () => {
+  unlistenSmapiInstallStage = await listen<SmapiInstallStagePayload>(
+    "smapi-install-stage",
+    (event) => {
+      smapiInstallStageMessage.value = event.payload.message;
+      smapiInstallDownloadedBytes.value = event.payload.downloaded_bytes ?? smapiInstallDownloadedBytes.value;
+
+      if (isSmapiInstalling.value) {
+        setNotice("info", event.payload.message);
+      }
+    }
+  );
+
   loadProfiles();
   await setupZipDragDrop();
 
@@ -1535,6 +1614,11 @@ onUnmounted(() => {
   if (unlistenDragDrop) {
     unlistenDragDrop();
     unlistenDragDrop = null;
+  }
+
+  if (unlistenSmapiInstallStage) {
+    unlistenSmapiInstallStage();
+    unlistenSmapiInstallStage = null;
   }
 });
 
@@ -1712,7 +1796,7 @@ function handleDeleteProfile(profileId: string) {
 
 async function handleApplyProfile(profile: ModProfile) {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    setNotice("error", "请先选择游戏目录。");
     return;
   }
 
@@ -1930,6 +2014,50 @@ async function collectModsFromFolder(
   }
 
   return foundMods;
+}
+
+async function handleInstallSmapi() {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  await checkGameFiles(gamePath.value);
+
+  if (!stardewExists.value) {
+    setNotice("error", "未找到 Stardew Valley.exe，无法安装 SMAPI。");
+    return;
+  }
+
+  if (isSmapiInstalling.value) {
+    return;
+  }
+
+  isSmapiInstalling.value = true;
+  smapiInstallStageMessage.value = "正在读取下载源...";
+  smapiInstallDownloadedBytes.value = 0;
+  setNotice("info", smapiInstallStageMessage.value);
+
+  try {
+    const result = await invoke<SmapiInstallResult>("install_latest_smapi", {
+      gamePath: gamePath.value,
+    });
+
+    await checkGameFiles(gamePath.value);
+
+    if (smapiExists.value) {
+      setNotice("success", `SMAPI ${result.version} 安装完成，已检测到 StardewModdingAPI.exe。`);
+    } else {
+      setNotice(
+        "warning",
+        "SMAPI 安装器已运行，但还没有检测到 StardewModdingAPI.exe。请确认安装器是否完成。"
+      );
+    }
+  } catch (error) {
+    setNotice("error", `安装 SMAPI 失败：${String(error)}`);
+  } finally {
+    isSmapiInstalling.value = false;
+  }
 }
 
 async function handleLaunchSmapi() {
@@ -3441,6 +3569,27 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 10px;
 }
 
+.tool-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f6ead8;
+}
+
+.tool-status-row span {
+  color: #7a6652;
+}
+
+.tool-section-note {
+  margin: 12px 0 0;
+  color: #7a6652;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .tool-action-button {
   min-height: 42px;
 }
@@ -4019,6 +4168,15 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .vanilla-button {
   margin-top: 8px;
   background: #8b6f47;
+}
+
+.smapi-install-button {
+  margin-top: 8px;
+  background: #9f7d4a;
+}
+
+.smapi-install-button:hover:not(:disabled) {
+  background: #87693d;
 }
 
 .vanilla-button:hover:not(:disabled) {
@@ -5101,57 +5259,17 @@ button.secondary:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
-/* v0.2.1：Profile 编辑卡片只保留列表内部滚动，取消卡片外层滚动 */
-.profile-card-overlay {
-  overflow: hidden !important;
-}
 
-.profile-editor-card,
-.compact-profile-editor {
-  max-height: calc(100vh - 48px) !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  min-height: 0 !important;
-}
+</style>
 
-/* 卡片顶部区域固定，不参与滚动 */
-.profile-card-header,
-.profile-editor-grid,
-.profile-editor-summary,
-.profile-editor-footer {
-  flex-shrink: 0 !important;
-}
 
-/* 只有 Mod 勾选列表滚动 */
-.profile-select-list,
-.compact-profile-select-list {
-  flex: 1 !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  padding-right: 6px !important;
-}
-
-/* 底部按钮始终贴在卡片底部 */
-.profile-editor-footer {
-  margin-top: 12px !important;
-  padding-top: 12px !important;
-  border-top: 1px solid rgba(92, 70, 48, 0.12);
-  background: #fffaf0;
-}
-
-/* 小屏幕下也只保留列表内部滚动 */
-@media (max-width: 820px) {
-  .profile-editor-card,
-  .compact-profile-editor {
-    width: calc(100vw - 24px) !important;
-    max-height: calc(100vh - 24px) !important;
-  }
-
-  .profile-editor-grid {
-    grid-template-columns: 1fr !important;
-  }
+<style scoped>
+.side-install-stage,
+.smapi-install-stage-text {
+  margin-top: 10px;
+  color: #7a6652;
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-word;
 }
 </style>

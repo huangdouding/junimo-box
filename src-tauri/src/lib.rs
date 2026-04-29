@@ -1,11 +1,26 @@
-use serde::Serialize;
+use reqwest::blocking::Client;
+use reqwest::header::{ACCEPT, USER_AGENT};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
+use std::thread;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Emitter};
 use zip::ZipArchive;
+
+const JUNIMO_BOX_SOURCE_CONFIG_URL: &str =
+    "https://cdn.jsdelivr.net/gh/huangdouding/junimo-box@main/public/sources.json";
+
+const FALLBACK_SMAPI_VERSION: &str = "4.5.2";
+const FALLBACK_SMAPI_DOWNLOAD_URL: &str =
+    "https://github.com/Pathoschild/SMAPI/releases/download/4.5.2/SMAPI-4.5.2-installer.zip";
 
 #[tauri::command]
 fn launch_game(path: String) -> Result<(), String> {
@@ -122,6 +137,7 @@ fn read_latest_smapi_log() -> Result<Vec<String>, String> {
 struct ZipModDependency {
     unique_id: String,
     is_required: bool,
+    is_installed: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -134,6 +150,7 @@ struct ZipModPreview {
     manifest_path: String,
     suggested_folder: String,
     entry_dll: String,
+    mod_type: String,
     dependencies: Vec<ZipModDependency>,
     content_pack_for: Option<ZipModDependency>,
 }
@@ -157,7 +174,7 @@ fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
             continue;
         }
 
-        let entry_name = file.name().replace("/", "\\");
+        let entry_name = normalize_zip_path(file.name());
 
         if entry_name.contains("__MACOSX") {
             continue;
@@ -188,8 +205,11 @@ fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
         let unique_id = get_json_string(&manifest, "UniqueID").unwrap_or_default();
         let entry_dll = get_json_string(&manifest, "EntryDll").unwrap_or_default();
         let suggested_folder = get_folder_from_manifest_path(&entry_name);
-        let dependencies = get_zip_dependencies(&manifest);
-        let content_pack_for = get_zip_content_pack_for(&manifest);
+
+        let dependencies = normalize_zip_dependencies(manifest.get("Dependencies"));
+        let content_pack_for = normalize_zip_content_pack_for(manifest.get("ContentPackFor"));
+
+        let mod_type = detect_mod_type(&unique_id, &entry_dll, &content_pack_for);
 
         previews.push(ZipModPreview {
             name,
@@ -200,6 +220,7 @@ fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
             manifest_path: entry_name,
             suggested_folder,
             entry_dll,
+            mod_type,
             dependencies,
             content_pack_for,
         });
@@ -255,46 +276,6 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
     Ok(previews)
 }
 
-fn get_zip_dependencies(manifest: &serde_json::Value) -> Vec<ZipModDependency> {
-    let Some(dependencies) = manifest.get("Dependencies").and_then(|value| value.as_array()) else {
-        return Vec::new();
-    };
-
-    dependencies
-        .iter()
-        .filter_map(|dependency| {
-            let unique_id = dependency
-                .get("UniqueID")
-                .and_then(|value| value.as_str())?
-                .to_string();
-
-            let is_required = dependency
-                .get("IsRequired")
-                .and_then(|value| value.as_bool())
-                .unwrap_or(true);
-
-            Some(ZipModDependency {
-                unique_id,
-                is_required,
-            })
-        })
-        .collect()
-}
-
-fn get_zip_content_pack_for(manifest: &serde_json::Value) -> Option<ZipModDependency> {
-    let content_pack_for = manifest.get("ContentPackFor")?;
-
-    let unique_id = content_pack_for
-        .get("UniqueID")
-        .and_then(|value| value.as_str())?
-        .to_string();
-
-    Some(ZipModDependency {
-        unique_id,
-        is_required: true,
-    })
-}
-
 fn validate_zip_install_targets(
     mods_dir: &Path,
     previews: &[ZipModPreview],
@@ -323,10 +304,7 @@ fn validate_zip_install_targets(
 }
 
 fn create_install_temp_dir(game_dir: &Path) -> Result<PathBuf, String> {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| format!("Failed to create timestamp: {}", error))?
-        .as_secs();
+    let timestamp = current_timestamp()?;
 
     let temp_dir = game_dir
         .join("Junimo Box Temp")
@@ -422,6 +400,717 @@ fn extract_zip_to_temp_and_move(
     Ok(())
 }
 
+#[derive(Deserialize)]
+struct RemoteSourceConfig {
+    smapi: RemoteSmapiSource,
+}
+
+#[derive(Deserialize, Clone)]
+struct RemoteSmapiSource {
+    version: String,
+    #[serde(rename = "downloadUrl")]
+    download_url: String,
+    #[serde(rename = "fallbackUrls", default)]
+    fallback_urls: Vec<String>,
+}
+
+#[derive(Clone)]
+struct SmapiDownloadSource {
+    version: String,
+    download_url: String,
+    fallback_urls: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct SmapiInstallResult {
+    version: String,
+    download_url: String,
+    zip_path: String,
+    installer_path: String,
+}
+
+#[derive(Serialize, Clone)]
+struct SmapiInstallStagePayload {
+    stage: String,
+    message: String,
+    version: Option<String>,
+    downloaded_bytes: Option<u64>,
+}
+
+#[tauri::command]
+async fn install_latest_smapi(app: AppHandle, game_path: String) -> Result<SmapiInstallResult, String> {
+    tauri::async_runtime::spawn_blocking(move || install_latest_smapi_blocking(app, game_path))
+        .await
+        .map_err(|error| format!("SMAPI install task failed: {}", error))?
+}
+
+fn install_latest_smapi_blocking(app: AppHandle, game_path: String) -> Result<SmapiInstallResult, String> {
+    let game_dir = Path::new(&game_path);
+
+    if !game_dir.exists() {
+        return Err(format!("Game folder does not exist: {}", game_path));
+    }
+
+    emit_smapi_stage(&app, "source", "正在读取 SMAPI 下载源...", None, None);
+
+    let client = Client::builder()
+        .user_agent("Junimo Box")
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(300))
+        .build()
+        .map_err(|error| format!("Failed to create HTTP client: {}", error))?;
+
+    let source = get_smapi_download_source(&client);
+    emit_smapi_stage(
+        &app,
+        "download",
+        &format!("正在下载 SMAPI {}...", source.version),
+        Some(&source.version),
+        Some(0),
+    );
+
+    let downloads_dir = game_dir.join("Junimo Box Downloads").join("SMAPI");
+    fs::create_dir_all(&downloads_dir)
+        .map_err(|error| format!("Failed to create SMAPI download folder: {}", error))?;
+
+    let zip_file_name = format!(
+        "SMAPI-{}-installer.zip",
+        sanitize_file_name(&source.version)
+    );
+    let zip_path = downloads_dir.join(zip_file_name);
+
+    let downloaded_url = download_smapi_zip(&app, &client, &source, &zip_path)?;
+
+    emit_smapi_stage(
+        &app,
+        "extract",
+        "正在解压 SMAPI 安装包...",
+        Some(&source.version),
+        None,
+    );
+
+    let temp_root = game_dir
+        .join("Junimo Box Temp")
+        .join(format!("smapi-install-{}", current_timestamp()?));
+
+    if temp_root.exists() {
+        fs::remove_dir_all(&temp_root)
+            .map_err(|error| format!("Failed to clear SMAPI temp folder: {}", error))?;
+    }
+
+    fs::create_dir_all(&temp_root)
+        .map_err(|error| format!("Failed to create SMAPI temp folder: {}", error))?;
+
+    extract_zip_archive(&zip_path, &temp_root)?;
+
+    let installer_path = find_file_by_name(&temp_root, "install on Windows.bat")
+        .ok_or_else(|| "Failed to find install on Windows.bat in SMAPI installer.".to_string())?;
+
+    emit_smapi_stage(
+        &app,
+        "open",
+        "正在打开 SMAPI 官方 Windows 安装器...",
+        Some(&source.version),
+        None,
+    );
+
+    let installer_folder = installer_path
+        .parent()
+        .ok_or_else(|| "Failed to resolve SMAPI installer folder.".to_string())?;
+
+    Command::new("cmd")
+        .arg("/C")
+        .arg("start")
+        .arg("")
+        .arg(installer_path.to_string_lossy().to_string())
+        .current_dir(installer_folder)
+        .spawn()
+        .map_err(|error| format!("Failed to launch SMAPI installer: {}", error))?;
+
+    emit_smapi_stage(
+        &app,
+        "done",
+        "SMAPI 官方安装器已打开，请按照安装器提示完成安装。",
+        Some(&source.version),
+        None,
+    );
+
+    Ok(SmapiInstallResult {
+        version: source.version,
+        download_url: downloaded_url,
+        zip_path: zip_path.to_string_lossy().to_string(),
+        installer_path: installer_path.to_string_lossy().to_string(),
+    })
+}
+
+fn emit_smapi_stage(
+    app: &AppHandle,
+    stage: &str,
+    message: &str,
+    version: Option<&str>,
+    downloaded_bytes: Option<u64>,
+) {
+    let _ = app.emit(
+        "smapi-install-stage",
+        SmapiInstallStagePayload {
+            stage: stage.to_string(),
+            message: message.to_string(),
+            version: version.map(|value| value.to_string()),
+            downloaded_bytes,
+        },
+    );
+}
+
+fn get_smapi_download_source(client: &Client) -> SmapiDownloadSource {
+    let remote_result = client
+        .get(JUNIMO_BOX_SOURCE_CONFIG_URL)
+        .header(USER_AGENT, "Junimo Box")
+        .header(ACCEPT, "application/json")
+        .send()
+        .and_then(|response| response.error_for_status())
+        .and_then(|response| response.json::<RemoteSourceConfig>());
+
+    match remote_result {
+        Ok(config) => SmapiDownloadSource {
+            version: config.smapi.version,
+            download_url: config.smapi.download_url,
+            fallback_urls: config.smapi.fallback_urls,
+        },
+        Err(error) => {
+            eprintln!(
+                "Failed to read Junimo Box source config, using fallback SMAPI source: {}",
+                error
+            );
+
+            SmapiDownloadSource {
+                version: FALLBACK_SMAPI_VERSION.to_string(),
+                download_url: FALLBACK_SMAPI_DOWNLOAD_URL.to_string(),
+                fallback_urls: Vec::new(),
+            }
+        }
+    }
+}
+
+fn download_smapi_zip(
+    app: &AppHandle,
+    client: &Client,
+    source: &SmapiDownloadSource,
+    zip_path: &Path,
+) -> Result<String, String> {
+    let mut urls = Vec::new();
+    urls.push(source.download_url.clone());
+    urls.extend(source.fallback_urls.clone());
+
+    let mut errors = Vec::new();
+
+    for url in urls {
+        match download_file(app, client, &url, zip_path, &source.version) {
+            Ok(()) => return Ok(url),
+            Err(error) => {
+                let _ = fs::remove_file(zip_path);
+                errors.push(format!("{} -> {}", url, error));
+            }
+        }
+    }
+
+    Err(format!(
+        "Failed to download SMAPI installer from all sources: {}",
+        errors.join(" | ")
+    ))
+}
+
+fn download_file(
+    app: &AppHandle,
+    client: &Client,
+    url: &str,
+    target_path: &Path,
+    version: &str,
+) -> Result<(), String> {
+    match download_file_parallel(app, client, url, target_path, version) {
+        Ok(()) => Ok(()),
+        Err(parallel_error) => {
+            eprintln!(
+                "Parallel SMAPI download failed, falling back to single connection: {}",
+                parallel_error
+            );
+
+            emit_smapi_stage(
+                app,
+                "download",
+                &format!(
+                    "多线程下载不可用，正在使用普通方式下载 SMAPI {}...",
+                    version
+                ),
+                Some(version),
+                Some(0),
+            );
+
+            download_file_single(app, client, url, target_path, version).map_err(|single_error| {
+                format!(
+                    "多线程下载失败：{}；普通下载也失败：{}",
+                    parallel_error, single_error
+                )
+            })
+        }
+    }
+}
+
+fn download_file_parallel(
+    app: &AppHandle,
+    client: &Client,
+    url: &str,
+    target_path: &Path,
+    version: &str,
+) -> Result<(), String> {
+    const THREAD_COUNT: u64 = 8;
+    const MIN_PARALLEL_SIZE: u64 = 2 * 1024 * 1024;
+    const REPORT_STEP: u64 = 1024 * 1024;
+
+    let file_size = get_remote_file_size(client, url)?;
+
+    if file_size < MIN_PARALLEL_SIZE {
+        return Err(format!(
+            "file is too small for parallel download: {}",
+            format_bytes(file_size)
+        ));
+    }
+
+    let temp_path = target_path.with_extension("zip.download");
+    clear_download_artifacts(target_path, THREAD_COUNT)?;
+
+    emit_smapi_stage(
+        app,
+        "download",
+        &format!(
+            "正在多线程下载 SMAPI {}... 0 / {}",
+            version,
+            format_bytes(file_size)
+        ),
+        Some(version),
+        Some(0),
+    );
+
+    let downloaded_total = Arc::new(AtomicU64::new(0));
+    let next_report = Arc::new(AtomicU64::new(REPORT_STEP));
+    let mut handles = Vec::new();
+    let chunk_size = (file_size + THREAD_COUNT - 1) / THREAD_COUNT;
+
+    for index in 0..THREAD_COUNT {
+        let start = index * chunk_size;
+
+        if start >= file_size {
+            continue;
+        }
+
+        let end = ((index + 1) * chunk_size - 1).min(file_size - 1);
+        let expected_size = end - start + 1;
+        let part_path = part_path_for(target_path, index);
+        let url = url.to_string();
+        let version = version.to_string();
+        let client = client.clone();
+        let app = app.clone();
+        let downloaded_total = Arc::clone(&downloaded_total);
+        let next_report = Arc::clone(&next_report);
+
+        let handle = thread::spawn(move || -> Result<(), String> {
+            let range_header = format!("bytes={}-{}", start, end);
+
+            let mut response = client
+                .get(&url)
+                .header(USER_AGENT, "Junimo Box")
+                .header("Range", range_header)
+                .send()
+                .map_err(|error| format!("part {} request failed: {}", index, error))?;
+
+            if response.status().as_u16() != 206 {
+                return Err(format!(
+                    "server did not return partial content for part {}: {}",
+                    index,
+                    response.status()
+                ));
+            }
+
+            let mut output_file = File::create(&part_path)
+                .map_err(|error| format!("failed to create part {} file: {}", index, error))?;
+
+            let mut part_size = 0_u64;
+            let mut buffer = [0_u8; 128 * 1024];
+
+            loop {
+                let bytes_read = response
+                    .read(&mut buffer)
+                    .map_err(|error| format!("failed to read part {}: {}", index, error))?;
+
+                if bytes_read == 0 {
+                    break;
+                }
+
+                output_file
+                    .write_all(&buffer[..bytes_read])
+                    .map_err(|error| format!("failed to write part {}: {}", index, error))?;
+
+                part_size += bytes_read as u64;
+                let total = downloaded_total.fetch_add(bytes_read as u64, Ordering::Relaxed)
+                    + bytes_read as u64;
+
+                let mut report_at = next_report.load(Ordering::Relaxed);
+                while total >= report_at {
+                    match next_report.compare_exchange(
+                        report_at,
+                        report_at + REPORT_STEP,
+                        Ordering::Relaxed,
+                        Ordering::Relaxed,
+                    ) {
+                        Ok(_) => {
+                            emit_smapi_stage(
+                                &app,
+                                "download",
+                                &format!(
+                                    "正在多线程下载 SMAPI {}... {} / {}",
+                                    version,
+                                    format_bytes(total),
+                                    format_bytes(file_size)
+                                ),
+                                Some(&version),
+                                Some(total),
+                            );
+                            break;
+                        }
+                        Err(current) => report_at = current,
+                    }
+                }
+            }
+
+            output_file
+                .flush()
+                .map_err(|error| format!("failed to flush part {}: {}", index, error))?;
+
+            if part_size != expected_size {
+                return Err(format!(
+                    "part {} size mismatch: expected {}, got {}",
+                    index,
+                    format_bytes(expected_size),
+                    format_bytes(part_size)
+                ));
+            }
+
+            Ok(())
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle
+            .join()
+            .map_err(|_| "parallel download thread panicked".to_string())??;
+    }
+
+    merge_download_parts(target_path, &temp_path, THREAD_COUNT, file_size)?;
+
+    if target_path.exists() {
+        fs::remove_file(target_path)
+            .map_err(|error| format!("Failed to replace old download file: {}", error))?;
+    }
+
+    fs::rename(&temp_path, target_path)
+        .map_err(|error| format!("Failed to finalize downloaded file: {}", error))?;
+
+    emit_smapi_stage(
+        app,
+        "downloaded",
+        &format!("SMAPI {} 下载完成：{}", version, format_bytes(file_size)),
+        Some(version),
+        Some(file_size),
+    );
+
+    Ok(())
+}
+
+fn download_file_single(
+    app: &AppHandle,
+    client: &Client,
+    url: &str,
+    target_path: &Path,
+    version: &str,
+) -> Result<(), String> {
+    let temp_path = target_path.with_extension("zip.download");
+
+    if temp_path.exists() {
+        fs::remove_file(&temp_path)
+            .map_err(|error| format!("Failed to clear old temp download file: {}", error))?;
+    }
+
+    let mut response = client
+        .get(url)
+        .header(USER_AGENT, "Junimo Box")
+        .send()
+        .map_err(|error| format!("Request failed. Please check your network connection: {}", error))?
+        .error_for_status()
+        .map_err(|error| format!("Download failed: {}", error))?;
+
+    let mut output_file = File::create(&temp_path)
+        .map_err(|error| format!("Failed to create temp download file: {}", error))?;
+
+    let mut downloaded_size = 0_u64;
+    let mut next_report_size = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+
+    loop {
+        let bytes_read = response
+            .read(&mut buffer)
+            .map_err(|error| format!("Failed to read downloaded data: {}", error))?;
+
+        if bytes_read == 0 {
+            break;
+        }
+
+        output_file
+            .write_all(&buffer[..bytes_read])
+            .map_err(|error| format!("Failed to save downloaded data: {}", error))?;
+
+        downloaded_size += bytes_read as u64;
+
+        if downloaded_size >= next_report_size {
+            emit_smapi_stage(
+                app,
+                "download",
+                &format!(
+                    "正在下载 SMAPI {}... 已下载 {}",
+                    version,
+                    format_bytes(downloaded_size)
+                ),
+                Some(version),
+                Some(downloaded_size),
+            );
+
+            next_report_size = downloaded_size + 1024 * 1024;
+        }
+    }
+
+    output_file
+        .flush()
+        .map_err(|error| format!("Failed to flush downloaded file: {}", error))?;
+
+    if downloaded_size == 0 {
+        let _ = fs::remove_file(&temp_path);
+        return Err(
+            "Downloaded SMAPI installer is empty. Please check your network connection to GitHub release assets."
+                .to_string(),
+        );
+    }
+
+    if downloaded_size < 1024 {
+        let _ = fs::remove_file(&temp_path);
+        return Err(format!(
+            "Downloaded SMAPI installer is too small: {}. The download may have failed.",
+            format_bytes(downloaded_size)
+        ));
+    }
+
+    if target_path.exists() {
+        fs::remove_file(target_path)
+            .map_err(|error| format!("Failed to replace old download file: {}", error))?;
+    }
+
+    fs::rename(&temp_path, target_path)
+        .map_err(|error| format!("Failed to finalize downloaded file: {}", error))?;
+
+    emit_smapi_stage(
+        app,
+        "downloaded",
+        &format!("SMAPI {} 下载完成：{}", version, format_bytes(downloaded_size)),
+        Some(version),
+        Some(downloaded_size),
+    );
+
+    Ok(())
+}
+
+fn get_remote_file_size(client: &Client, url: &str) -> Result<u64, String> {
+    let response = client
+        .head(url)
+        .header(USER_AGENT, "Junimo Box")
+        .send()
+        .map_err(|error| format!("failed to request file metadata: {}", error))?
+        .error_for_status()
+        .map_err(|error| format!("failed to request file metadata: {}", error))?;
+
+    let content_length = response
+        .headers()
+        .get("content-length")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .ok_or_else(|| "server did not provide content length".to_string())?;
+
+    if content_length == 0 {
+        return Err("remote file size is 0".to_string());
+    }
+
+    Ok(content_length)
+}
+
+fn part_path_for(target_path: &Path, index: u64) -> PathBuf {
+    target_path.with_extension(format!("zip.part{}", index))
+}
+
+fn clear_download_artifacts(target_path: &Path, thread_count: u64) -> Result<(), String> {
+    let temp_path = target_path.with_extension("zip.download");
+
+    if temp_path.exists() {
+        fs::remove_file(&temp_path)
+            .map_err(|error| format!("Failed to clear old temp download file: {}", error))?;
+    }
+
+    for index in 0..thread_count {
+        let part_path = part_path_for(target_path, index);
+
+        if part_path.exists() {
+            fs::remove_file(&part_path)
+                .map_err(|error| format!("Failed to clear old part file: {}", error))?;
+        }
+    }
+
+    Ok(())
+}
+
+fn merge_download_parts(
+    target_path: &Path,
+    temp_path: &Path,
+    thread_count: u64,
+    expected_size: u64,
+) -> Result<(), String> {
+    let mut output_file = File::create(temp_path)
+        .map_err(|error| format!("Failed to create merged download file: {}", error))?;
+
+    let mut merged_size = 0_u64;
+
+    for index in 0..thread_count {
+        let part_path = part_path_for(target_path, index);
+
+        if !part_path.exists() {
+            continue;
+        }
+
+        let mut part_file = File::open(&part_path)
+            .map_err(|error| format!("Failed to open part file {}: {}", index, error))?;
+
+        let copied = std::io::copy(&mut part_file, &mut output_file)
+            .map_err(|error| format!("Failed to merge part file {}: {}", index, error))?;
+
+        merged_size += copied;
+
+        fs::remove_file(&part_path)
+            .map_err(|error| format!("Failed to remove part file {}: {}", index, error))?;
+    }
+
+    output_file
+        .flush()
+        .map_err(|error| format!("Failed to flush merged download file: {}", error))?;
+
+    if merged_size != expected_size {
+        let _ = fs::remove_file(temp_path);
+        return Err(format!(
+            "merged file size mismatch: expected {}, got {}",
+            format_bytes(expected_size),
+            format_bytes(merged_size)
+        ));
+    }
+
+    Ok(())
+}
+
+fn format_bytes(bytes: u64) -> String {
+    let mib = bytes as f64 / 1024.0 / 1024.0;
+
+    if mib >= 1.0 {
+        format!("{:.1} MB", mib)
+    } else {
+        let kib = bytes as f64 / 1024.0;
+        format!("{:.1} KB", kib)
+    }
+}
+
+fn extract_zip_archive(zip_path: &Path, target_dir: &Path) -> Result<(), String> {
+    let file =
+        File::open(zip_path).map_err(|error| format!("Failed to open zip archive: {}", error))?;
+
+    let mut archive =
+        ZipArchive::new(file).map_err(|error| format!("Failed to read zip archive: {}", error))?;
+
+    for index in 0..archive.len() {
+        let mut zip_file = archive
+            .by_index(index)
+            .map_err(|error| format!("Failed to read zip entry: {}", error))?;
+
+        if zip_file.is_dir() {
+            continue;
+        }
+
+        let entry_name = normalize_zip_path(zip_file.name());
+
+        if entry_name.contains("__MACOSX") {
+            continue;
+        }
+
+        let output_path = safe_join(target_dir, &entry_name)?;
+
+        if let Some(parent) = output_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("Failed to create extracted folder: {}", error))?;
+        }
+
+        let mut output_file = File::create(&output_path)
+            .map_err(|error| format!("Failed to create extracted file: {}", error))?;
+
+        std::io::copy(&mut zip_file, &mut output_file)
+            .map_err(|error| format!("Failed to extract zip file: {}", error))?;
+    }
+
+    Ok(())
+}
+
+fn find_file_by_name(root: &Path, target_name: &str) -> Option<PathBuf> {
+    let entries = fs::read_dir(root).ok()?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        if path.is_file() {
+            let file_name = path.file_name()?.to_string_lossy();
+
+            if file_name.eq_ignore_ascii_case(target_name) {
+                return Some(path);
+            }
+        }
+
+        if path.is_dir() {
+            if let Some(found) = find_file_by_name(&path, target_name) {
+                return Some(found);
+            }
+        }
+    }
+
+    None
+}
+
+fn current_timestamp() -> Result<u64, String> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("Failed to create timestamp: {}", error))?
+        .as_secs())
+}
+
+fn sanitize_file_name(file_name: &str) -> String {
+    file_name
+        .chars()
+        .map(|character| match character {
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+            _ => character,
+        })
+        .collect()
+}
+
 fn get_json_string(value: &serde_json::Value, key: &str) -> Option<String> {
     value
         .get(key)
@@ -429,9 +1118,79 @@ fn get_json_string(value: &serde_json::Value, key: &str) -> Option<String> {
         .map(|item| item.to_string())
 }
 
+fn normalize_zip_dependencies(raw_dependencies: Option<&serde_json::Value>) -> Vec<ZipModDependency> {
+    let Some(raw_dependencies) = raw_dependencies else {
+        return Vec::new();
+    };
+
+    let Some(items) = raw_dependencies.as_array() else {
+        return Vec::new();
+    };
+
+    items
+        .iter()
+        .filter_map(|item| {
+            let unique_id = get_json_string(item, "UniqueID")?;
+
+            let is_required = item
+                .get("IsRequired")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(true);
+
+            Some(ZipModDependency {
+                unique_id,
+                is_required,
+                is_installed: false,
+            })
+        })
+        .collect()
+}
+
+fn normalize_zip_content_pack_for(
+    raw_content_pack_for: Option<&serde_json::Value>,
+) -> Option<ZipModDependency> {
+    let raw_content_pack_for = raw_content_pack_for?;
+
+    let unique_id = get_json_string(raw_content_pack_for, "UniqueID")?;
+
+    Some(ZipModDependency {
+        unique_id,
+        is_required: true,
+        is_installed: false,
+    })
+}
+
+fn detect_mod_type(
+    unique_id: &str,
+    entry_dll: &str,
+    content_pack_for: &Option<ZipModDependency>,
+) -> String {
+    if unique_id == "spacechase0.GenericModConfigMenu" {
+        return "GMCM".to_string();
+    }
+
+    if let Some(content_pack_for) = content_pack_for {
+        return match content_pack_for.unique_id.as_str() {
+            "Pathoschild.ContentPatcher" => "Content Patcher 内容包".to_string(),
+            "PeacefulEnd.FashionSense" => "Fashion Sense 内容包".to_string(),
+            "spacechase0.JsonAssets" => "Json Assets 内容包".to_string(),
+            "FlashShifter.StardewValleyExpandedCP" => "SVE 内容包".to_string(),
+            _ => "内容包".to_string(),
+        };
+    }
+
+    if !entry_dll.trim().is_empty() {
+        return "SMAPI 插件".to_string();
+    }
+
+    "未知类型".to_string()
+}
+
 fn get_folder_from_manifest_path(manifest_path: &str) -> String {
-    let parts: Vec<&str> = manifest_path
-        .split('\\')
+    let normalized = normalize_zip_path(manifest_path);
+
+    let parts: Vec<&str> = normalized
+        .split('/')
         .filter(|part| !part.is_empty())
         .collect();
 
@@ -480,8 +1239,9 @@ fn find_matching_preview<'a>(
 
 fn safe_join(base: &Path, relative_path: &str) -> Result<PathBuf, String> {
     let mut result = base.to_path_buf();
+    let normalized = normalize_zip_path(relative_path);
 
-    for part in relative_path.split('/') {
+    for part in normalized.split('/') {
         if part.is_empty() || part == "." {
             continue;
         }
@@ -509,7 +1269,8 @@ pub fn run() {
             get_smapi_log_folder,
             read_latest_smapi_log,
             preview_zip_mods,
-            install_zip_mods
+            install_zip_mods,
+            install_latest_smapi
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
