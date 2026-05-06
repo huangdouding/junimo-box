@@ -297,6 +297,13 @@
                       >
                         禁用
                       </button>
+
+                      <button
+                        class="tiny-button danger delete-mod-button"
+                        @click.stop="handleDeleteDisplayedMod(mod)"
+                      >
+                        删除
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -358,6 +365,13 @@
                 @click="handleDisableMod(selectedMod.folderName)"
               >
                 禁用 Mod
+              </button>
+
+              <button
+                class="tiny-button danger delete-mod-button"
+                @click="handleDeleteDisplayedMod(selectedMod)"
+              >
+                删除 Mod
               </button>
             </div>
 
@@ -573,66 +587,75 @@
         </div>
       </section>
 
-      <section v-if="activeView === 'tools'" class="view-stack">
-        <div class="toolbox-grid">
-          <article class="panel tool-section-card">
-            <div class="tool-section-header">
-              <div class="tool-section-icon">📁</div>
-              <div>
-                <h3>文件夹</h3>
-                <p>快速打开常用目录，方便手动检查文件。</p>
+      <section v-if="activeView === 'tools'" class="view-stack toolbox-workspace">
+        <div class="toolbox-section-block">
+          <div class="toolbox-section-title-row">
+            <div>
+              <h3>常用操作</h3>
+              <p>目录、导出和基础维护入口集中放在这里。</p>
+            </div>
+          </div>
+
+          <div class="toolbox-grid">
+            <article class="panel tool-section-card compact-tool-card">
+              <div class="tool-section-header">
+                <div class="tool-section-icon">📁</div>
+                <div>
+                  <h3>文件夹</h3>
+                  <p>快速打开常用目录，方便手动检查文件。</p>
+                </div>
               </div>
-            </div>
 
-            <div class="tool-section-actions">
-              <button class="tool-action-button" @click="handleOpenGameFolder">
-                打开游戏目录
-              </button>
+              <div class="tool-section-actions">
+                <button class="tool-action-button" @click="handleOpenGameFolder">
+                  打开游戏目录
+                </button>
 
-              <button
-                class="tool-action-button"
-                :disabled="!modsFolderExists"
-                @click="handleOpenModsFolder"
-              >
-                打开 Mods 文件夹
-              </button>
+                <button
+                  class="tool-action-button"
+                  :disabled="!modsFolderExists"
+                  @click="handleOpenModsFolder"
+                >
+                  打开 Mods 文件夹
+                </button>
 
-              <button class="tool-action-button" @click="handleOpenSmapiLogFolder">
-                打开日志文件夹
-              </button>
-            </div>
-          </article>
-
-          <article class="panel tool-section-card">
-            <div class="tool-section-header">
-              <div class="tool-section-icon">📤</div>
-              <div>
-                <h3>导出</h3>
-                <p>导出 Mod 列表或问题报告，方便备份和求助。</p>
+                <button class="tool-action-button" @click="handleOpenSmapiLogFolder">
+                  打开日志文件夹
+                </button>
               </div>
-            </div>
+            </article>
 
-            <div class="tool-section-actions">
-              <button
-                class="tool-action-button"
-                :disabled="mods.length === 0 && disabledMods.length === 0"
-                @click="handleExportModList"
-              >
-                导出 Mod 列表
-              </button>
+            <article class="panel tool-section-card compact-tool-card">
+              <div class="tool-section-header">
+                <div class="tool-section-icon">📤</div>
+                <div>
+                  <h3>导出与报告</h3>
+                  <p>导出 Mod 列表或问题报告，方便备份和求助。</p>
+                </div>
+              </div>
 
-              <button
-                class="tool-action-button"
-                :disabled="!gamePath"
-                @click="handleExportProblemReport"
-              >
-                导出问题报告
-              </button>
-            </div>
-          </article>
+              <div class="tool-section-actions">
+                <button
+                  class="tool-action-button"
+                  :disabled="mods.length === 0 && disabledMods.length === 0"
+                  @click="handleExportModList"
+                >
+                  导出 Mod 列表
+                </button>
+
+                <button
+                  class="tool-action-button"
+                  :disabled="!gamePath"
+                  @click="handleExportProblemReport"
+                >
+                  导出问题报告
+                </button>
+              </div>
+            </article>
+          </div>
         </div>
 
-        <article class="panel tool-section-card smapi-tool-card">
+        <article class="panel tool-section-card smapi-tool-card toolbox-full-card">
           <div class="tool-section-header">
             <div class="tool-section-icon">🧩</div>
             <div>
@@ -686,24 +709,36 @@
           </p>
         </article>
 
-        <article class="panel tool-section-card zip-tool-card">
+        <article class="panel tool-section-card zip-tool-card toolbox-full-card">
           <div class="tool-section-header">
             <div class="tool-section-icon">📦</div>
             <div>
               <h3>安装 ZIP Mod</h3>
-              <p>拖拽或选择 ZIP 压缩包，先预览和检查依赖，再安装到 Mods 文件夹。</p>
+              <p>所有外部来源最终都进入 ZIP 预览和依赖检查，确认后再安装到 Mods 文件夹。</p>
             </div>
           </div>
 
-          <div
-            class="zip-drop-zone"
-            :class="{ active: isZipDragOver }"
-            @click="handlePreviewZipMod"
-          >
-            <div class="zip-drop-icon">＋</div>
-            <div>
-              <strong>拖拽 ZIP Mod 到这里</strong>
-              <p>拖入 .zip 后会自动生成安装预览，不会直接安装。</p>
+          <div class="toolbox-install-actions">
+            <div
+              class="zip-drop-zone compact-drop-zone"
+              :class="{ active: isZipDragOver }"
+              @click="handlePreviewZipMod"
+            >
+              <div class="zip-drop-icon">＋</div>
+              <div>
+                <strong>拖拽 ZIP Mod 到这里</strong>
+                <p>拖入 .zip 后会自动生成安装预览，不会直接安装。</p>
+              </div>
+            </div>
+
+            <div class="zip-tool-actions compact-zip-actions">
+              <button @click="handlePreviewZipMod">
+                选择 ZIP 文件
+              </button>
+
+              <span class="zip-tool-hint">
+                支持安装前依赖检查、链接下载、NXM 接收和临时目录安全解压。
+              </span>
             </div>
           </div>
 
@@ -775,15 +810,87 @@
               </button>
             </div>
           </div>
+        </article>
 
-          <div class="zip-tool-actions">
-            <button @click="handlePreviewZipMod">
-              选择 ZIP 文件
+        <article class="panel tool-section-card update-check-panel toolbox-result-panel">
+          <div class="tool-result-header">
+            <div class="tool-section-header compact-result-header">
+              <div class="tool-section-icon">🔎</div>
+              <div>
+                <h3>更新检测第一版</h3>
+                <p>读取 manifest.json 里的 UpdateKeys，只提供可打开的更新来源，不自动下载。</p>
+              </div>
+            </div>
+
+            <button
+              class="tool-action-button result-action-button"
+              :disabled="totalModCount === 0"
+              @click="handleRunUpdateCheck"
+            >
+              检查更新来源
             </button>
+          </div>
 
-            <span class="zip-tool-hint">
-              支持安装前依赖检查、链接下载和临时目录安全解压。
-            </span>
+          <p v-if="updateCheckResults.length > 0" class="tool-section-note update-check-summary">
+            已检查 {{ updateCheckResults.length }} 个 Mod，{{ updateCheckResults.filter((item) => item.sourceUrl).length }} 个提供可打开的更新来源。
+          </p>
+
+          <div v-if="updateCheckResults.length > 0" class="update-result-table">
+            <article
+              v-for="item in updateCheckResults"
+              :key="item.key"
+              class="update-result-row"
+            >
+              <div class="update-result-main">
+                <strong>{{ item.name }}</strong>
+                <span>当前版本：{{ item.version }} · {{ item.statusLabel }}</span>
+              </div>
+              <button class="tiny-button" :disabled="!item.sourceUrl" @click="handleOpenUpdateSource(item)">
+                打开来源
+              </button>
+            </article>
+          </div>
+
+          <p v-else class="tool-section-note">
+            点击检查后，会在这里以全宽列表显示提供 Nexus / ModDrop / GitHub 更新来源的 Mod，不再挤在半宽卡片里。
+          </p>
+        </article>
+
+        <div v-if="recentInstallHistory.length === 0" class="tool-inline-state">
+          <div>
+            <strong>安装历史</strong>
+            <span>暂无安装历史。完成本地 ZIP、URL ZIP 或 NXM 安装后会显示在这里。</span>
+          </div>
+          <button class="tiny-button" @click="handleInstallHistoryZipSelect">选择 ZIP 安装</button>
+        </div>
+
+        <article v-else class="panel tool-section-card install-history-panel toolbox-result-panel">
+          <div class="tool-result-header">
+            <div class="tool-section-header compact-result-header">
+              <div class="tool-section-icon">🧾</div>
+              <div>
+                <h3>安装历史</h3>
+                <p>记录最近通过本地 ZIP、URL ZIP 或 NXM 处理的安装。</p>
+              </div>
+            </div>
+
+            <div class="history-header-actions">
+              <button class="tiny-button" @click="handleInstallHistoryZipSelect">选择 ZIP 安装</button>
+              <button class="tiny-button secondary" :disabled="installHistory.length === 0" @click="clearInstallHistory">清空历史</button>
+            </div>
+          </div>
+
+          <div class="history-result-list">
+            <article
+              v-for="item in recentInstallHistory"
+              :key="item.id"
+              class="history-result-row"
+            >
+              <div>
+                <strong>{{ item.mods.map((mod) => mod.name).join('、') || '未知 Mod' }}</strong>
+                <p>{{ item.sourceLabel }} · {{ item.note }} · {{ formatDateTime(item.installedAt) }}</p>
+              </div>
+            </article>
           </div>
         </article>
 
@@ -806,6 +913,14 @@
             </div>
 
             <p class="muted-text path-text zip-card-path">当前压缩包：{{ selectedZipPath }}</p>
+
+            <div
+              v-if="hasZipInstallConflicts"
+              class="zip-conflict-summary"
+            >
+              <strong>检测到 {{ zipInstallConflicts.length }} 个已安装 Mod</strong>
+              <p>这些目标文件夹已经存在。可以取消、跳过已有 Mod，或使用安全替换 / 更新。</p>
+            </div>
 
             <div
               class="zip-dependency-summary"
@@ -844,6 +959,15 @@
                   <p class="mod-meta">
                     {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
                   </p>
+
+                  <div
+                    v-if="getZipConflictForPreview(mod)"
+                    class="zip-conflict-line"
+                  >
+                    已安装：{{ getZipConflictForPreview(mod)?.installedMod.name }}
+                    v{{ getZipConflictForPreview(mod)?.installedMod.version || "未知版本" }}，
+                    准备安装 v{{ mod.version || "未知版本" }}
+                  </div>
 
                   <p class="mod-description compact-description">
                     {{ mod.description || "没有描述。" }}
@@ -891,10 +1015,27 @@
               </button>
 
               <button
+                v-if="!hasZipInstallConflicts"
                 :disabled="!gamePath"
-                @click="handleInstallZipMod"
+                @click="handleInstallZipMod('cancel')"
               >
                 安装到 Mods
+              </button>
+
+              <button
+                v-if="hasZipInstallConflicts && installableZipModCount > 0"
+                :disabled="!gamePath"
+                @click="handleInstallZipMod('skip')"
+              >
+                跳过已有并安装新 Mod
+              </button>
+
+              <button
+                v-if="hasZipInstallConflicts"
+                :disabled="!gamePath"
+                @click="handleInstallZipMod('replace')"
+              >
+                替换 / 更新
               </button>
             </div>
           </section>
@@ -1135,7 +1276,8 @@
               <div class="profile-main">
                 <div class="profile-title-row">
                   <h4>{{ profile.name }}</h4>
-                  <span class="experiment-chip">实验</span>
+                  <span v-if="currentProfileId === profile.id" class="experiment-chip current-profile-chip">当前</span>
+                  <span v-else class="experiment-chip">配置</span>
                 </div>
 
                 <p>
@@ -1143,49 +1285,69 @@
                 </p>
               </div>
 
-              <div class="profile-actions compact-profile-actions">
-                <button
-                  class="tiny-button"
-                  :disabled="!gamePath"
-                  @click="handleApplyProfile(profile)"
-                >
-                  应用
-                </button>
+              <div class="profile-actions profile-action-groups">
+                <div class="profile-primary-actions">
+                  <button
+                    class="tiny-button profile-apply-action"
+                    :disabled="!gamePath"
+                    @click="handleApplyProfile(profile)"
+                  >
+                    {{ currentProfileId === profile.id ? '重新应用当前配置' : '应用并切换' }}
+                  </button>
 
-                <button
-                  class="tiny-button"
-                  @click="startEditProfile(profile)"
-                >
-                  编辑
-                </button>
+                  <button
+                    v-if="currentProfileId !== profile.id"
+                    class="tiny-button profile-mark-action"
+                    @click="handleSetCurrentProfile(profile)"
+                  >
+                    仅标记当前
+                  </button>
 
-                <button
-                  class="tiny-button"
-                  @click="handleRenameProfile(profile)"
-                >
-                  重命名
-                </button>
+                  <span v-else class="profile-current-note">
+                    已是当前配置
+                  </span>
+                </div>
 
-                <button
-                  class="tiny-button"
-                  @click="handleCopyProfile(profile)"
-                >
-                  复制
-                </button>
+                <p class="profile-action-note">
+                  “应用并切换”会移动 Mods / Disabled Mods；“仅标记当前”只改变右侧显示，不移动文件。
+                </p>
 
-                <button
-                  class="tiny-button"
-                  @click="handleExportProfile(profile)"
-                >
-                  导出
-                </button>
+                <div class="profile-secondary-actions">
+                  <button
+                    class="tiny-button"
+                    @click="startEditProfile(profile)"
+                  >
+                    编辑
+                  </button>
 
-                <button
-                  class="tiny-button danger"
-                  @click="handleDeleteProfile(profile.id)"
-                >
-                  删除
-                </button>
+                  <button
+                    class="tiny-button"
+                    @click="handleRenameProfile(profile)"
+                  >
+                    改名
+                  </button>
+
+                  <button
+                    class="tiny-button"
+                    @click="handleCopyProfile(profile)"
+                  >
+                    复制
+                  </button>
+
+                  <button
+                    class="tiny-button"
+                    @click="handleExportProfile(profile)"
+                  >
+                    导出
+                  </button>
+
+                  <button
+                    class="tiny-button danger"
+                    @click="handleDeleteProfile(profile.id)"
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1347,6 +1509,19 @@
         </p>
       </div>
 
+      <div class="side-card current-profile-side-card">
+        <h4>当前配置</h4>
+        <div class="info-line">
+          <span>配置方案</span>
+          <strong>{{ currentProfile?.name || "默认当前状态" }}</strong>
+        </div>
+        <div class="info-line">
+          <span>启用 Mod</span>
+          <strong>{{ currentProfileEnabledCount }}</strong>
+        </div>
+        <button class="side-check-button" @click="activeView = 'profiles'">管理配置</button>
+      </div>
+
       <div class="side-card">
         <h4>游戏状态</h4>
 
@@ -1423,6 +1598,8 @@ import JSON5 from "json5";
 
 const STORAGE_KEY = "junimo-box-game-path";
 const PROFILES_STORAGE_KEY = "junimo-box-profiles";
+const CURRENT_PROFILE_STORAGE_KEY = "junimo-box-current-profile";
+const INSTALL_HISTORY_STORAGE_KEY = "junimo-box-install-history";
 const NEXUS_API_KEY_STORAGE_KEY = "junimo-box-nexus-api-key";
 
 type ViewId = "overview" | "mods" | "logs" | "tools" | "profiles" | "settings";
@@ -1430,6 +1607,8 @@ type ModStatusFilter = "all" | "enabled" | "disabled";
 type ModDependencyFilter = "all" | "missing";
 type LaunchTarget = "smapi" | "vanilla";
 type LaunchIssueLevel = "error" | "warning";
+type ZipInstallConflictMode = "cancel" | "skip" | "replace";
+type ZipInstallSource = "local" | "drag" | "url" | "nxm";
 
 type LaunchCheckIssue = {
   level: LaunchIssueLevel;
@@ -1479,6 +1658,7 @@ type ModInfo = {
   entryDll: string;
   dependencies: ModDependency[];
   contentPackFor?: ModDependency;
+  updateKeys: string[];
 };
 
 type DisplayModInfo = ModInfo & {
@@ -1591,6 +1771,41 @@ type ProfileExportFile = {
   profiles: ProfileExportItem[];
 };
 
+type InstallHistoryMod = {
+  name: string;
+  version: string;
+  folderName: string;
+  uniqueId: string;
+};
+
+type InstallHistoryItem = {
+  id: string;
+  installedAt: string;
+  source: ZipInstallSource;
+  sourceLabel: string;
+  conflictMode: ZipInstallConflictMode;
+  zipPath: string;
+  mods: InstallHistoryMod[];
+  note: string;
+};
+
+type UpdateCheckItem = {
+  key: string;
+  name: string;
+  folderName: string;
+  version: string;
+  isDisabled: boolean;
+  updateKey: string;
+  sourceLabel: string;
+  sourceUrl: string;
+  statusLabel: string;
+};
+
+type ZipInstallConflictRow = {
+  preview: ZipModPreview;
+  installedMod: DisplayModInfo;
+};
+
 const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
   { id: "overview", label: "总览", icon: "🏡" },
   { id: "mods", label: "Mods", icon: "📦" },
@@ -1677,6 +1892,9 @@ const showRawSmapiLog = ref(false);
 const selectedZipPath = ref("");
 const zipModPreviews = ref<ZipModPreview[]>([]);
 const lastInstalledZipMods = ref<ZipModPreview[]>([]);
+const selectedZipInstallSource = ref<ZipInstallSource>("local");
+const installHistory = ref<InstallHistoryItem[]>([]);
+const updateCheckResults = ref<UpdateCheckItem[]>([]);
 const isZipDragOver = ref(false);
 const urlZipInput = ref("");
 const isUrlZipDownloading = ref(false);
@@ -1703,6 +1921,7 @@ const modStatusFilter = ref<ModStatusFilter>("all");
 const modDependencyFilter = ref<ModDependencyFilter>("all");
 const selectedModKey = ref("");
 const profiles = ref<ModProfile[]>([]);
+const currentProfileId = ref("");
 const isProfileEditorOpen = ref(false);
 const profileEditorMode = ref<"create" | "edit">("create");
 const editingProfileId = ref("");
@@ -1738,6 +1957,36 @@ const zipMissingRequiredDependencies = computed(() => {
     .map(([uniqueId, requiredBy]) => ({ uniqueId, requiredBy }))
     .sort((a, b) => a.uniqueId.localeCompare(b.uniqueId));
 });
+
+const currentProfile = computed<ModProfile | null>(() =>
+  profiles.value.find((profile) => profile.id === currentProfileId.value) || null
+);
+
+const currentProfileEnabledCount = computed(() =>
+  currentProfile.value ? currentProfile.value.enabledFolderNames.length : mods.value.length
+);
+
+const zipInstallConflicts = computed<ZipInstallConflictRow[]>(() => {
+  const installedMods = allDisplayMods.value;
+
+  return zipModPreviews.value
+    .map((preview) => {
+      const installedMod = installedMods.find(
+        (mod) => mod.folderName.toLowerCase() === preview.suggested_folder.toLowerCase()
+      );
+
+      return installedMod ? { preview, installedMod } : null;
+    })
+    .filter((row): row is ZipInstallConflictRow => row !== null);
+});
+
+const hasZipInstallConflicts = computed(() => zipInstallConflicts.value.length > 0);
+
+const installableZipModCount = computed(() =>
+  zipModPreviews.value.length - zipInstallConflicts.value.length
+);
+
+const recentInstallHistory = computed(() => installHistory.value.slice(0, 8));
 
 const totalModCount = computed(() => mods.value.length + disabledMods.value.length);
 
@@ -1939,6 +2188,8 @@ onMounted(async () => {
   );
 
   loadProfiles();
+  loadCurrentProfile();
+  loadInstallHistory();
   loadNexusApiKey();
   await setupZipDragDrop();
 
@@ -1996,6 +2247,11 @@ function loadProfiles() {
             Array.isArray(profile.enabledFolderNames)
         )
       : [];
+
+    if (currentProfileId.value && !profiles.value.some((profile) => profile.id === currentProfileId.value)) {
+      currentProfileId.value = "";
+      localStorage.removeItem(CURRENT_PROFILE_STORAGE_KEY);
+    }
   } catch (error) {
     profiles.value = [];
     message.value = `读取配置方案失败：${String(error)}`;
@@ -2004,6 +2260,85 @@ function loadProfiles() {
 
 function saveProfiles() {
   localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profiles.value));
+}
+
+function loadCurrentProfile() {
+  currentProfileId.value = localStorage.getItem(CURRENT_PROFILE_STORAGE_KEY) || "";
+}
+
+function saveCurrentProfile() {
+  if (currentProfileId.value) {
+    localStorage.setItem(CURRENT_PROFILE_STORAGE_KEY, currentProfileId.value);
+  } else {
+    localStorage.removeItem(CURRENT_PROFILE_STORAGE_KEY);
+  }
+}
+
+function handleSetCurrentProfile(profile: ModProfile) {
+  currentProfileId.value = profile.id;
+  saveCurrentProfile();
+  setNotice("success", `当前配置方案已设为：${profile.name}`);
+}
+
+function loadInstallHistory() {
+  try {
+    const rawHistory = localStorage.getItem(INSTALL_HISTORY_STORAGE_KEY);
+
+    if (!rawHistory) {
+      installHistory.value = [];
+      return;
+    }
+
+    const parsedHistory = JSON.parse(rawHistory) as InstallHistoryItem[];
+    installHistory.value = Array.isArray(parsedHistory) ? parsedHistory.slice(0, 50) : [];
+  } catch (error) {
+    installHistory.value = [];
+    console.warn("读取安装历史失败", error);
+  }
+}
+
+function saveInstallHistory() {
+  localStorage.setItem(INSTALL_HISTORY_STORAGE_KEY, JSON.stringify(installHistory.value.slice(0, 50)));
+}
+
+function addInstallHistory(
+  installedMods: ZipModPreview[],
+  source: ZipInstallSource,
+  conflictMode: ZipInstallConflictMode,
+  zipPath: string,
+  note: string
+) {
+  const sourceLabelMap: Record<ZipInstallSource, string> = {
+    local: "本地 ZIP",
+    drag: "拖拽 ZIP",
+    url: "URL ZIP",
+    nxm: "Nexus NXM",
+  };
+
+  installHistory.value.unshift({
+    id: `install-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    installedAt: new Date().toISOString(),
+    source,
+    sourceLabel: sourceLabelMap[source],
+    conflictMode,
+    zipPath,
+    note,
+    mods: installedMods.map((mod) => ({
+      name: mod.name || mod.suggested_folder,
+      version: mod.version || "",
+      folderName: mod.suggested_folder,
+      uniqueId: mod.unique_id || "",
+    })),
+  });
+
+  installHistory.value = installHistory.value.slice(0, 50);
+  saveInstallHistory();
+}
+
+function clearInstallHistory() {
+  installHistory.value = [];
+  saveInstallHistory();
+  setNotice("info", "已清空安装历史。");
 }
 
 function createProfileId() {
@@ -2401,6 +2736,12 @@ function handleSaveProfileDraft() {
 function handleDeleteProfile(profileId: string) {
   const targetProfile = profiles.value.find((profile) => profile.id === profileId);
   profiles.value = profiles.value.filter((profile) => profile.id !== profileId);
+
+  if (currentProfileId.value === profileId) {
+    currentProfileId.value = "";
+    saveCurrentProfile();
+  }
+
   saveProfiles();
   message.value = targetProfile ? `已删除配置方案：${targetProfile.name}` : "已删除配置方案。";
 }
@@ -2461,6 +2802,9 @@ async function handleApplyProfile(profile: ModProfile) {
   await checkGameFiles(gamePath.value);
   await scanMods();
   selectedModKey.value = "";
+
+  currentProfileId.value = profile.id;
+  saveCurrentProfile();
 
   if (errors.length > 0) {
     message.value = `已应用配置：${profile.name}。启用 ${enabledCount} 个，禁用 ${disabledCount} 个；有 ${errors.length} 个操作被跳过或失败。${errors.slice(0, 2).join("；")}`;
@@ -2590,6 +2934,7 @@ async function collectModsFromFolder(
         uniqueId: manifest.UniqueID || "",
         folderName: folderLabel,
         entryDll: manifest.EntryDll || "",
+        updateKeys: normalizeUpdateKeys(manifest.UpdateKeys),
         dependencies: normalizeDependencies(manifest.Dependencies),
         contentPackFor: normalizeContentPackFor(manifest.ContentPackFor),
       });
@@ -2632,6 +2977,77 @@ async function collectModsFromFolder(
   }
 
   return foundMods;
+}
+
+function getPrimaryUpdateKey(mod: DisplayModInfo): string {
+  return (mod.updateKeys || []).find((key) => /^Nexus:/i.test(key) || /^ModDrop:/i.test(key) || /^GitHub:/i.test(key)) || (mod.updateKeys || [])[0] || "";
+}
+
+function getUpdateKeyUrl(updateKey: string): string {
+  const [source, id = ""] = updateKey.split(":");
+
+  if (/^Nexus$/i.test(source) && id) {
+    return `https://www.nexusmods.com/stardewvalley/mods/${encodeURIComponent(id)}`;
+  }
+
+  if (/^ModDrop$/i.test(source) && id) {
+    return `https://www.moddrop.com/stardew-valley/mods/${encodeURIComponent(id)}`;
+  }
+
+  if (/^GitHub$/i.test(source) && id) {
+    return id.startsWith("http") ? id : `https://github.com/${id}`;
+  }
+
+  return "";
+}
+
+function getUpdateSourceLabel(updateKey: string): string {
+  if (/^Nexus:/i.test(updateKey)) return "Nexus";
+  if (/^ModDrop:/i.test(updateKey)) return "ModDrop";
+  if (/^GitHub:/i.test(updateKey)) return "GitHub";
+  return updateKey ? "其他来源" : "未提供";
+}
+
+function handleRunUpdateCheck() {
+  const checkedMods = allDisplayMods.value;
+
+  updateCheckResults.value = checkedMods.map((mod) => {
+    const updateKey = getPrimaryUpdateKey(mod);
+    const sourceUrl = getUpdateKeyUrl(updateKey);
+    const sourceLabel = getUpdateSourceLabel(updateKey);
+
+    return {
+      key: getModKey(mod),
+      name: mod.name,
+      folderName: mod.folderName,
+      version: mod.version || "未知版本",
+      isDisabled: mod.isDisabled,
+      updateKey,
+      sourceLabel,
+      sourceUrl,
+      statusLabel: sourceUrl ? "可打开来源页面检查更新" : "manifest 未提供可识别更新来源",
+    };
+  });
+
+  const updatableCount = updateCheckResults.value.filter((item) => item.sourceUrl).length;
+  setNotice("info", `更新检测完成：${updatableCount} 个 Mod 提供了可打开的更新来源。`);
+}
+
+async function handleOpenUpdateSource(item: UpdateCheckItem) {
+  if (!item.sourceUrl) {
+    setNotice("warning", "这个 Mod 没有可识别的更新来源。可以手动打开作者页面或 Nexus 页面检查。");
+    return;
+  }
+
+  try {
+    await invoke("open_url_in_browser", { url: item.sourceUrl });
+  } catch (error) {
+    setNotice("error", `打开更新来源失败：${String(error)}`);
+  }
+}
+
+async function handleInstallHistoryZipSelect() {
+  await handlePreviewZipMod();
 }
 
 async function handleInstallSmapi() {
@@ -3000,6 +3416,48 @@ async function handleEnableMod(folderName: string) {
   }
 }
 
+
+async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
+  if (!gamePath.value) {
+    message.value = "请先选择游戏目录。";
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `确定要删除这个 Mod 吗？\n\n${mod.name}\n\nJunimo Box 会把它移动到游戏目录里的 Junimo Box Deleted Mods 文件夹，不会直接永久删除。`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const sourceRoot = mod.isDisabled ? "Disabled Mods" : "Mods";
+  const from = `${gamePath.value}\\${sourceRoot}\\${mod.folderName}`;
+  const safeFolderName = mod.folderName.replace(/[<>:"/\\|?*]/g, "_");
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-");
+  const to = `${gamePath.value}\\Junimo Box Deleted Mods\\${safeFolderName}-${timestamp}`;
+
+  try {
+    if (!(await exists(from))) {
+      message.value = `删除失败：没有找到 Mod 文件夹：${mod.folderName}`;
+      return;
+    }
+
+    await invoke("move_folder", { from, to });
+
+    if (selectedMod.value && getModKey(selectedMod.value) === getModKey(mod)) {
+      selectedModKey.value = "";
+    }
+
+    setNotice("success", `已删除 Mod：${mod.name}。文件已移动到 Junimo Box Deleted Mods。`);
+    await scanMods();
+  } catch (error) {
+    setNotice("error", `删除 Mod 失败：${String(error)}`);
+  }
+}
+
 async function handleExportModList() {
   if (!gamePath.value) {
     message.value = "请先选择游戏目录。";
@@ -3119,7 +3577,7 @@ async function setupZipDragDrop() {
         }
 
         activeView.value = "tools";
-        void previewZipPath(zipPath);
+        void previewZipPath(zipPath, "drag");
       }
     });
   } catch (error) {
@@ -3352,7 +3810,7 @@ async function handleDownloadNxmRequest() {
     nxmDownloadMessage.value = `下载完成：${result.file_name}，正在生成 ZIP 预览...`;
     setNotice("success", nxmDownloadMessage.value);
 
-    await previewZipPath(result.zip_path);
+    await previewZipPath(result.zip_path, "nxm");
     nxmRequestLink.value = "";
     nxmDownloadMessage.value = "";
   } catch (error) {
@@ -3424,7 +3882,7 @@ async function handleDownloadZipFromUrl() {
     urlZipDownloadMessage.value = `下载完成：${result.file_name}，正在生成安装预览...`;
     urlZipInput.value = "";
 
-    await previewZipPath(result.zip_path);
+    await previewZipPath(result.zip_path, "url");
   } catch (error) {
     urlZipDownloadMessage.value = "";
     message.value = `下载 ZIP Mod 失败：${String(error)}`;
@@ -3445,10 +3903,10 @@ async function handlePreviewZipMod() {
     return;
   }
 
-  await previewZipPath(selected);
+  await previewZipPath(selected, "local");
 }
 
-async function previewZipPath(zipPath: string) {
+async function previewZipPath(zipPath: string, source: ZipInstallSource = selectedZipInstallSource.value || "local") {
   if (!zipPath.toLowerCase().endsWith(".zip")) {
     selectedZipPath.value = zipPath;
     zipModPreviews.value = [];
@@ -3458,6 +3916,7 @@ async function previewZipPath(zipPath: string) {
   }
 
   selectedZipPath.value = zipPath;
+  selectedZipInstallSource.value = source;
   zipModPreviews.value = [];
   activeView.value = "tools";
 
@@ -3477,11 +3936,12 @@ async function previewZipPath(zipPath: string) {
 
 function closeZipPreview() {
   selectedZipPath.value = "";
+  selectedZipInstallSource.value = "local";
   zipModPreviews.value = [];
 }
 
 
-async function handleInstallZipMod() {
+async function handleInstallZipMod(conflictMode: ZipInstallConflictMode = "cancel") {
   if (!gamePath.value) {
     message.value = "请先选择游戏目录。";
     return;
@@ -3492,23 +3952,41 @@ async function handleInstallZipMod() {
     return;
   }
 
+  if (hasZipInstallConflicts.value && conflictMode === "cancel") {
+    message.value = `检测到 ${zipInstallConflicts.value.length} 个已安装 Mod。请选择“跳过已有”或“替换 / 更新”。`;
+    return;
+  }
+
+  const installingZipPath = selectedZipPath.value;
+  const installingSource = selectedZipInstallSource.value;
+
   try {
     const installedMods = await invoke<ZipModPreview[]>("install_zip_mods", {
-      zipPath: selectedZipPath.value,
+      zipPath: installingZipPath,
       gamePath: gamePath.value,
+      conflictMode,
     });
 
     lastInstalledZipMods.value = installedMods;
     selectedZipPath.value = "";
+    selectedZipInstallSource.value = "local";
     zipModPreviews.value = [];
 
     await checkGameFiles(gamePath.value);
     await scanMods();
 
+    const modeNoteMap: Record<ZipInstallConflictMode, string> = {
+      cancel: "正常安装",
+      skip: "已跳过目标文件夹已存在的 Mod",
+      replace: "已替换 / 更新目标文件夹已存在的 Mod",
+    };
+
+    addInstallHistory(installedMods, installingSource, conflictMode, installingZipPath, modeNoteMap[conflictMode]);
+
     message.value =
       missingDependencies.value.length > 0
-        ? `安装完成：已安装 ${installedMods.length} 个 Mod，但发现 ${missingDependencies.value.length} 项缺失依赖。`
-        : `安装完成：已安装 ${installedMods.length} 个 Mod，依赖检查正常。`;
+        ? `安装完成：已处理 ${installedMods.length} 个 Mod，但发现 ${missingDependencies.value.length} 项缺失依赖。`
+        : `安装完成：已处理 ${installedMods.length} 个 Mod，依赖检查正常。`;
 
     activeView.value = "mods";
   } catch (error) {
@@ -3609,6 +4087,12 @@ function getZipModType(mod: ZipModPreview): ModTypeInfo {
     id: "unknown",
     label: "未知类型",
   };
+}
+
+function getZipConflictForPreview(mod: ZipModPreview): ZipInstallConflictRow | undefined {
+  return zipInstallConflicts.value.find(
+    (row) => row.preview.manifest_path === mod.manifest_path || row.preview.suggested_folder === mod.suggested_folder
+  );
 }
 
 function getZipDependencyRows(mod: ZipModPreview): ZipDependencyRow[] {
@@ -3765,6 +4249,16 @@ function normalizeDependencies(rawDependencies: unknown): ModDependency[] {
       };
     })
     .filter((dependency): dependency is ModDependency => dependency !== null);
+}
+
+function normalizeUpdateKeys(rawUpdateKeys: unknown): string[] {
+  if (!Array.isArray(rawUpdateKeys)) {
+    return [];
+  }
+
+  return rawUpdateKeys
+    .map((key) => String(key || "").trim())
+    .filter(Boolean);
 }
 
 function normalizeContentPackFor(rawContentPackFor: unknown): ModDependency | undefined {
@@ -6682,6 +7176,239 @@ button.secondary:hover:not(:disabled) {
   font-weight: 800;
 }
 
+
+
+/* v0.6.0: 安装更新安全、历史、当前 Profile、更新来源 */
+.zip-conflict-summary {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(198, 126, 44, 0.25);
+  background: rgba(255, 239, 205, 0.92);
+  color: #7a4a16;
+}
+
+.zip-conflict-summary p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.zip-conflict-line {
+  margin: 8px 0;
+  padding: 7px 9px;
+  border-radius: 12px;
+  background: rgba(255, 239, 205, 0.85);
+  color: #8a5317;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.current-profile-chip {
+  background: rgba(111, 168, 95, 0.18);
+  color: #2f7d3e;
+}
+
+.two-column-tool-grid {
+  align-items: stretch;
+}
+
+.history-list,
+.update-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.history-item,
+.update-check-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 250, 240, 0.78);
+  border: 1px solid rgba(92, 70, 48, 0.1);
+}
+
+.history-item p,
+.update-check-item p {
+  margin: 4px 0 0;
+  color: #7a634a;
+  font-size: 12px;
+}
+
+.current-profile-side-card .side-check-button {
+  margin-top: 10px;
+}
+
+
+
+/* v0.6.1：更新检测结果改为卡片内部滚动，避免撑开工具箱布局 */
+.two-column-tool-grid {
+  align-items: start !important;
+}
+
+.install-history-card,
+.update-check-card {
+  min-height: 0 !important;
+  align-self: start !important;
+}
+
+.update-check-summary {
+  margin-bottom: 8px !important;
+}
+
+.history-list.compact-scroll-list,
+.update-check-list.compact-scroll-list,
+.update-check-card .update-check-list,
+.install-history-card .history-list {
+  max-height: 260px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 6px !important;
+}
+
+.update-check-card .update-check-list::-webkit-scrollbar,
+.install-history-card .history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.update-check-card .update-check-list::-webkit-scrollbar-thumb,
+.install-history-card .history-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(92, 70, 48, 0.22);
+}
+
+.update-check-item,
+.history-item {
+  align-items: flex-start !important;
+}
+
+.update-check-item > div,
+.history-item > div {
+  min-width: 0;
+}
+
+.update-check-item strong,
+.history-item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-check-item .tiny-button {
+  flex-shrink: 0;
+}
+
+.delete-mod-button {
+  background: #b9574f !important;
+  color: #fffaf0 !important;
+}
+
+.delete-mod-button:hover {
+  filter: brightness(0.96);
+}
+
+.compact-card-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.compact-card-actions .tiny-button {
+  width: auto !important;
+  min-width: 52px;
+}
+
+
+
+/* v0.6.1：Profiles 操作区重排，区分“实际切换”和“仅标记” */
+.profile-action-groups {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  max-width: 420px;
+}
+
+.profile-primary-actions,
+.profile-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.profile-apply-action {
+  min-width: 112px !important;
+  background: #6faa5f !important;
+  color: #fff !important;
+  box-shadow: 0 5px 12px rgba(83, 134, 71, 0.18);
+}
+
+.profile-apply-action:hover:not(:disabled) {
+  background: #5c994e !important;
+}
+
+.profile-mark-action {
+  min-width: 86px !important;
+  background: #eadbc2 !important;
+  color: #6d5435 !important;
+}
+
+.profile-mark-action:hover:not(:disabled) {
+  background: #decaab !important;
+}
+
+.profile-current-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(111, 168, 95, 0.16);
+  color: #2f7d3e;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.profile-action-note {
+  max-width: 390px;
+  margin: 0 !important;
+  color: #8b7155 !important;
+  font-size: 11px !important;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.profile-secondary-actions .tiny-button {
+  min-width: 48px !important;
+}
+
+@media (max-width: 980px) {
+  .profile-card-top {
+    flex-direction: column;
+  }
+
+  .profile-action-groups,
+  .profile-primary-actions,
+  .profile-secondary-actions {
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: none;
+  }
+
+  .profile-action-note {
+    max-width: none;
+    text-align: left;
+  }
+}
+
 </style>
 
 
@@ -6960,6 +7687,448 @@ button.secondary:hover:not(:disabled) {
   color: #7a6652;
   font-size: 12px;
   font-weight: 800;
+}
+
+
+
+/* v0.6.0: 安装更新安全、历史、当前 Profile、更新来源 */
+.zip-conflict-summary {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(198, 126, 44, 0.25);
+  background: rgba(255, 239, 205, 0.92);
+  color: #7a4a16;
+}
+
+.zip-conflict-summary p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.zip-conflict-line {
+  margin: 8px 0;
+  padding: 7px 9px;
+  border-radius: 12px;
+  background: rgba(255, 239, 205, 0.85);
+  color: #8a5317;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.current-profile-chip {
+  background: rgba(111, 168, 95, 0.18);
+  color: #2f7d3e;
+}
+
+.two-column-tool-grid {
+  align-items: stretch;
+}
+
+.history-list,
+.update-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.history-item,
+.update-check-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 250, 240, 0.78);
+  border: 1px solid rgba(92, 70, 48, 0.1);
+}
+
+.history-item p,
+.update-check-item p {
+  margin: 4px 0 0;
+  color: #7a634a;
+  font-size: 12px;
+}
+
+.current-profile-side-card .side-check-button {
+  margin-top: 10px;
+}
+
+
+
+/* v0.6.1：更新检测结果改为卡片内部滚动，避免撑开工具箱布局 */
+.two-column-tool-grid {
+  align-items: start !important;
+}
+
+.install-history-card,
+.update-check-card {
+  min-height: 0 !important;
+  align-self: start !important;
+}
+
+.update-check-summary {
+  margin-bottom: 8px !important;
+}
+
+.history-list.compact-scroll-list,
+.update-check-list.compact-scroll-list,
+.update-check-card .update-check-list,
+.install-history-card .history-list {
+  max-height: 260px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 6px !important;
+}
+
+.update-check-card .update-check-list::-webkit-scrollbar,
+.install-history-card .history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.update-check-card .update-check-list::-webkit-scrollbar-thumb,
+.install-history-card .history-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(92, 70, 48, 0.22);
+}
+
+.update-check-item,
+.history-item {
+  align-items: flex-start !important;
+}
+
+.update-check-item > div,
+.history-item > div {
+  min-width: 0;
+}
+
+.update-check-item strong,
+.history-item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-check-item .tiny-button {
+  flex-shrink: 0;
+}
+
+.delete-mod-button {
+  background: #b9574f !important;
+  color: #fffaf0 !important;
+}
+
+.delete-mod-button:hover {
+  filter: brightness(0.96);
+}
+
+.compact-card-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.compact-card-actions .tiny-button {
+  width: auto !important;
+  min-width: 52px;
+}
+
+
+
+/* v0.6.1：Profiles 操作区重排，区分“实际切换”和“仅标记” */
+.profile-action-groups {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  max-width: 420px;
+}
+
+.profile-primary-actions,
+.profile-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.profile-apply-action {
+  min-width: 112px !important;
+  background: #6faa5f !important;
+  color: #fff !important;
+  box-shadow: 0 5px 12px rgba(83, 134, 71, 0.18);
+}
+
+.profile-apply-action:hover:not(:disabled) {
+  background: #5c994e !important;
+}
+
+.profile-mark-action {
+  min-width: 86px !important;
+  background: #eadbc2 !important;
+  color: #6d5435 !important;
+}
+
+.profile-mark-action:hover:not(:disabled) {
+  background: #decaab !important;
+}
+
+.profile-current-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(111, 168, 95, 0.16);
+  color: #2f7d3e;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.profile-action-note {
+  max-width: 390px;
+  margin: 0 !important;
+  color: #8b7155 !important;
+  font-size: 11px !important;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.profile-secondary-actions .tiny-button {
+  min-width: 48px !important;
+}
+
+@media (max-width: 980px) {
+  .profile-card-top {
+    flex-direction: column;
+  }
+
+  .profile-action-groups,
+  .profile-primary-actions,
+  .profile-secondary-actions {
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: none;
+  }
+
+  .profile-action-note {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+
+
+/* v0.6.2：工具箱重排，入口在上、结果在下，避免半宽结果列表挤压布局 */
+.toolbox-workspace {
+  gap: 16px !important;
+}
+
+.toolbox-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toolbox-section-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px;
+}
+
+.toolbox-section-title-row h3 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: #2d241b;
+}
+
+.toolbox-section-title-row p {
+  margin: 0;
+  color: #7a6652;
+  font-size: 14px;
+}
+
+.toolbox-full-card,
+.toolbox-result-panel {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.compact-tool-card {
+  min-height: 0 !important;
+}
+
+.toolbox-install-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.compact-drop-zone {
+  min-height: 92px !important;
+  margin: 0 !important;
+}
+
+.compact-zip-actions {
+  align-self: stretch;
+  min-width: 190px;
+  margin: 0 !important;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(246, 234, 216, 0.72);
+  border: 1px solid rgba(92, 70, 48, 0.1);
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch !important;
+  justify-content: center;
+  gap: 9px;
+}
+
+.compact-zip-actions button {
+  width: 100%;
+}
+
+.tool-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.compact-result-header {
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+
+.result-action-button {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-width: 132px;
+}
+
+.update-result-table,
+.history-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 330px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  margin-top: 10px;
+}
+
+.update-result-row,
+.history-result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255, 250, 240, 0.78);
+  border: 1px solid rgba(92, 70, 48, 0.1);
+}
+
+.update-result-main {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.update-result-main strong,
+.history-result-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2d241b;
+}
+
+.update-result-main span,
+.history-result-row p {
+  margin: 0;
+  color: #7a634a;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tool-inline-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 250, 240, 0.7);
+  border: 1px dashed rgba(92, 70, 48, 0.18);
+  color: #7a6652;
+}
+
+.tool-inline-state > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tool-inline-state strong {
+  color: #2d241b;
+}
+
+.tool-inline-state span {
+  font-size: 13px;
+}
+
+.history-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 980px) {
+  .toolbox-install-actions,
+  .update-result-row,
+  .history-result-row {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-zip-actions {
+    min-width: 0;
+  }
+
+  .tool-result-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .result-action-button,
+  .tool-inline-state .tiny-button {
+    width: 100% !important;
+  }
+
+  .update-result-main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .tool-inline-state {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 </style>

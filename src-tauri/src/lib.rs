@@ -234,8 +234,13 @@ fn preview_zip_mods(zip_path: String) -> Result<Vec<ZipModPreview>, String> {
 }
 
 #[tauri::command]
-fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPreview>, String> {
+fn install_zip_mods(
+    zip_path: String,
+    game_path: String,
+    conflict_mode: Option<String>,
+) -> Result<Vec<ZipModPreview>, String> {
     let previews = preview_zip_mods(zip_path.clone())?;
+    let conflict_mode = normalize_install_conflict_mode(conflict_mode);
 
     let root_manifest_count = previews
         .iter()
@@ -257,11 +262,11 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
             .map_err(|error| format!("Failed to create Mods folder: {}", error))?;
     }
 
-    validate_zip_install_targets(&mods_dir, &previews)?;
+    validate_zip_install_targets(&mods_dir, &previews, &conflict_mode)?;
 
     let temp_root = create_install_temp_dir(game_dir)?;
 
-    let install_result = extract_zip_to_temp_and_move(&zip_path, &mods_dir, &temp_root, &previews);
+    let install_result = extract_zip_to_temp_and_move(&zip_path, &mods_dir, &temp_root, &previews, &conflict_mode);
 
     if let Err(error) = fs::remove_dir_all(&temp_root) {
         eprintln!(
@@ -279,6 +284,7 @@ fn install_zip_mods(zip_path: String, game_path: String) -> Result<Vec<ZipModPre
 fn validate_zip_install_targets(
     mods_dir: &Path,
     previews: &[ZipModPreview],
+    conflict_mode: &str,
 ) -> Result<(), String> {
     let mut seen_folders = std::collections::HashSet::new();
 
@@ -292,7 +298,7 @@ fn validate_zip_install_targets(
 
         let target_folder = safe_join(mods_dir, &preview.suggested_folder)?;
 
-        if target_folder.exists() {
+        if target_folder.exists() && conflict_mode == "cancel" {
             return Err(format!(
                 "Target Mod folder already exists: {}",
                 target_folder.to_string_lossy()
@@ -301,6 +307,19 @@ fn validate_zip_install_targets(
     }
 
     Ok(())
+}
+
+fn normalize_install_conflict_mode(conflict_mode: Option<String>) -> String {
+    match conflict_mode
+        .unwrap_or_else(|| "cancel".to_string())
+        .trim()
+        .to_lowercase()
+        .as_str()
+    {
+        "skip" => "skip".to_string(),
+        "replace" | "update" => "replace".to_string(),
+        _ => "cancel".to_string(),
+    }
 }
 
 fn create_install_temp_dir(game_dir: &Path) -> Result<PathBuf, String> {
@@ -326,6 +345,7 @@ fn extract_zip_to_temp_and_move(
     mods_dir: &Path,
     temp_root: &Path,
     previews: &[ZipModPreview],
+    conflict_mode: &str,
 ) -> Result<(), String> {
     let file =
         File::open(zip_path).map_err(|error| format!("Failed to open zip file: {}", error))?;
@@ -371,29 +391,102 @@ fn extract_zip_to_temp_and_move(
             .map_err(|error| format!("Failed to extract zip file: {}", error))?;
     }
 
-    for preview in previews {
-        let temp_mod_folder = safe_join(temp_root, &preview.suggested_folder)?;
-        let final_mod_folder = safe_join(mods_dir, &preview.suggested_folder)?;
+    move_extracted_mods_with_conflict_mode(mods_dir, temp_root, previews, conflict_mode)
+}
 
-        if !temp_mod_folder.exists() {
-            return Err(format!(
-                "Extracted mod folder was not found in temp folder: {}",
-                temp_mod_folder.to_string_lossy()
-            ));
+fn move_extracted_mods_with_conflict_mode(
+    mods_dir: &Path,
+    temp_root: &Path,
+    previews: &[ZipModPreview],
+    conflict_mode: &str,
+) -> Result<(), String> {
+    let backup_root = temp_root.join("__junimo_replace_backup");
+    let mut backed_up_folders: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let mut moved_new_folders: Vec<PathBuf> = Vec::new();
+
+    let move_result = (|| -> Result<(), String> {
+        for preview in previews {
+            let temp_mod_folder = safe_join(temp_root, &preview.suggested_folder)?;
+            let final_mod_folder = safe_join(mods_dir, &preview.suggested_folder)?;
+
+            if !temp_mod_folder.exists() {
+                return Err(format!(
+                    "Extracted mod folder was not found in temp folder: {}",
+                    temp_mod_folder.to_string_lossy()
+                ));
+            }
+
+            if final_mod_folder.exists() {
+                match conflict_mode {
+                    "skip" => {
+                        continue;
+                    }
+                    "replace" => {
+                        let backup_folder = safe_join(&backup_root, &preview.suggested_folder)?;
+
+                        if let Some(parent) = backup_folder.parent() {
+                            fs::create_dir_all(parent).map_err(|error| {
+                                format!("Failed to create replace backup folder: {}", error)
+                            })?;
+                        }
+
+                        fs::rename(&final_mod_folder, &backup_folder).map_err(|error| {
+                            format!(
+                                "Failed to backup existing Mod folder before replace: {}",
+                                error
+                            )
+                        })?;
+
+                        backed_up_folders.push((final_mod_folder.clone(), backup_folder));
+                    }
+                    _ => {
+                        return Err(format!(
+                            "Target Mod folder already exists: {}",
+                            final_mod_folder.to_string_lossy()
+                        ));
+                    }
+                }
+            }
+
+            fs::rename(&temp_mod_folder, &final_mod_folder).map_err(|error| {
+                format!(
+                    "Failed to move installed mod into Mods folder: {}",
+                    error
+                )
+            })?;
+
+            moved_new_folders.push(final_mod_folder);
         }
 
-        if final_mod_folder.exists() {
-            return Err(format!(
-                "Target Mod folder already exists: {}",
-                final_mod_folder.to_string_lossy()
-            ));
+        Ok(())
+    })();
+
+    if let Err(error) = move_result {
+        for folder in moved_new_folders.iter().rev() {
+            if folder.exists() {
+                let _ = fs::remove_dir_all(folder);
+            }
         }
 
-        fs::rename(&temp_mod_folder, &final_mod_folder).map_err(|error| {
-            format!(
-                "Failed to move installed mod into Mods folder: {}",
-                error
-            )
+        for (original_folder, backup_folder) in backed_up_folders.iter().rev() {
+            if backup_folder.exists() && !original_folder.exists() {
+                if let Some(parent) = original_folder.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+
+                let _ = fs::rename(backup_folder, original_folder);
+            }
+        }
+
+        return Err(format!(
+            "Install failed and Junimo Box attempted to restore existing Mods: {}",
+            error
+        ));
+    }
+
+    if backup_root.exists() {
+        fs::remove_dir_all(&backup_root).map_err(|error| {
+            format!("Failed to clean replace backup folder: {}", error)
         })?;
     }
 
