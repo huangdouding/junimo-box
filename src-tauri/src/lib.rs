@@ -1547,8 +1547,609 @@ fn safe_join(base: &Path, relative_path: &str) -> Result<PathBuf, String> {
     Ok(result)
 }
 
+
+
+
+#[derive(Serialize)]
+struct NexusUserInfo {
+    name: String,
+    user_id: u64,
+    is_premium: bool,
+}
+
+#[tauri::command]
+async fn test_nexus_api_key(api_key: String) -> Result<NexusUserInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || test_nexus_api_key_blocking(api_key))
+        .await
+        .map_err(|error| format!("Nexus API 测试任务失败：{}", error))?
+}
+
+fn test_nexus_api_key_blocking(api_key: String) -> Result<NexusUserInfo, String> {
+    let trimmed_key = api_key.trim().to_string();
+
+    if trimmed_key.is_empty() {
+        return Err("请先填写 Nexus Personal API Key。".to_string());
+    }
+
+    let client = Client::builder()
+        .user_agent("Junimo Box")
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|error| format!("Failed to create HTTP client: {}", error))?;
+
+    let response = client
+        .get("https://api.nexusmods.com/v1/users/validate.json")
+        .header(USER_AGENT, "Junimo Box")
+        .header("apikey", trimmed_key)
+        .send()
+        .map_err(|error| format!("无法连接 Nexus Mods API：{}", error))?;
+
+    let status = response.status();
+    let body = response
+        .text()
+        .map_err(|error| format!("无法读取 Nexus Mods API 响应：{}", error))?;
+
+    if !status.is_success() {
+        if status.as_u16() == 401 {
+            return Err("Nexus API Key 无效或已失效，请在 Nexus 账号设置里重新生成 Personal API Key。".to_string());
+        }
+
+        return Err(format!(
+            "Nexus Mods API 返回错误：{}。响应：{}",
+            status,
+            body.chars().take(500).collect::<String>()
+        ));
+    }
+
+    let value: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|error| format!("无法解析 Nexus Mods API 响应：{}。响应：{}", error, body))?;
+
+    let name = value
+        .get("name")
+        .or_else(|| value.get("username"))
+        .and_then(|item| item.as_str())
+        .unwrap_or("Nexus 用户")
+        .to_string();
+
+    let user_id = value
+        .get("user_id")
+        .or_else(|| value.get("member_id"))
+        .or_else(|| value.get("id"))
+        .and_then(|item| item.as_u64())
+        .unwrap_or(0);
+
+    let is_premium = value
+        .get("is_premium")
+        .or_else(|| value.get("premium"))
+        .and_then(|item| item.as_bool())
+        .unwrap_or(false);
+
+    Ok(NexusUserInfo {
+        name,
+        user_id,
+        is_premium,
+    })
+}
+
+#[derive(Clone)]
+struct ParsedNxmLink {
+    raw: String,
+    game_domain: String,
+    mod_id: String,
+    file_id: String,
+    key: String,
+    expires: String,
+    user_id: String,
+}
+
+#[tauri::command]
+async fn download_nxm_file(
+    nxm_link: String,
+    game_path: String,
+    api_key: Option<String>,
+) -> Result<UrlZipDownloadResult, String> {
+    tauri::async_runtime::spawn_blocking(move || download_nxm_file_blocking(nxm_link, game_path, api_key))
+        .await
+        .map_err(|error| format!("NXM download task failed: {}", error))?
+}
+
+fn download_nxm_file_blocking(
+    nxm_link: String,
+    game_path: String,
+    api_key: Option<String>,
+) -> Result<UrlZipDownloadResult, String> {
+    let parsed = parse_nxm_link(&nxm_link)?;
+
+    if parsed.game_domain.to_lowercase() != "stardewvalley" {
+        return Err(format!(
+            "当前只支持 Stardew Valley 的 NXM 链接，收到的是：{}",
+            parsed.game_domain
+        ));
+    }
+
+    let game_dir = Path::new(&game_path);
+
+    if !game_dir.exists() {
+        return Err(format!("Game folder does not exist: {}", game_path));
+    }
+
+    let client = Client::builder()
+        .user_agent("Junimo Box")
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(300))
+        .build()
+        .map_err(|error| format!("Failed to create HTTP client: {}", error))?;
+
+    let direct_url = resolve_nxm_download_url(&client, &parsed, api_key.as_deref())?;
+
+    let downloads_dir = game_dir.join("Junimo Box Downloads").join("Nexus");
+    fs::create_dir_all(&downloads_dir)
+        .map_err(|error| format!("Failed to create Nexus download folder: {}", error))?;
+
+    let file_name = format!(
+        "nexus-{}-mod-{}-file-{}.zip",
+        sanitize_file_name(&parsed.game_domain),
+        sanitize_file_name(&parsed.mod_id),
+        sanitize_file_name(&parsed.file_id)
+    );
+    let target_path = unique_download_path(&downloads_dir, &file_name);
+
+    download_generic_zip_file(&client, &direct_url, &target_path)?;
+
+    let metadata = fs::metadata(&target_path)
+        .map_err(|error| format!("Failed to read downloaded NXM ZIP metadata: {}", error))?;
+    let file_size = metadata.len();
+
+    if file_size == 0 {
+        let _ = fs::remove_file(&target_path);
+        return Err("下载到的 NXM ZIP 文件为空，请检查 Nexus 下载权限或网络连接。".to_string());
+    }
+
+    if file_size < 1024 {
+        let _ = fs::remove_file(&target_path);
+        return Err(format!(
+            "下载到的 NXM ZIP 文件过小：{}，下载可能失败。",
+            format_bytes(file_size)
+        ));
+    }
+
+    Ok(UrlZipDownloadResult {
+        download_url: parsed.raw,
+        zip_path: target_path.to_string_lossy().to_string(),
+        file_name: target_path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or(file_name),
+        file_size,
+    })
+}
+
+fn parse_nxm_link(link: &str) -> Result<ParsedNxmLink, String> {
+    let trimmed = link.trim();
+
+    if !trimmed.to_lowercase().starts_with("nxm:") {
+        return Err("这不是有效的 nxm:// 链接。".to_string());
+    }
+
+    let without_scheme = trimmed
+        .trim_start_matches("nxm://")
+        .trim_start_matches("NXM://")
+        .trim_start_matches("nxm:")
+        .trim_start_matches("NXM:")
+        .trim_start_matches('/');
+
+    let mut split = without_scheme.splitn(2, '?');
+    let path_part = split.next().unwrap_or("");
+    let query_part = split.next().unwrap_or("");
+
+    let parts: Vec<&str> = path_part
+        .split('/')
+        .filter(|part| !part.trim().is_empty())
+        .collect();
+
+    let game_domain = parts
+        .get(0)
+        .map(|value| value.to_string())
+        .unwrap_or_default();
+
+    let mods_index = parts
+        .iter()
+        .position(|part| part.eq_ignore_ascii_case("mods"));
+    let files_index = parts
+        .iter()
+        .position(|part| part.eq_ignore_ascii_case("files"));
+
+    let mod_id = mods_index
+        .and_then(|index| parts.get(index + 1))
+        .map(|value| value.to_string())
+        .unwrap_or_default();
+
+    let file_id = files_index
+        .and_then(|index| parts.get(index + 1))
+        .map(|value| value.to_string())
+        .unwrap_or_default();
+
+    let key = get_query_param(query_part, "key");
+    let expires = get_query_param(query_part, "expires");
+    let user_id = get_query_param(query_part, "user_id");
+
+    if game_domain.trim().is_empty() || mod_id.trim().is_empty() || file_id.trim().is_empty() {
+        return Err("无法从 NXM 链接解析 game / modId / fileId。".to_string());
+    }
+
+    if key.trim().is_empty() || expires.trim().is_empty() {
+        return Err("NXM 链接缺少 key 或 expires 参数，无法自动下载。请重新从 Nexus 点击 Mod Manager Download。".to_string());
+    }
+
+    Ok(ParsedNxmLink {
+        raw: trimmed.to_string(),
+        game_domain,
+        mod_id,
+        file_id,
+        key,
+        expires,
+        user_id,
+    })
+}
+
+fn get_query_param(query: &str, key: &str) -> String {
+    for pair in query.split('&') {
+        let mut parts = pair.splitn(2, '=');
+        let Some(raw_key) = parts.next() else {
+            continue;
+        };
+        let raw_value = parts.next().unwrap_or("");
+
+        if raw_key.eq_ignore_ascii_case(key) {
+            return raw_value.to_string();
+        }
+    }
+
+    String::new()
+}
+
+fn resolve_nxm_download_url(
+    client: &Client,
+    parsed: &ParsedNxmLink,
+    api_key: Option<&str>,
+) -> Result<String, String> {
+    let trimmed_api_key = api_key.unwrap_or("").trim();
+
+    if trimmed_api_key.is_empty() {
+        return Err("NXM 自动下载需要 Nexus Personal API Key。请先到 设置 → Nexus Mods 保存并测试 API Key。".to_string());
+    }
+
+    let mut url = format!(
+        "https://api.nexusmods.com/v1/games/{}/mods/{}/files/{}/download_link.json?key={}&expires={}",
+        parsed.game_domain,
+        parsed.mod_id,
+        parsed.file_id,
+        parsed.key,
+        parsed.expires
+    );
+
+    if !parsed.user_id.trim().is_empty() {
+        url.push_str("&user_id=");
+        url.push_str(&parsed.user_id);
+    }
+
+    let response = client
+        .get(&url)
+        .header(USER_AGENT, "Junimo Box")
+        .header("apikey", trimmed_api_key)
+        .send()
+        .map_err(|error| format!("无法连接 Nexus NXM 下载接口：{}", error))?;
+
+    let status = response.status();
+    let body = response
+        .text()
+        .map_err(|error| format!("无法读取 Nexus NXM 下载响应：{}", error))?;
+
+    if !status.is_success() {
+        let snippet = body.chars().take(500).collect::<String>();
+
+        if status.as_u16() == 401 {
+            return Err(format!(
+                "Nexus 认证失败：API Key 无效、未保存，或 NXM 请求没有通过认证。请到 设置 → Nexus Mods 重新保存并测试 API Key。响应：{}",
+                snippet
+            ));
+        }
+
+        if status.as_u16() == 403 {
+            return Err(format!(
+                "Nexus 权限不足：当前账号可能无法通过 API 直接下载此文件。可以打开 Nexus 页面完成下载后，再回到 Junimo Box 选择 ZIP 预览安装。响应：{}",
+                snippet
+            ));
+        }
+
+        return Err(format!(
+            "Nexus NXM 下载接口返回错误：{}。响应：{}",
+            status,
+            snippet
+        ));
+    }
+
+    let value: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|error| format!("无法解析 Nexus NXM 下载响应：{}。响应：{}", error, body))?;
+
+    extract_download_uri_from_nexus_response(&value).ok_or_else(|| {
+        format!(
+            "Nexus NXM 响应中没有可用下载地址：{}",
+            value
+        )
+    })
+}
+
+fn extract_download_uri_from_nexus_response(value: &serde_json::Value) -> Option<String> {
+    if let Some(array) = value.as_array() {
+        for item in array {
+            if let Some(uri) = extract_download_uri_from_nexus_response(item) {
+                return Some(uri);
+            }
+        }
+    }
+
+    if let Some(object) = value.as_object() {
+        for key in ["URI", "uri", "url", "download_url", "downloadUrl"] {
+            if let Some(uri) = object.get(key).and_then(|item| item.as_str()) {
+                if uri.starts_with("http://") || uri.starts_with("https://") {
+                    return Some(uri.to_string());
+                }
+            }
+        }
+
+        for key in ["data", "links", "results"] {
+            if let Some(child) = object.get(key) {
+                if let Some(uri) = extract_download_uri_from_nexus_response(child) {
+                    return Some(uri);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn state_dir() -> Result<PathBuf, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let base = std::env::var("LOCALAPPDATA")
+            .or_else(|_| std::env::var("APPDATA"))
+            .map_err(|_| "Failed to read LOCALAPPDATA / APPDATA environment variable".to_string())?;
+        let dir = PathBuf::from(base).join("JunimoBox");
+        fs::create_dir_all(&dir)
+            .map_err(|error| format!("Failed to create Junimo Box state folder: {}", error))?;
+        return Ok(dir);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let dir = std::env::temp_dir().join("JunimoBox");
+        fs::create_dir_all(&dir)
+            .map_err(|error| format!("Failed to create Junimo Box state folder: {}", error))?;
+        return Ok(dir);
+    }
+}
+
+fn lock_file_path() -> Result<PathBuf, String> {
+    Ok(state_dir()?.join("junimo-box.lock"))
+}
+
+fn pending_nxm_file_path() -> Result<PathBuf, String> {
+    Ok(state_dir()?.join("pending-nxm-link.txt"))
+}
+
+fn extract_startup_nxm_arg() -> Option<String> {
+    std::env::args()
+        .find(|arg| arg.to_lowercase().starts_with("nxm://") || arg.to_lowercase().starts_with("nxm:"))
+}
+
+#[cfg(target_os = "windows")]
+fn is_pid_running(pid: u32) -> bool {
+    let output = Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
+        .output();
+
+    let Ok(output) = output else {
+        return false;
+    };
+
+    if !output.status.success() {
+        return false;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    stdout.contains(&format!("\"{}\"", pid)) || stdout.contains(&pid.to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_pid_running(_pid: u32) -> bool {
+    false
+}
+
+fn existing_instance_is_running() -> bool {
+    let Ok(path) = lock_file_path() else {
+        return false;
+    };
+
+    let Ok(text) = fs::read_to_string(path) else {
+        return false;
+    };
+
+    let Ok(pid) = text.trim().parse::<u32>() else {
+        return false;
+    };
+
+    if pid == std::process::id() {
+        return false;
+    }
+
+    is_pid_running(pid)
+}
+
+fn write_current_instance_lock() {
+    if let Ok(path) = lock_file_path() {
+        let _ = fs::write(path, std::process::id().to_string());
+    }
+}
+
+fn write_pending_nxm_link(link: &str) -> Result<(), String> {
+    let path = pending_nxm_file_path()?;
+    fs::write(path, link)
+        .map_err(|error| format!("Failed to write pending NXM link: {}", error))
+}
+
+#[tauri::command]
+fn read_pending_nxm_link() -> Result<Option<String>, String> {
+    let path = pending_nxm_file_path()?;
+
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let link = fs::read_to_string(&path)
+        .map_err(|error| format!("Failed to read pending NXM link: {}", error))?;
+
+    let _ = fs::remove_file(&path);
+
+    let trimmed = link.trim().to_string();
+
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(trimmed))
+}
+
+#[tauri::command]
+fn register_nxm_protocol() -> Result<(), String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        return Err("当前第一版 NXM 协议关联只支持 Windows。".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let exe_path = std::env::current_exe()
+            .map_err(|error| format!("Failed to resolve current executable: {}", error))?;
+
+        let exe = exe_path.to_string_lossy().to_string();
+        let command_value = format!("\"{}\" \"%1\"", exe);
+
+        run_reg_command(&[
+            "add",
+            r"HKCU\Software\Classes\nxm",
+            "/ve",
+            "/d",
+            "URL:NXM Protocol",
+            "/f",
+        ])?;
+
+        run_reg_command(&[
+            "add",
+            r"HKCU\Software\Classes\nxm",
+            "/v",
+            "URL Protocol",
+            "/d",
+            "",
+            "/f",
+        ])?;
+
+        run_reg_command(&[
+            "add",
+            r"HKCU\Software\Classes\nxm\shell\open\command",
+            "/ve",
+            "/d",
+            &command_value,
+            "/f",
+        ])?;
+
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn run_reg_command(args: &[&str]) -> Result<(), String> {
+    let output = Command::new("reg")
+        .args(args)
+        .output()
+        .map_err(|error| format!("Failed to run registry command: {}", error))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        return Err(format!(
+            "Registry command failed: {}{}{}",
+            stdout,
+            if stdout.is_empty() || stderr.is_empty() { "" } else { " | " },
+            stderr
+        ));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn read_startup_nxm_link() -> Result<Option<String>, String> {
+    Ok(extract_startup_nxm_arg())
+}
+
+#[tauri::command]
+fn open_url_in_browser(url: String) -> Result<(), String> {
+    if !url.to_lowercase().starts_with("http://") && !url.to_lowercase().starts_with("https://") {
+        return Err("Only http:// and https:// URLs can be opened.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .arg("/C")
+            .arg("start")
+            .arg("")
+            .arg(url)
+            .spawn()
+            .map_err(|error| format!("Failed to open URL in browser: {}", error))?;
+
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(url)
+            .spawn()
+            .map_err(|error| format!("Failed to open URL in browser: {}", error))?;
+
+        return Ok(());
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(url)
+            .spawn()
+            .map_err(|error| format!("Failed to open URL in browser: {}", error))?;
+
+        return Ok(());
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let startup_nxm_link = extract_startup_nxm_arg();
+
+    if existing_instance_is_running() {
+        if let Some(link) = startup_nxm_link {
+            let _ = write_pending_nxm_link(&link);
+        }
+
+        return;
+    }
+
+    write_current_instance_lock();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -1562,7 +2163,13 @@ pub fn run() {
             preview_zip_mods,
             install_zip_mods,
             download_zip_from_url,
-            install_latest_smapi
+            install_latest_smapi,
+            download_nxm_file,
+            test_nexus_api_key,
+            register_nxm_protocol,
+            read_startup_nxm_link,
+            read_pending_nxm_link,
+            open_url_in_browser
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

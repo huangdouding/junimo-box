@@ -737,6 +737,45 @@
             </p>
           </div>
 
+          <div class="nxm-box">
+            <div class="url-zip-header">
+              <strong>Nexus NXM 下载入口</strong>
+              <span>接收 Nexus 的 Mod Manager Download，并自动下载后进入 ZIP 预览</span>
+            </div>
+
+            <div class="nxm-action-row">
+              <button class="url-zip-button" @click="handleRegisterNxmProtocol">
+                关联 NXM 协议
+              </button>
+
+              <button class="secondary" @click="handleChooseDownloadedZipForNxm">
+                选择已下载 ZIP
+              </button>
+            </div>
+
+            <p v-if="nxmProtocolStatus" class="tool-section-note">
+              {{ nxmProtocolStatus }}
+            </p>
+
+            <div class="url-zip-form nxm-manual-form">
+              <input
+                v-model="nxmManualInput"
+                class="url-zip-input"
+                type="text"
+                placeholder="也可以手动粘贴 nxm:// 链接测试下载"
+                @keydown.enter="handleParseManualNxm"
+              />
+
+              <button
+                class="url-zip-button"
+                :disabled="!nxmManualInput.trim()"
+                @click="handleParseManualNxm"
+              >
+                解析 / 下载
+              </button>
+            </div>
+          </div>
+
           <div class="zip-tool-actions">
             <button @click="handlePreviewZipMod">
               选择 ZIP 文件
@@ -862,6 +901,85 @@
         </div>
       </section>
 
+
+
+
+        <div
+          v-if="nxmRequestLink"
+          class="zip-preview-overlay"
+          @click.self="closeNxmRequest"
+        >
+          <section class="zip-preview-card nxm-request-card">
+            <div class="zip-preview-card-header">
+              <div>
+                <p class="eyebrow">Nexus NXM</p>
+                <h3>来自 Nexus 的下载请求</h3>
+                <p>Junimo Box 已接收到 nxm:// 链接。现在会优先自动下载，下载完成后直接进入 ZIP 预览。</p>
+              </div>
+
+              <button class="tiny-button" @click="closeNxmRequest">
+                关闭
+              </button>
+            </div>
+
+            <div class="nxm-detail-grid">
+              <div>
+                <span>游戏</span>
+                <strong>{{ parsedNxmRequest.gameDomain || "未识别" }}</strong>
+              </div>
+
+              <div>
+                <span>Mod ID</span>
+                <strong>{{ parsedNxmRequest.modId || "未识别" }}</strong>
+              </div>
+
+              <div>
+                <span>File ID</span>
+                <strong>{{ parsedNxmRequest.fileId || "未识别" }}</strong>
+              </div>
+            </div>
+
+            <p class="muted-text path-text">
+              原始链接：{{ nxmRequestLink }}
+            </p>
+
+            <div class="zip-dependency-summary" :class="isNxmDownloading ? 'has-warning' : 'has-info'">
+              <strong>{{ isNxmDownloading ? "正在下载" : "下载说明" }}</strong>
+              <p>
+                {{ nxmDownloadMessage || "点击“自动下载并预览”后，Junimo Box 会使用这个 NXM 链接中的下载参数获取 ZIP。失败时仍可打开 Nexus 页面或选择已下载 ZIP。" }}
+              </p>
+            </div>
+
+            <div class="zip-preview-footer">
+              <button class="secondary" @click="closeNxmRequest">
+                关闭
+              </button>
+
+              <button
+                class="secondary"
+                :disabled="!parsedNxmRequest.nexusPageUrl || isNxmDownloading"
+                @click="handleOpenNxmNexusPage"
+              >
+                打开 Nexus 页面
+              </button>
+
+              <button
+                class="secondary"
+                :disabled="isNxmDownloading"
+                @click="handleChooseDownloadedZipForNxm"
+              >
+                选择已下载 ZIP
+              </button>
+
+              <button
+                :disabled="isNxmDownloading || !parsedNxmRequest.modId || !parsedNxmRequest.fileId"
+                @click="handleDownloadNxmRequest"
+              >
+                {{ isNxmDownloading ? "正在下载..." : "自动下载并预览" }}
+              </button>
+            </div>
+          </section>
+        </div>
 
       <section v-if="activeView === 'profiles'" class="view-stack profiles-page">
         <div class="panel compact-panel profile-hero-panel">
@@ -1131,6 +1249,51 @@
             <button @click="handleSelectPath">重新选择游戏目录</button>
           </div>
         </div>
+
+        <div class="panel compact-panel">
+          <div class="panel-header">
+            <h3>Nexus Mods</h3>
+            <span>NXM 下载认证</span>
+          </div>
+
+          <p class="muted-text">
+            NXM 自动下载需要 Nexus Personal API Key。Junimo Box 只会把它保存在本机 localStorage，不会写入项目文件。
+          </p>
+
+          <div class="nexus-key-form">
+            <input
+              v-model="nexusApiKeyDraft"
+              class="url-zip-input"
+              :type="showNexusApiKey ? 'text' : 'password'"
+              placeholder="粘贴 Nexus Personal API Key"
+              autocomplete="off"
+            />
+
+            <button class="secondary" @click="showNexusApiKey = !showNexusApiKey">
+              {{ showNexusApiKey ? "隐藏" : "显示" }}
+            </button>
+          </div>
+
+          <div class="setting-actions nexus-setting-actions">
+            <button @click="handleSaveNexusApiKey">保存 API Key</button>
+            <button
+              class="secondary"
+              :disabled="isTestingNexusApiKey || !nexusApiKeyDraft.trim()"
+              @click="handleTestNexusApiKey"
+            >
+              {{ isTestingNexusApiKey ? "测试中..." : "测试连接" }}
+            </button>
+            <button class="danger-button" :disabled="!nexusApiKey && !nexusApiKeyDraft" @click="handleClearNexusApiKey">
+              清除
+            </button>
+          </div>
+
+          <div class="setting-block nexus-status-block">
+            <span>连接状态</span>
+            <strong>{{ nexusApiStatus }}</strong>
+            <small v-if="nexusApiUserName">账号：{{ nexusApiUserName }} · {{ nexusApiIsPremium ? "Premium" : "Free / 未识别会员状态" }}</small>
+          </div>
+        </div>
       </section>
     </section>
 
@@ -1260,6 +1423,7 @@ import JSON5 from "json5";
 
 const STORAGE_KEY = "junimo-box-game-path";
 const PROFILES_STORAGE_KEY = "junimo-box-profiles";
+const NEXUS_API_KEY_STORAGE_KEY = "junimo-box-nexus-api-key";
 
 type ViewId = "overview" | "mods" | "logs" | "tools" | "profiles" | "settings";
 type ModStatusFilter = "all" | "enabled" | "disabled";
@@ -1351,6 +1515,23 @@ type UrlZipDownloadResult = {
   zip_path: string;
   file_name: string;
   file_size: number;
+};
+
+type NexusUserInfo = {
+  name: string;
+  user_id: number;
+  is_premium: boolean;
+};
+
+type ParsedNxmRequest = {
+  raw: string;
+  gameDomain: string;
+  modId: string;
+  fileId: string;
+  key: string;
+  expires: string;
+  userId: string;
+  nexusPageUrl: string;
 };
 
 type SmapiInstallStagePayload = {
@@ -1500,9 +1681,22 @@ const isZipDragOver = ref(false);
 const urlZipInput = ref("");
 const isUrlZipDownloading = ref(false);
 const urlZipDownloadMessage = ref("");
+const nxmManualInput = ref("");
+const nxmProtocolStatus = ref("");
+const nxmRequestLink = ref("");
+const isNxmDownloading = ref(false);
+const nxmDownloadMessage = ref("");
+const nexusApiKey = ref("");
+const nexusApiKeyDraft = ref("");
+const showNexusApiKey = ref(false);
+const isTestingNexusApiKey = ref(false);
+const nexusApiStatus = ref("未配置");
+const nexusApiUserName = ref("");
+const nexusApiIsPremium = ref(false);
 
 let unlistenDragDrop: (() => void) | null = null;
 let unlistenSmapiInstallStage: UnlistenFn | null = null;
+let nxmPendingPollTimer: ReturnType<typeof setInterval> | null = null;
 
 const modSearchQuery = ref("");
 const modStatusFilter = ref<ModStatusFilter>("all");
@@ -1546,6 +1740,8 @@ const zipMissingRequiredDependencies = computed(() => {
 });
 
 const totalModCount = computed(() => mods.value.length + disabledMods.value.length);
+
+const parsedNxmRequest = computed<ParsedNxmRequest>(() => parseNxmLink(nxmRequestLink.value));
 
 const viewMetaMap: Record<ViewId, ViewMeta> = {
   overview: {
@@ -1743,17 +1939,23 @@ onMounted(async () => {
   );
 
   loadProfiles();
+  loadNexusApiKey();
   await setupZipDragDrop();
 
   const savedPath = localStorage.getItem(STORAGE_KEY);
 
-  if (!savedPath) {
-    return;
+  if (savedPath) {
+    gamePath.value = savedPath;
+    await checkGameFiles(savedPath);
+    await scanMods();
   }
 
-  gamePath.value = savedPath;
-  await checkGameFiles(savedPath);
-  await scanMods();
+  await checkStartupNxmLink();
+  await checkPendingNxmLink();
+
+  nxmPendingPollTimer = setInterval(() => {
+    void checkPendingNxmLink();
+  }, 1000);
 });
 
 onUnmounted(() => {
@@ -1765,6 +1967,11 @@ onUnmounted(() => {
   if (unlistenSmapiInstallStage) {
     unlistenSmapiInstallStage();
     unlistenSmapiInstallStage = null;
+  }
+
+  if (nxmPendingPollTimer) {
+    clearInterval(nxmPendingPollTimer);
+    nxmPendingPollTimer = null;
   }
 });
 
@@ -2919,6 +3126,272 @@ async function setupZipDragDrop() {
     console.warn("注册 ZIP 拖拽事件失败", error);
   }
 }
+
+
+function parseNxmLink(link: string): ParsedNxmRequest {
+  const empty: ParsedNxmRequest = {
+    raw: link,
+    gameDomain: "",
+    modId: "",
+    fileId: "",
+    key: "",
+    expires: "",
+    userId: "",
+    nexusPageUrl: "",
+  };
+
+  const trimmed = link.trim();
+
+  if (!trimmed) {
+    return empty;
+  }
+
+  try {
+    const withoutScheme = trimmed.replace(/^nxm:\/\//i, "");
+    const [pathPart, queryPart = ""] = withoutScheme.split("?");
+    const parts = pathPart.split("/").filter(Boolean);
+    const params = new URLSearchParams(queryPart);
+
+    const gameDomain = parts[0] ?? "";
+    const modsIndex = parts.findIndex((part) => part.toLowerCase() === "mods");
+    const filesIndex = parts.findIndex((part) => part.toLowerCase() === "files");
+
+    const modId = modsIndex >= 0 ? parts[modsIndex + 1] ?? "" : "";
+    const fileId = filesIndex >= 0 ? parts[filesIndex + 1] ?? "" : "";
+
+    let nexusPageUrl = "";
+
+    if (gameDomain && modId) {
+      nexusPageUrl = `https://www.nexusmods.com/${encodeURIComponent(gameDomain)}/mods/${encodeURIComponent(modId)}`;
+
+      if (fileId) {
+        nexusPageUrl += `?tab=files&file_id=${encodeURIComponent(fileId)}`;
+      }
+    }
+
+    return {
+      raw: trimmed,
+      gameDomain,
+      modId,
+      fileId,
+      key: params.get("key") || "",
+      expires: params.get("expires") || "",
+      userId: params.get("user_id") || "",
+      nexusPageUrl,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function showNxmRequest(link: string, autoDownload = false) {
+  const trimmed = link.trim();
+
+  if (!trimmed) {
+    return;
+  }
+
+  if (!trimmed.toLowerCase().startsWith("nxm:")) {
+    message.value = "这不是有效的 nxm:// 链接。";
+    return;
+  }
+
+  nxmRequestLink.value = trimmed;
+  nxmManualInput.value = "";
+  nxmDownloadMessage.value = "";
+  activeView.value = "tools";
+  setNotice("info", "已接收到 Nexus NXM 下载请求。");
+
+  if (autoDownload) {
+    void handleDownloadNxmRequest();
+  }
+}
+
+async function handleRegisterNxmProtocol() {
+  try {
+    await invoke("register_nxm_protocol");
+    nxmProtocolStatus.value = "已关联 NXM 协议。之后在 Nexus 点击 Mod Manager Download 时，Windows 会尝试用 Junimo Box 打开。";
+    setNotice("success", "已关联 NXM 协议。");
+  } catch (error) {
+    nxmProtocolStatus.value = `关联 NXM 协议失败：${String(error)}`;
+    setNotice("error", nxmProtocolStatus.value);
+  }
+}
+
+function loadNexusApiKey() {
+  const savedKey = localStorage.getItem(NEXUS_API_KEY_STORAGE_KEY) || "";
+  nexusApiKey.value = savedKey;
+  nexusApiKeyDraft.value = savedKey;
+
+  if (savedKey) {
+    nexusApiStatus.value = "已保存，建议测试连接";
+  }
+}
+
+function handleSaveNexusApiKey() {
+  const trimmedKey = nexusApiKeyDraft.value.trim();
+
+  if (!trimmedKey) {
+    message.value = "请先填写 Nexus Personal API Key。";
+    return;
+  }
+
+  nexusApiKey.value = trimmedKey;
+  nexusApiKeyDraft.value = trimmedKey;
+  localStorage.setItem(NEXUS_API_KEY_STORAGE_KEY, trimmedKey);
+  nexusApiStatus.value = "已保存，建议测试连接";
+  setNotice("success", "已保存 Nexus API Key。NXM 自动下载会使用这个 Key 进行认证。");
+}
+
+function handleClearNexusApiKey() {
+  nexusApiKey.value = "";
+  nexusApiKeyDraft.value = "";
+  nexusApiUserName.value = "";
+  nexusApiIsPremium.value = false;
+  nexusApiStatus.value = "未配置";
+  localStorage.removeItem(NEXUS_API_KEY_STORAGE_KEY);
+  setNotice("info", "已清除 Nexus API Key。NXM 自动下载将不可用。");
+}
+
+async function handleTestNexusApiKey() {
+  const trimmedKey = nexusApiKeyDraft.value.trim();
+
+  if (!trimmedKey) {
+    message.value = "请先填写 Nexus Personal API Key。";
+    return;
+  }
+
+  isTestingNexusApiKey.value = true;
+  nexusApiStatus.value = "正在测试连接...";
+
+  try {
+    const result = await invoke<NexusUserInfo>("test_nexus_api_key", {
+      apiKey: trimmedKey,
+    });
+
+    nexusApiKey.value = trimmedKey;
+    nexusApiKeyDraft.value = trimmedKey;
+    localStorage.setItem(NEXUS_API_KEY_STORAGE_KEY, trimmedKey);
+
+    nexusApiUserName.value = result.name || "Nexus 用户";
+    nexusApiIsPremium.value = Boolean(result.is_premium);
+    nexusApiStatus.value = `已连接：${nexusApiUserName.value}`;
+    setNotice("success", `Nexus Mods 连接成功：${nexusApiUserName.value}`);
+  } catch (error) {
+    nexusApiStatus.value = `连接失败：${String(error)}`;
+    setNotice("error", nexusApiStatus.value);
+  } finally {
+    isTestingNexusApiKey.value = false;
+  }
+}
+
+function handleParseManualNxm() {
+  showNxmRequest(nxmManualInput.value);
+}
+
+function closeNxmRequest() {
+  if (isNxmDownloading.value) {
+    return;
+  }
+
+  nxmRequestLink.value = "";
+  nxmDownloadMessage.value = "";
+}
+
+async function handleOpenNxmNexusPage() {
+  const url = parsedNxmRequest.value.nexusPageUrl;
+
+  if (!url) {
+    message.value = "无法从这个 NXM 链接解析 Nexus 页面。";
+    return;
+  }
+
+  try {
+    await invoke("open_url_in_browser", { url });
+    setNotice("info", "已打开 Nexus 页面。如果自动下载失败，可以在网页中完成下载后回到 Junimo Box 选择 ZIP 安装。");
+  } catch (error) {
+    message.value = `打开 Nexus 页面失败：${String(error)}`;
+  }
+}
+
+
+async function handleDownloadNxmRequest() {
+  if (!gamePath.value) {
+    message.value = "请先选择 Stardew Valley 游戏目录，再处理 NXM 下载。";
+    return;
+  }
+
+  if (!nxmRequestLink.value) {
+    message.value = "没有可处理的 NXM 链接。";
+    return;
+  }
+
+  if (!parsedNxmRequest.value.key || !parsedNxmRequest.value.expires) {
+    message.value = "这个 NXM 链接缺少 key 或 expires 参数。请重新从 Nexus 点击 Mod Manager Download。";
+    return;
+  }
+
+  const savedNexusApiKey = nexusApiKey.value.trim() || nexusApiKeyDraft.value.trim();
+
+  if (!savedNexusApiKey) {
+    message.value = "NXM 自动下载需要 Nexus API Key。请先到 设置 → Nexus Mods 保存并测试 API Key。";
+    return;
+  }
+
+  isNxmDownloading.value = true;
+  nxmDownloadMessage.value = "正在通过 Nexus NXM 链接下载 ZIP，并使用已保存的 Nexus API Key 认证...";
+  setNotice("info", nxmDownloadMessage.value);
+
+  try {
+    const result = await invoke<UrlZipDownloadResult>("download_nxm_file", {
+      nxmLink: nxmRequestLink.value,
+      gamePath: gamePath.value,
+      apiKey: savedNexusApiKey,
+    });
+
+    nxmDownloadMessage.value = `下载完成：${result.file_name}，正在生成 ZIP 预览...`;
+    setNotice("success", nxmDownloadMessage.value);
+
+    await previewZipPath(result.zip_path);
+    nxmRequestLink.value = "";
+    nxmDownloadMessage.value = "";
+  } catch (error) {
+    nxmDownloadMessage.value = `NXM 自动下载失败：${String(error)}。你仍然可以打开 Nexus 页面手动下载，然后选择 ZIP 预览安装。`;
+    setNotice("warning", nxmDownloadMessage.value);
+  } finally {
+    isNxmDownloading.value = false;
+  }
+}
+
+async function handleChooseDownloadedZipForNxm() {
+  closeNxmRequest();
+  await handlePreviewZipMod();
+}
+
+async function checkStartupNxmLink() {
+  try {
+    const link = await invoke<string | null>("read_startup_nxm_link");
+
+    if (link) {
+      showNxmRequest(link, true);
+    }
+  } catch (error) {
+    console.warn("读取启动 NXM 链接失败", error);
+  }
+}
+
+async function checkPendingNxmLink() {
+  try {
+    const link = await invoke<string | null>("read_pending_nxm_link");
+
+    if (link) {
+      showNxmRequest(link, true);
+    }
+  } catch (error) {
+    console.warn("读取待处理 NXM 链接失败", error);
+  }
+}
+
 
 async function handleDownloadZipFromUrl() {
   if (!gamePath.value) {
@@ -6123,6 +6596,92 @@ button.secondary:hover:not(:disabled) {
   color: #7a4b11;
 }
 
+
+/* v0.5.0：NXM 协议入口 */
+.nxm-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 250, 240, 0.78);
+  border: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.nxm-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.nxm-manual-form {
+  margin-top: 10px;
+}
+
+.nxm-request-card {
+  max-width: 680px;
+}
+
+.nxm-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.nxm-detail-grid > div {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 250, 240, 0.9);
+  border: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.nxm-detail-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(92, 70, 48, 0.62);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.nxm-detail-grid strong {
+  color: #4a3222;
+  font-size: 14px;
+}
+
+@media (max-width: 820px) {
+  .nxm-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* v0.5.2：Nexus API Key 设置 */
+.nexus-key-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.nexus-setting-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nexus-status-block {
+  margin-top: 14px;
+}
+
+.nexus-status-block small {
+  display: block;
+  margin-top: 6px;
+  color: #7a6652;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 </style>
 
 
@@ -6315,6 +6874,92 @@ button.secondary:hover:not(:disabled) {
 
 .inline-dependency-summary strong {
   color: #7a4b11;
+}
+
+
+/* v0.5.0：NXM 协议入口 */
+.nxm-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 250, 240, 0.78);
+  border: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.nxm-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.nxm-manual-form {
+  margin-top: 10px;
+}
+
+.nxm-request-card {
+  max-width: 680px;
+}
+
+.nxm-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.nxm-detail-grid > div {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 250, 240, 0.9);
+  border: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.nxm-detail-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(92, 70, 48, 0.62);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.nxm-detail-grid strong {
+  color: #4a3222;
+  font-size: 14px;
+}
+
+@media (max-width: 820px) {
+  .nxm-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* v0.5.2：Nexus API Key 设置 */
+.nexus-key-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.nexus-setting-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nexus-status-block {
+  margin-top: 14px;
+}
+
+.nexus-status-block small {
+  display: block;
+  margin-top: 6px;
+  color: #7a6652;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 </style>
