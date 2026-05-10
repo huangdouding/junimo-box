@@ -11,3 +11,41 @@ body,
 * {
   box-sizing: border-box;
 }
+
+:root {
+  /* 背景色 */
+  --bg-page: #f5efe3;
+  --bg-surface: #fffaf0;
+  --bg-card: #f6ead8;
+  --bg-sidebar-start: #5f432d;
+  --bg-sidebar-end: #3f2b1d;
+  --bg-sidebar-surface: rgba(255, 250, 240, 0.1);
+
+  /* 文字色 */
+  --text-primary: #2d241b;
+  --text-secondary: #7a6652;
+  --text-tertiary: #5c4630;
+  --text-muted: #7a634a;
+  --text-on-dark: #fff7e8;
+  --text-on-dark-muted: #e7d7be;
+  --text-gold: #8b6f47;
+  --text-folder-chip: #6b5238;
+
+  /* 语义色 */
+  --green-bg: #6fa85f;
+  --green-hover: #5d944f;
+  --green-text: #2f8f46;
+  --green-light: #e8f3df;
+  --danger-bg: #b9574f;
+  --danger-hover: #a3473f;
+  --danger-text: #8f2f22;
+  --danger-light: #f7dfd8;
+  --warning-bg: #f8e7c8;
+  --warning-text: #7a4f22;
+  --gold-bg: #8b6f47;
+  --gold-hover: #755d3c;
+
+  /* 边框色 */
+  --border-subtle: rgba(92, 70, 48, 0.08);
+  --border-strong: rgba(92, 70, 48, 0.22);
+}
