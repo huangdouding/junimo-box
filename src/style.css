@@ -13,39 +13,55 @@ body,
 }
 
 :root {
-  /* 背景色 */
-  --bg-page: #f5efe3;
-  --bg-surface: #fffaf0;
-  --bg-card: #f6ead8;
-  --bg-sidebar-start: #5f432d;
-  --bg-sidebar-end: #3f2b1d;
-  --bg-sidebar-surface: rgba(255, 250, 240, 0.1);
+  --bg-page: #f5eddd;
+  --bg-surface: #fff8e9;
+  --bg-card: #f7ead2;
+  --bg-sidebar-start: #7c4b22;
+  --bg-sidebar-end: #3c2412;
+  --bg-sidebar-surface: rgba(255, 248, 233, 0.12);
 
-  /* 文字色 */
+  --wood-dark: #3c2412;
+  --wood-mid: #6f431f;
+  --wood-light: #a2672c;
+  --wood-edge: #27170c;
+  --paper: #fff8e9;
+  --paper-deep: #f3dfb9;
+  --field-green: #7fb36b;
+  --field-dark: #416f35;
+  --sky-soft: #9fd4ec;
+
   --text-primary: #2d241b;
-  --text-secondary: #7a6652;
+  --text-secondary: #755f48;
   --text-tertiary: #5c4630;
-  --text-muted: #7a634a;
+  --text-muted: #846b50;
   --text-on-dark: #fff7e8;
-  --text-on-dark-muted: #e7d7be;
-  --text-gold: #8b6f47;
+  --text-on-dark-muted: #eadcc4;
+  --text-gold: #8d693c;
   --text-folder-chip: #6b5238;
 
-  /* 语义色 */
   --green-bg: #6fa85f;
-  --green-hover: #5d944f;
-  --green-text: #2f8f46;
-  --green-light: #e8f3df;
+  --green-hover: #5b914e;
+  --green-text: #2f7d3e;
+  --green-light: #e6f2d9;
   --danger-bg: #b9574f;
   --danger-hover: #a3473f;
   --danger-text: #8f2f22;
-  --danger-light: #f7dfd8;
-  --warning-bg: #f8e7c8;
+  --danger-light: #f8dfd7;
+  --warning-bg: #fae6bd;
   --warning-text: #7a4f22;
-  --gold-bg: #8b6f47;
-  --gold-hover: #755d3c;
+  --gold-bg: #8d693c;
+  --gold-hover: #735331;
 
-  /* 边框色 */
-  --border-subtle: rgba(92, 70, 48, 0.08);
-  --border-strong: rgba(92, 70, 48, 0.22);
+  --border-subtle: rgba(92, 70, 48, 0.12);
+  --border-strong: rgba(92, 70, 48, 0.25);
+  --shadow-soft: 0 14px 34px rgba(61, 40, 21, 0.14);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+body {
+  background:
+    linear-gradient(90deg, rgba(92, 70, 48, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(92, 70, 48, 0.035) 1px, transparent 1px),
+    var(--bg-page, #f5eddd);
+  background-size: 22px 22px, 22px 22px, auto;
 }

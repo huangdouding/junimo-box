@@ -76,6 +76,52 @@
       </div>
 
       <section v-if="activeView === 'overview'" class="view-stack">
+        <div class="overview-hero panel">
+          <div class="overview-hero-copy">
+            <p class="eyebrow">Junimo Box</p>
+            <h3>像素风的星露谷 Mod 小屋</h3>
+            <p>
+              把目录、安装、更新和启动收进一个温暖清楚的第三方管理器里，让玩家少折腾文件夹。
+            </p>
+
+            <div class="hero-chip-row">
+              <span>{{ gamePath ? "游戏目录已就绪" : "先选择游戏目录" }}</span>
+              <span>{{ smapiExists ? "SMAPI 可启动" : "SMAPI 待安装" }}</span>
+              <span>{{ totalModCount }} 个 Mod</span>
+              <span>{{ currentProfile?.name || "默认配置" }}</span>
+            </div>
+
+            <div class="hero-action-row">
+              <button class="hero-action-button" @click="handleSelectPath">
+                选择游戏目录
+              </button>
+              <button class="hero-action-button secondary" :disabled="!gamePath" @click="scanMods">
+                重新扫描
+              </button>
+              <button class="hero-action-button" :disabled="!smapiExists" @click="handleLaunchSmapi">
+                启动游戏
+              </button>
+            </div>
+          </div>
+
+          <div class="overview-hero-scene" aria-hidden="true">
+            <div class="scene-sky"></div>
+            <div class="scene-mountains"></div>
+            <div class="scene-field"></div>
+            <div class="scene-house">
+              <span class="scene-roof"></span>
+              <span class="scene-wall"></span>
+              <span class="scene-door"></span>
+              <span class="scene-window left"></span>
+              <span class="scene-window right"></span>
+            </div>
+            <div class="scene-tree scene-tree-left"></div>
+            <div class="scene-tree scene-tree-right"></div>
+            <div class="scene-crate"></div>
+            <div class="scene-junimo"></div>
+          </div>
+        </div>
+
         <div class="overview-grid">
           <div class="panel compact-panel">
             <div class="panel-header">
@@ -1951,7 +1997,7 @@ interface ModalState {
   cancelLabel?: string;
   promptValue?: string;
   placeholder?: string;
-  resolve?: (value: boolean | string | null) => void;
+    resolve?: (value: any) => void;
 }
 
 const modalState = ref<ModalState>({
@@ -8505,4 +8551,356 @@ button.secondary:hover:not(:disabled) {
   min-width: 80px;
 }
 
+</style>
+<style scoped>
+.app-shell {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0) 24%),
+    linear-gradient(135deg, rgba(162, 103, 44, 0.08), transparent 32%),
+    var(--bg-page, #f5eddd);
+}
+
+.sidebar {
+  padding: 18px 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
+    linear-gradient(180deg, var(--bg-sidebar-start, #7c4b22), var(--bg-sidebar-end, #3c2412));
+  border-right: 2px solid rgba(36, 21, 10, 0.22);
+}
+
+.brand,
+.sidebar-footer {
+  background: rgba(255, 246, 229, 0.08);
+  border: 1px solid rgba(255, 246, 229, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.nav-button {
+  border: 1px solid transparent;
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.nav-button:hover,
+.nav-button.active {
+  transform: translateX(2px);
+  border-color: rgba(255, 247, 232, 0.45);
+  background: linear-gradient(180deg, #f9f0da, #ecdfc3);
+  color: #3f2b1d;
+}
+
+.content {
+  padding: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(127, 179, 107, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 18%),
+    linear-gradient(180deg, rgba(255, 250, 240, 0.9), rgba(247, 234, 210, 0.94));
+}
+
+.content-header {
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(92, 70, 48, 0.12);
+  background: rgba(255, 249, 236, 0.8);
+  box-shadow: 0 14px 34px rgba(61, 40, 21, 0.14);
+}
+
+.overview-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 22px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f5e7c7, #e7cda4);
+  border: 1px solid rgba(92, 70, 48, 0.12);
+}
+
+.overview-hero-copy h3 {
+  margin: 4px 0 8px;
+  font-size: 30px;
+  line-height: 1.08;
+}
+
+.overview-hero-copy p {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--text-secondary, #755f48);
+  line-height: 1.55;
+}
+
+.hero-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.hero-chip-row span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(111, 168, 95, 0.16);
+  color: var(--green-text, #2f7d3e);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hero-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.hero-action-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid rgba(92, 70, 48, 0.18);
+  border-radius: 14px;
+  background: var(--green-bg, #6fa85f);
+  color: #fffaf0;
+  font-weight: 800;
+}
+
+.hero-action-button.secondary {
+  background: var(--text-gold, #8d693c);
+}
+
+.overview-hero-scene {
+  position: relative;
+  min-height: 250px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 4px solid rgba(92, 70, 48, 0.2);
+  background: linear-gradient(180deg, #8fd0f5 0%, #cbeafe 42%, #e2f3ad 42%, #b0d66d 100%);
+}
+
+.scene-mountains,
+.scene-field,
+.scene-house,
+.scene-tree,
+.scene-crate,
+.scene-junimo {
+  position: absolute;
+}
+
+.scene-mountains {
+  left: -10%;
+  right: -10%;
+  top: 16%;
+  height: 30%;
+  background:
+    linear-gradient(135deg, transparent 46%, rgba(72, 125, 80, 0.95) 46% 58%, transparent 58%) left bottom/34% 100% no-repeat,
+    linear-gradient(135deg, transparent 44%, rgba(56, 106, 70, 0.95) 44% 59%, transparent 59%) center bottom/36% 100% no-repeat,
+    linear-gradient(135deg, transparent 45%, rgba(88, 141, 90, 0.95) 45% 60%, transparent 60%) right bottom/34% 100% no-repeat;
+}
+
+.scene-field {
+  inset: auto 0 0;
+  height: 44%;
+  background: linear-gradient(180deg, #84bc58, #5f9338 70%, #49712b);
+}
+
+.scene-house {
+  left: 50%;
+  bottom: 16%;
+  width: 124px;
+  height: 88px;
+  transform: translateX(-50%);
+}
+
+.scene-roof {
+  position: absolute;
+  inset: 0 6px auto;
+  height: 34px;
+  background: linear-gradient(180deg, #5e9a4f, #47773a);
+  clip-path: polygon(50% 0, 100% 60%, 100% 100%, 0 100%, 0 60%);
+}
+
+.scene-wall {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 0;
+  height: 58px;
+  border-radius: 8px 8px 10px 10px;
+  background: linear-gradient(180deg, #bb8b53, #8c5a2c);
+  border: 2px solid rgba(52, 30, 16, 0.22);
+}
+
+.scene-door {
+  position: absolute;
+  left: 52px;
+  bottom: 4px;
+  width: 20px;
+  height: 32px;
+  border-radius: 6px 6px 3px 3px;
+  background: linear-gradient(180deg, #6c4420, #4b2e17);
+}
+
+.scene-window {
+  position: absolute;
+  bottom: 20px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: #f8e8b2;
+  border: 2px solid rgba(70, 43, 22, 0.22);
+}
+
+.scene-window.left { left: 33px; }
+.scene-window.right { right: 33px; }
+
+.scene-tree {
+  bottom: 15%;
+  width: 32px;
+  height: 76px;
+  border-radius: 16px 16px 10px 10px;
+  background:
+    radial-gradient(circle at 50% 18%, #7dc264 0 36%, transparent 38%),
+    radial-gradient(circle at 35% 40%, #5f9b49 0 28%, transparent 30%),
+    radial-gradient(circle at 65% 42%, #4b8338 0 26%, transparent 28%),
+    linear-gradient(180deg, #6e4d2b, #4a2f19 72%, transparent 72%);
+}
+
+.scene-tree-left { left: 12px; }
+.scene-tree-right { right: 12px; }
+
+.scene-crate {
+  left: 18%;
+  bottom: 19%;
+  width: 28px;
+  height: 22px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #b57b3e, #885429);
+  border: 2px solid rgba(50, 29, 15, 0.2);
+}
+
+.scene-junimo {
+  right: 12px;
+  bottom: 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 38%, #f6f2c0 0 2px, transparent 3px),
+    radial-gradient(circle at 38% 44%, #5d903f 0 3px, transparent 4px),
+    radial-gradient(circle at 62% 44%, #5d903f 0 3px, transparent 4px),
+    linear-gradient(180deg, #a9df74, #6ea84f);
+}
+
+.panel,
+.notice,
+.empty-state,
+.launch-card,
+.side-card,
+.modal-box,
+.zip-preview-card,
+.mod-detail-card,
+.profile-editor-card,
+.profile-action-card,
+.tool-section-card,
+.profile-card,
+.mod-item,
+.zip-preview-item,
+.url-zip-box,
+.nxm-box {
+  border: 1px solid rgba(92, 70, 48, 0.12);
+  background: rgba(255, 249, 236, 0.9);
+  box-shadow: 0 14px 34px rgba(61, 40, 21, 0.14);
+}
+
+.panel,
+.empty-state {
+  border-radius: 20px;
+}
+
+.launch-card {
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f6e4be, #e8c78d);
+}
+
+.right-panel {
+  padding: 18px 16px;
+  background: rgba(255, 249, 236, 0.66);
+  border-left: 1px solid rgba(92, 70, 48, 0.1);
+}
+
+button,
+.launch-button,
+.hero-action-button {
+  box-shadow: 0 8px 18px rgba(95, 67, 32, 0.15);
+}
+
+button.secondary,
+.secondary-action,
+.smapi-recheck-button,
+.hero-action-button.secondary {
+  background: var(--text-gold, #8d693c);
+}
+
+button.secondary:hover:not(:disabled),
+.secondary-action:hover:not(:disabled),
+.smapi-recheck-button:hover:not(:disabled),
+.hero-action-button.secondary:hover:not(:disabled) {
+  background: var(--gold-hover, #735331);
+}
+
+.url-zip-input,
+.profile-input,
+.modal-input {
+  border: 1px solid rgba(92, 70, 48, 0.16);
+  background: rgba(255, 252, 245, 0.96);
+}
+
+.mod-item,
+.profile-card,
+.zip-preview-item,
+.update-result-row,
+.history-result-row,
+.tool-inline-state,
+.setting-block,
+.diagnosis-card {
+  border-radius: 16px;
+}
+
+.folder-chip,
+.profile-preview-inline span,
+.expanded-profile-preview span,
+.hero-chip-row span {
+  background: rgba(233, 217, 188, 0.9);
+}
+
+.mod-item h4,
+.profile-main h4,
+.zip-preview-title-row h4 {
+  font-size: 17px;
+}
+
+@media (max-width: 1320px) {
+  .overview-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 228px minmax(0, 1fr);
+  }
+
+  .right-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .overview-hero-copy h3 {
+    font-size: 24px;
+  }
+
+  .hero-action-row,
+  .hero-chip-row {
+    gap: 8px;
+  }
+}
 </style>
