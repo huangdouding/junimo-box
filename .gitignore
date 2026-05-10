@@ -25,3 +25,8 @@ dist-ssr
 
 # Junimo Box
 public/stardew_nexus_index.json
+
+# Claude Code session artifacts
+.claude/
+.agents/
+skills-lock.json

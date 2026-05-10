@@ -2168,7 +2168,7 @@ dependencies = [
 
 [[package]]
 name = "junimo-box"
-version = "0.1.0"
+version = "0.7.0"
 dependencies = [
  "json5",
  "reqwest",
