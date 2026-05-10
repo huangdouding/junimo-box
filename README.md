@@ -101,14 +101,26 @@ Junimo Box 使用以下技术开发：
 
 ```bash
 npm install
+```
 
 启动开发环境：
 
+```bash
 npm run tauri dev
+```
+
+如果 1420 端口被残留进程占用，可以先运行：
+
+```bash
+npm run dev:free-port
+```
 
 构建应用：
 
+```bash
 npm run tauri build
+```
+
 项目结构
 junimo-box/
 ├─ src/              # Vue 前端代码
