@@ -5175,8 +5175,17 @@ async function handleBatchDelete() {
 
   if (!confirmed) return;
 
+  let deletedCount = 0;
   for (const mod of selected) {
-    void handleDeleteDisplayedMod(mod);
+    try {
+      await handleDeleteDisplayedMod(mod);
+      deletedCount++;
+    } catch {
+      // 单个删除失败不影响后续
+    }
+  }
+  if (deletedCount > 0) {
+    addToast("success", `已删除 ${deletedCount} 个 Mod`);
   }
   selectedModKeys.value = new Set();
 }
