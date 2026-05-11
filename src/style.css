@@ -56,6 +56,11 @@ body,
   --border-strong: rgba(92, 70, 48, 0.25);
   --shadow-soft: 0 14px 34px rgba(61, 40, 21, 0.14);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+
+  --radius-panel: 12px;
+  --radius-button: 8px;
+  --radius-card: 10px;
+  --border-pixel: 2px solid rgba(92, 70, 48, 0.15);
 }
 
 body {

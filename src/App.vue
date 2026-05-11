@@ -23,8 +23,13 @@
       </nav>
 
       <div class="sidebar-footer">
-        <p>Stardew Valley</p>
-        <strong>Mod Manager & Launcher</strong>
+        <button
+          class="sidebar-launch-button"
+          :disabled="!smapiExists"
+          @click="handleLaunchSmapi"
+        >
+          启动游戏
+        </button>
       </div>
     </aside>
 
@@ -74,6 +79,25 @@
       >
         <span class="notice-icon">{{ noticeIcon }}</span>
         <span>{{ notice.text }}</span>
+      </div>
+
+      <div class="toast-container">
+        <div
+          v-for="toast in toasts"
+          :key="toast.id"
+          class="toast-item"
+          :class="'toast-' + toast.type"
+        >
+          <span class="toast-text">{{ toast.text }}</span>
+          <button
+            v-if="toast.action"
+            class="toast-undo"
+            @click="toast.action.handler(); removeToast(toast.id)"
+          >
+            {{ toast.action.label }}
+          </button>
+          <button class="toast-close" @click="removeToast(toast.id)">&#10005;</button>
+        </div>
       </div>
 
       <section v-if="activeView === 'overview'" class="view-stack">
@@ -272,6 +296,16 @@
           </div>
         </div>
 
+        <div v-if="selectedModKeys.size > 0" class="batch-action-bar">
+          <span class="batch-count">已选择 {{ selectedModKeys.size }} 个 Mod</span>
+          <div class="batch-actions">
+            <button class="tiny-button" @click="handleBatchEnable">批量启用</button>
+            <button class="tiny-button danger" @click="handleBatchDisable">批量禁用</button>
+            <button class="tiny-button danger delete-mod-button" @click="handleBatchDelete">批量删除</button>
+            <button class="tiny-button ghost-button" @click="selectedModKeys = new Set()">取消选择</button>
+          </div>
+        </div>
+
         <div v-if="filteredMods.length > 0" class="mods-workspace">
           <div class="panel mods-list-panel">
             <div class="panel-header sticky-panel-header">
@@ -294,14 +328,14 @@
                   warning: mod.hasMissingRequiredDependency,
                   selected: isSelectedMod(mod),
                 }"
-                @click="selectMod(mod)"
+                @click="selectMod(mod, $event)"
               >
                 <div class="mod-card-content">
                   <div class="mod-card-main-row">
                     <div class="mod-title-block">
-                      <h4>{{ mod.name }}</h4>
+                      <h4><span v-html="highlightText(mod.name, modSearchQuery)"></span></h4>
                       <p class="mod-meta">
-                        {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+                        <span v-html="highlightText(mod.author || '未知作者', modSearchQuery)"></span> · v{{ mod.version || "未知版本" }}
                       </p>
                     </div>
 
@@ -323,7 +357,7 @@
                   </p>
 
                   <div class="mod-card-footer">
-                    <span class="folder-chip">{{ mod.folderName }}</span>
+                    <span class="folder-chip" v-html="highlightText(mod.folderName, modSearchQuery)"></span>
 
                     <div class="mod-actions compact-card-actions">
                       <button class="tiny-button ghost-button" @click.stop="handleOpenDisplayedModFolder(mod)">
@@ -1678,63 +1712,6 @@
         <button class="side-check-button" @click="activeView = 'profiles'">管理配置</button>
       </div>
 
-      <div class="side-card">
-        <h4>游戏状态</h4>
-
-        <div class="info-line">
-          <span>Stardew Valley</span>
-          <strong :class="stardewExists ? 'ok' : 'bad'">
-            {{ stardewExists ? "已找到" : "未找到" }}
-          </strong>
-        </div>
-
-        <div class="info-line">
-          <span>SMAPI</span>
-          <strong :class="smapiExists ? 'ok' : 'bad'">
-            {{ smapiExists ? "已安装" : "未安装" }}
-          </strong>
-        </div>
-
-        <div v-if="smapiExists" class="info-line">
-          <span>SMAPI 版本</span>
-          <strong>{{ smapiDetectedVersion || "未识别" }}</strong>
-        </div>
-
-        <div class="info-line">
-          <span>Mods 文件夹</span>
-          <strong :class="modsFolderExists ? 'ok' : 'bad'">
-            {{ modsFolderExists ? "已找到" : "未找到" }}
-          </strong>
-        </div>
-
-        <div class="info-line">
-          <span>已启用 Mods</span>
-          <strong>{{ mods.length }}</strong>
-        </div>
-
-        <div class="info-line">
-          <span>缺失依赖</span>
-          <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">
-            {{ missingDependencies.length }}
-          </strong>
-        </div>
-
-        <div class="info-line">
-          <span>启动前检查</span>
-          <strong :class="launchHealthStatus.className">
-            {{ launchHealthStatus.label }}
-          </strong>
-        </div>
-
-        <button
-          class="side-check-button"
-          :disabled="!gamePath"
-          @click="handleRunLaunchCheck"
-        >
-          检查环境
-        </button>
-      </div>
-
       <div class="side-card path-card">
         <h4>当前路径</h4>
         <p>{{ gamePath || "尚未选择 Stardew Valley 安装目录" }}</p>
@@ -1822,6 +1799,98 @@
 
         <div v-if="downloadQueue.length === 0" class="dq-empty">
           没有下载任务
+        </div>
+      </div>
+    </div>
+    <!-- 新手引导 -->
+    <div v-if="showWizard" class="wizard-overlay" @click.self="showWizard = false">
+      <div class="wizard-card">
+        <div class="wizard-steps">
+          <span class="wizard-dot" :class="{ active: wizardStep >= 0 }"></span>
+          <span class="wizard-dot" :class="{ active: wizardStep >= 1 }"></span>
+          <span class="wizard-dot" :class="{ active: wizardStep >= 2 }"></span>
+          <span class="wizard-dot" :class="{ active: wizardStep >= 3 }"></span>
+        </div>
+
+        <div v-if="wizardStep === 0" class="wizard-body">
+          <div class="wizard-icon">🌿</div>
+          <h3>欢迎使用 Junimo Box</h3>
+          <p>你的星露谷 Mod 管理小站。先选择游戏目录，开始管理 Mod 吧。</p>
+          <div class="wizard-actions">
+            <button class="hero-action-button wizard-primary" @click="handleWizardSelectPath">
+              选择游戏目录
+            </button>
+            <button v-if="wizardSkippable" class="tiny-button ghost-button" @click="handleWizardSkip">
+              跳过引导
+            </button>
+          </div>
+        </div>
+
+        <div v-if="wizardStep === 1" class="wizard-body">
+          <div class="wizard-icon">🛠️</div>
+          <h3>检测 SMAPI</h3>
+          <p>SMAPI 是星露谷 Mod 的运行基石，大部分 Mod 都需要它。</p>
+          <div class="wizard-status">
+            <span v-if="smapiExists" class="wizard-status-ok">✅ SMAPI 已安装</span>
+            <span v-else class="wizard-status-missing">❌ SMAPI 未安装</span>
+          </div>
+          <div class="wizard-actions">
+            <button
+              v-if="!smapiExists"
+              class="hero-action-button wizard-primary"
+              :disabled="isSmapiInstalling"
+              @click="handleWizardInstallSmapi"
+            >
+              {{ isSmapiInstalling ? "正在安装..." : "下载并安装 SMAPI" }}
+            </button>
+            <button class="hero-action-button secondary" @click="handleWizardNext">
+              下一步
+            </button>
+            <button v-if="wizardSkippable" class="tiny-button ghost-button" @click="handleWizardSkip">
+              跳过引导
+            </button>
+          </div>
+        </div>
+
+        <div v-if="wizardStep === 2" class="wizard-body">
+          <div class="wizard-icon">🔍</div>
+          <h3>扫描 Mods</h3>
+          <p>检查你的 Mods 文件夹，看看已经安装了多少 Mod。</p>
+          <div class="wizard-status">
+            <span v-if="totalModCount > 0">
+              已找到 {{ totalModCount }} 个 Mod（{{ mods.length }} 个启用，{{ disabledMods.length }} 个禁用）
+            </span>
+            <span v-else>尚未扫描 Mods 文件夹。</span>
+          </div>
+          <div class="wizard-actions">
+            <button
+              class="hero-action-button wizard-primary"
+              :disabled="isScanning"
+              @click="handleWizardScanMods"
+            >
+              {{ isScanning ? "扫描中..." : "扫描 Mods 文件夹" }}
+            </button>
+            <button class="hero-action-button secondary" @click="handleWizardNext">
+              下一步
+            </button>
+            <button v-if="wizardSkippable" class="tiny-button ghost-button" @click="handleWizardSkip">
+              跳过引导
+            </button>
+          </div>
+        </div>
+
+        <div v-if="wizardStep === 3" class="wizard-body">
+          <div class="wizard-icon">🎉</div>
+          <h3>准备就绪</h3>
+          <p>
+            {{ gamePath ? `已选择游戏目录，找到 ${totalModCount} 个 Mod。` : "随时可以选择游戏目录开始管理。" }}
+            {{ smapiExists ? "SMAPI 已就绪，可以启动游戏。" : "" }}
+          </p>
+          <div class="wizard-actions">
+            <button class="hero-action-button wizard-primary" @click="handleWizardFinish">
+              开始使用
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -2156,7 +2225,19 @@ type NoticePayload = {
   text: string;
 };
 
+interface ToastItem {
+  id: number;
+  type: NoticeType;
+  text: string;
+  action?: {
+    label: string;
+    handler: () => void;
+  };
+}
+
 const notice = ref<NoticePayload | null>(null);
+const toasts = ref<ToastItem[]>([]);
+let toastIdCounter = 0;
 
 const noticeIcon = computed(() => {
   if (!notice.value) {
@@ -2303,6 +2384,12 @@ const modSearchQuery = ref("");
 const modStatusFilter = ref<ModStatusFilter>("all");
 const modDependencyFilter = ref<ModDependencyFilter>("all");
 const selectedModKey = ref("");
+const selectedModKeys = ref<Set<string>>(new Set());
+const lastSelectedModIndex = ref(-1);
+
+const showWizard = ref(false);
+const wizardStep = ref(0);
+const wizardSkippable = ref(true);
 const profiles = ref<ModProfile[]>([]);
 const currentProfileId = ref("");
 const isProfileEditorOpen = ref(false);
@@ -2417,6 +2504,25 @@ function setNotice(type: NoticeType, text: string) {
 
 function clearNotice() {
   notice.value = null;
+}
+
+function addToast(type: ToastItem["type"], text: string, action?: ToastItem["action"], timeout = 4000) {
+  const id = ++toastIdCounter;
+  toasts.value.push({ id, type, text, action });
+  if (action) {
+    setTimeout(() => {
+      removeToast(id);
+      if (!toasts.value.some((t) => t.action)) {
+        void scanMods();
+      }
+    }, timeout);
+  } else {
+    setTimeout(() => removeToast(id), timeout);
+  }
+}
+
+function removeToast(id: number) {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
 }
 
 function inferNoticeType(text: string): NoticeType {
@@ -2534,32 +2640,6 @@ const selectedMod = computed<DisplayModInfo | null>(() => {
 
 const duplicateEnabledUniqueIds = computed(() => getDuplicateUniqueIds(mods.value));
 
-const launchHealthStatus = computed(() => {
-  if (!gamePath.value) {
-    return { label: "未配置", className: "bad" };
-  }
-
-  if (!stardewExists.value) {
-    return { label: "异常", className: "bad" };
-  }
-
-  const warningCount =
-    missingDependencies.value.length +
-    skippedFolders.value.length +
-    duplicateEnabledUniqueIds.value.length +
-    (modsFolderExists.value ? 0 : 1);
-
-  if (!smapiExists.value) {
-    return { label: "缺少 SMAPI", className: "bad" };
-  }
-
-  if (warningCount > 0) {
-    return { label: `${warningCount} 个警告`, className: "bad" };
-  }
-
-  return { label: "正常", className: "ok" };
-});
-
 onMounted(async () => {
   unlistenSmapiInstallStage = await listen<SmapiInstallStagePayload>(
     "smapi-install-stage",
@@ -2631,6 +2711,12 @@ onMounted(async () => {
   }, 1000);
 
   document.addEventListener("keydown", handleGlobalKeydown);
+
+  const setupDone = localStorage.getItem("junimo-box-setup-complete");
+  if (!setupDone && !savedPath) {
+    showWizard.value = true;
+    wizardStep.value = 0;
+  }
 });
 
 onUnmounted(() => {
@@ -3288,6 +3374,7 @@ async function handleApplyProfile(profile: ModProfile) {
   await checkGameFiles(gamePath.value);
   await scanMods();
   selectedModKey.value = "";
+  selectedModKeys.value = new Set();
 
   currentProfileId.value = profile.id;
   saveCurrentProfile();
@@ -3321,6 +3408,7 @@ async function handleSelectPath() {
   missingDependencies.value = [];
   lastInstalledZipMods.value = [];
   selectedModKey.value = "";
+  selectedModKeys.value = new Set();
 
   localStorage.setItem(STORAGE_KEY, selected);
 
@@ -3352,6 +3440,8 @@ async function scanMods() {
 
   if (isScanning.value) return;
   isScanning.value = true;
+  selectedModKey.value = "";
+  selectedModKeys.value = new Set();
 
   const modsFolder = `${gamePath.value}\\Mods`;
   const disabledModsFolder = `${gamePath.value}\\Disabled Mods`;
@@ -3659,10 +3749,6 @@ async function handleLaunchVanilla() {
   }
 }
 
-async function handleRunLaunchCheck() {
-  await runLaunchEnvironmentCheck("smapi", true);
-}
-
 async function runLaunchEnvironmentCheck(
   target: LaunchTarget,
   showResult: boolean
@@ -3851,7 +3937,7 @@ async function handleOpenDisplayedModFolder(mod: DisplayModInfo) {
 
 async function handleDisableMod(folderName: string) {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    addToast("error", "请先选择游戏目录。");
     return;
   }
 
@@ -3859,28 +3945,32 @@ async function handleDisableMod(folderName: string) {
   const to = `${gamePath.value}\\Disabled Mods\\${folderName}`;
 
   if (!(await exists(from))) {
-    message.value = `禁用失败：没有找到 Mod 文件夹：${folderName}`;
+    addToast("error", `禁用失败：没有找到 Mod 文件夹：${folderName}`);
     return;
   }
 
   if (await exists(to)) {
-    message.value = `禁用失败：Disabled Mods 中已经存在同名文件夹：${folderName}`;
+    addToast("error", `禁用失败：Disabled Mods 中已经存在同名文件夹：${folderName}`);
     return;
   }
 
   try {
     await invoke("move_folder", { from, to });
-    message.value = `已禁用 Mod：${folderName}`;
     selectedModKey.value = "";
+    selectedModKeys.value = new Set();
+    addToast("success", `已禁用 Mod：${folderName}`, {
+      label: "撤销",
+      handler: () => { void handleEnableMod(folderName); },
+    });
     await scanMods();
   } catch (error) {
-    message.value = `禁用 Mod 失败：${String(error)}`;
+    addToast("error", `禁用 Mod 失败：${String(error)}`);
   }
 }
 
 async function handleEnableMod(folderName: string) {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    addToast("error", "请先选择游戏目录。");
     return;
   }
 
@@ -3888,29 +3978,33 @@ async function handleEnableMod(folderName: string) {
   const to = `${gamePath.value}\\Mods\\${folderName}`;
 
   if (!(await exists(from))) {
-    message.value = `启用失败：没有找到已禁用的 Mod 文件夹：${folderName}`;
+    addToast("error", `启用失败：没有找到已禁用的 Mod 文件夹：${folderName}`);
     return;
   }
 
   if (await exists(to)) {
-    message.value = `启用失败：Mods 中已经存在同名文件夹：${folderName}`;
+    addToast("error", `启用失败：Mods 中已经存在同名文件夹：${folderName}`);
     return;
   }
 
   try {
     await invoke("move_folder", { from, to });
-    message.value = `已启用 Mod：${folderName}`;
     selectedModKey.value = "";
+    selectedModKeys.value = new Set();
+    addToast("success", `已启用 Mod：${folderName}`, {
+      label: "撤销",
+      handler: () => { void handleDisableMod(folderName); },
+    });
     await scanMods();
   } catch (error) {
-    message.value = `启用 Mod 失败：${String(error)}`;
+    addToast("error", `启用 Mod 失败：${String(error)}`);
   }
 }
 
 
 async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    addToast("error", "请先选择游戏目录。");
     return;
   }
 
@@ -3933,7 +4027,7 @@ async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
 
   try {
     if (!(await exists(from))) {
-      message.value = `删除失败：没有找到 Mod 文件夹：${mod.folderName}`;
+      addToast("error", `删除失败：没有找到 Mod 文件夹：${mod.folderName}`);
       return;
     }
 
@@ -3942,11 +4036,18 @@ async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
     if (selectedMod.value && getModKey(selectedMod.value) === getModKey(mod)) {
       selectedModKey.value = "";
     }
+    selectedModKeys.value = new Set();
 
-    setNotice("success", `已删除 Mod：${mod.name}。文件已移动到 Junimo Box Deleted Mods。`);
+    addToast("success", `已删除 Mod：${mod.name}`, {
+      label: "撤销",
+      handler: () => {
+        const recycleFolderName = `${safeFolderName}-${timestamp}`;
+        void handleRestoreDeletedMod(recycleFolderName);
+      },
+    });
     await scanMods();
   } catch (error) {
-    setNotice("error", `删除 Mod 失败：${String(error)}`);
+    addToast("error", `删除 Mod 失败：${String(error)}`);
   }
 }
 
@@ -4507,6 +4608,13 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       event.preventDefault();
     }
   }
+
+  if ((event.ctrlKey || event.metaKey) && event.key === "a") {
+    if (activeView.value === "mods") {
+      selectedModKeys.value = new Set(filteredMods.value.map((m) => getModKey(m)));
+      event.preventDefault();
+    }
+  }
 }
 
 async function handleDownloadZipFromUrl() {
@@ -4872,20 +4980,138 @@ function getZipDependencyRows(mod: ZipModPreview): ZipDependencyRow[] {
     });
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function highlightText(text: string, query: string): string {
+  if (!query || !text) return escapeHtml(text || "");
+  const escaped = escapeHtml(text);
+  const needle = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${needle})`, "gi");
+  return escaped.replace(regex, "<mark class='hl'>$1</mark>");
+}
+
 function getModKey(mod: DisplayModInfo): string {
   return `${mod.isDisabled ? "disabled" : "enabled"}-${mod.uniqueId || mod.folderName}`;
 }
 
-function selectMod(mod: DisplayModInfo) {
-  selectedModKey.value = getModKey(mod);
+function selectMod(mod: DisplayModInfo, event?: MouseEvent) {
+  const key = getModKey(mod);
+  if (event?.ctrlKey || event?.metaKey) {
+    const keys = new Set(selectedModKeys.value);
+    if (keys.has(key)) {
+      keys.delete(key);
+    } else {
+      keys.add(key);
+    }
+    selectedModKeys.value = keys;
+    selectedModKey.value = "";
+    return;
+  }
+  if (event?.shiftKey && lastSelectedModIndex.value >= 0) {
+    const keys = new Set(selectedModKeys.value);
+    const currentIdx = filteredMods.value.findIndex((m) => getModKey(m) === key);
+    const start = Math.min(lastSelectedModIndex.value, currentIdx);
+    const end = Math.max(lastSelectedModIndex.value, currentIdx);
+    for (let i = start; i <= end; i++) {
+      keys.add(getModKey(filteredMods.value[i]));
+    }
+    selectedModKeys.value = keys;
+    selectedModKey.value = "";
+    return;
+  }
+  selectedModKey.value = key;
+  selectedModKeys.value = new Set([key]);
+  lastSelectedModIndex.value = filteredMods.value.findIndex((m) => getModKey(m) === key);
 }
 
 function closeModDetail() {
   selectedModKey.value = "";
+  selectedModKeys.value = new Set();
 }
 
 function isSelectedMod(mod: DisplayModInfo): boolean {
-  return selectedModKey.value === getModKey(mod);
+  return selectedModKeys.value.has(getModKey(mod));
+}
+
+function getSelectedMods(): DisplayModInfo[] {
+  return filteredMods.value.filter((m) => selectedModKeys.value.has(getModKey(m)));
+}
+
+async function handleBatchEnable() {
+  const toEnable = getSelectedMods().filter((m) => m.isDisabled);
+  if (toEnable.length === 0) {
+    addToast("info", "所选 Mod 中没有已禁用的 Mod。");
+    return;
+  }
+  for (const mod of toEnable) {
+    await handleEnableMod(mod.folderName);
+  }
+  selectedModKeys.value = new Set();
+}
+
+async function handleBatchDisable() {
+  const toDisable = getSelectedMods().filter((m) => !m.isDisabled);
+  if (toDisable.length === 0) {
+    addToast("info", "所选 Mod 中没有已启用的 Mod。");
+    return;
+  }
+  for (const mod of toDisable) {
+    await handleDisableMod(mod.folderName);
+  }
+  selectedModKeys.value = new Set();
+}
+
+async function handleBatchDelete() {
+  const selected = getSelectedMods();
+  if (selected.length === 0) return;
+
+  const confirmed = await showConfirmModal(
+    "批量删除 Mod",
+    `确定要删除选中的 ${selected.length} 个 Mod 吗？\n\nJunimo Box 会把它们移动到游戏目录里的回收站文件夹，不会直接永久删除。`
+  );
+
+  if (!confirmed) return;
+
+  for (const mod of selected) {
+    void handleDeleteDisplayedMod(mod);
+  }
+  selectedModKeys.value = new Set();
+}
+
+function handleWizardNext() {
+  wizardStep.value = Math.min(wizardStep.value + 1, 3);
+}
+
+async function handleWizardSelectPath() {
+  await handleSelectPath();
+  if (gamePath.value) {
+    wizardStep.value = Math.max(wizardStep.value, 1);
+  }
+}
+
+async function handleWizardInstallSmapi() {
+  await handleInstallSmapi();
+  await checkGameFiles(gamePath.value);
+  if (smapiExists.value) {
+    wizardStep.value = Math.max(wizardStep.value, 2);
+  }
+}
+
+async function handleWizardScanMods() {
+  await scanMods();
+  wizardStep.value = Math.max(wizardStep.value, 3);
+}
+
+function handleWizardFinish() {
+  localStorage.setItem("junimo-box-setup-complete", "true");
+  showWizard.value = false;
+}
+
+function handleWizardSkip() {
+  localStorage.setItem("junimo-box-setup-complete", "true");
+  showWizard.value = false;
 }
 
 function clearModFilters() {
@@ -5417,18 +5643,30 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .sidebar-footer {
   margin-top: auto;
   padding: 12px;
-  border-radius: 15px;
-  background: rgba(255, 250, 240, 0.1);
 }
 
-.sidebar-footer p {
-  margin: 0 0 4px;
-  color: #e7d7be;
-  font-size: 12px;
+.sidebar-launch-button {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-button, 8px);
+  background: linear-gradient(180deg, var(--green-bg, #6fa85f), #5b914e);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.sidebar-footer strong {
-  font-size: 13px;
+.sidebar-launch-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5b914e, #4a7d3e);
+  transform: scale(1.02);
+}
+
+.sidebar-launch-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .content {
@@ -5486,7 +5724,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .notice,
 .panel,
 .empty-state {
-  border-radius: 22px;
+  border-radius: var(--radius-panel, 12px);
   background: rgba(255, 250, 240, 0.92);
   box-shadow: 0 10px 28px rgba(67, 47, 27, 0.09);
 }
@@ -5638,6 +5876,31 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .filter-panel {
   padding: 16px;
+}
+
+.batch-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-panel, 12px);
+  background: rgba(111, 168, 95, 0.1);
+  border: 2px solid rgba(111, 168, 95, 0.3);
+}
+
+.batch-count {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--green-text, #2f7d3e);
+}
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .filter-top-row {
@@ -6461,7 +6724,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .launch-card,
 .side-card {
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-card, 10px);
   background: var(--bg-surface, #fffaf0);
   box-shadow: 0 10px 26px rgba(67, 47, 27, 0.09);
 }
@@ -7307,13 +7570,66 @@ button.secondary:hover:not(:disabled) {
   background: var(--gold-hover, #755d3c);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .app-shell {
     grid-template-columns: 205px minmax(0, 1fr);
   }
 
   .right-panel {
     display: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .sidebar {
+    width: 64px;
+    padding: 12px 8px;
+    align-items: center;
+  }
+
+  .sidebar .brand h1,
+  .sidebar .brand p,
+  .sidebar .nav-button span:last-child,
+  .sidebar .sidebar-footer p,
+  .sidebar .sidebar-footer strong {
+    display: none;
+  }
+
+  .sidebar .brand {
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .sidebar .brand-icon {
+    margin: 0;
+  }
+
+  .sidebar .nav-button {
+    justify-content: center;
+    padding: 10px;
+    font-size: 0;
+  }
+
+  .sidebar .nav-button span:first-child {
+    font-size: 18px;
+  }
+
+  .sidebar .sidebar-footer {
+    padding: 4px;
+  }
+
+  .sidebar .sidebar-launch-button {
+    padding: 8px;
+    font-size: 0;
+  }
+
+  .sidebar .sidebar-launch-button::after {
+    content: "▶";
+    font-size: 16px;
+  }
+
+  .app-shell {
+    grid-template-columns: 64px minmax(0, 1fr);
   }
 }
 
@@ -9097,7 +9413,7 @@ button.secondary:hover:not(:disabled) {
   min-width: 340px;
   max-width: 440px;
   padding: 24px;
-  border-radius: 22px;
+  border-radius: var(--radius-panel, 12px);
   background: var(--bg-surface, #fffaf0);
   box-shadow: 0 20px 48px rgba(45, 36, 27, 0.25);
 }
@@ -9142,6 +9458,80 @@ button.secondary:hover:not(:disabled) {
   min-width: 80px;
 }
 
+/* Search highlight */
+mark.hl {
+  background: #f0d89f;
+  color: #5c3f1a;
+  border-radius: 3px;
+  padding: 0 2px;
+  font-weight: 700;
+}
+
+/* Toast notification system */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 2px solid rgba(92, 70, 48, 0.15);
+  background: #fffaf0;
+  box-shadow: 0 8px 24px rgba(61, 40, 21, 0.18);
+  font-size: 14px;
+  pointer-events: auto;
+  animation: toast-in 0.25s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast-success { border-color: rgba(111, 168, 95, 0.4); background: #f0f7ea; }
+.toast-error { border-color: rgba(185, 87, 79, 0.4); background: #fdf0ee; }
+.toast-warning { border-color: rgba(250, 230, 189, 0.8); background: #fef9ed; }
+
+.toast-text { flex: 1; color: var(--text-primary, #2d241b); }
+
+.toast-undo {
+  padding: 4px 10px;
+  border: 1px solid var(--green-bg, #6fa85f);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--green-bg, #6fa85f);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.toast-undo:hover {
+  background: var(--green-bg, #6fa85f);
+  color: #fff;
+}
+
+.toast-close {
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #7a6652);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.toast-close:hover { opacity: 1; }
+
 </style>
 <style scoped>
 .app-shell {
@@ -9160,8 +9550,7 @@ button.secondary:hover:not(:disabled) {
   border-right: 2px solid rgba(36, 21, 10, 0.22);
 }
 
-.brand,
-.sidebar-footer {
+.brand {
   background: rgba(255, 246, 229, 0.08);
   border: 1px solid rgba(255, 246, 229, 0.16);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
@@ -9190,7 +9579,7 @@ button.secondary:hover:not(:disabled) {
 
 .content-header {
   padding: 18px 20px;
-  border-radius: 22px;
+  border-radius: var(--radius-panel, 12px);
   border: 1px solid rgba(92, 70, 48, 0.12);
   background: rgba(255, 249, 236, 0.8);
   box-shadow: 0 14px 34px rgba(61, 40, 21, 0.14);
@@ -9247,7 +9636,7 @@ button.secondary:hover:not(:disabled) {
   min-height: 44px;
   padding: 10px 16px;
   border: 1px solid rgba(92, 70, 48, 0.18);
-  border-radius: 14px;
+  border-radius: var(--radius-button, 8px);
   background: var(--green-bg, #6fa85f);
   color: #fffaf0;
   font-weight: 800;
@@ -9396,18 +9785,18 @@ button.secondary:hover:not(:disabled) {
 .zip-preview-item,
 .url-zip-box,
 .nxm-box {
-  border: 1px solid rgba(92, 70, 48, 0.12);
+  border: var(--border-pixel, 2px solid rgba(92, 70, 48, 0.15));
   background: rgba(255, 249, 236, 0.9);
-  box-shadow: 0 14px 34px rgba(61, 40, 21, 0.14);
+  box-shadow: 0 10px 24px rgba(61, 40, 21, 0.10);
 }
 
 .panel,
 .empty-state {
-  border-radius: 20px;
+  border-radius: var(--radius-panel, 12px);
 }
 
 .launch-card {
-  border-radius: 22px;
+  border-radius: var(--radius-card, 10px);
   background: linear-gradient(180deg, #f6e4be, #e8c78d);
 }
 
@@ -9474,11 +9863,7 @@ button.secondary:hover:not(:disabled),
   }
 }
 
-@media (max-width: 1100px) {
-  .app-shell {
-    grid-template-columns: 228px minmax(0, 1fr);
-  }
-
+@media (max-width: 1200px) {
   .right-panel {
     display: none;
   }
@@ -9822,5 +10207,102 @@ button.secondary:hover:not(:disabled),
 .danger-button:hover {
   background: var(--danger-bg, #b9574f);
   color: #fff;
+}
+
+/* Onboarding wizard */
+.wizard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(42, 28, 16, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.wizard-card {
+  width: 100%;
+  max-width: 480px;
+  padding: 40px 36px 32px;
+  border-radius: var(--radius-panel, 12px);
+  background: var(--bg-surface, #fff8e9);
+  border: 2px solid rgba(92, 70, 48, 0.15);
+  box-shadow: 0 20px 54px rgba(42, 28, 16, 0.35);
+  text-align: center;
+}
+
+.wizard-steps {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.wizard-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(92, 70, 48, 0.15);
+  transition: background 0.2s;
+}
+
+.wizard-dot.active {
+  background: var(--green-bg, #6fa85f);
+}
+
+.wizard-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.wizard-icon {
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.wizard-body h3 {
+  margin: 0;
+  font-size: 22px;
+  color: var(--text-primary, #2d241b);
+}
+
+.wizard-body > p {
+  margin: 0;
+  max-width: 36ch;
+  color: var(--text-secondary, #755f48);
+  line-height: 1.5;
+}
+
+.wizard-status {
+  padding: 10px 18px;
+  border-radius: var(--radius-button, 8px);
+  background: rgba(92, 70, 48, 0.06);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wizard-status-ok {
+  color: var(--green-text, #2f7d3e);
+}
+
+.wizard-status-missing {
+  color: var(--danger-text, #8f2f22);
+}
+
+.wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.wizard-primary {
+  padding: 10px 28px !important;
+  font-size: 15px !important;
 }
 </style>
