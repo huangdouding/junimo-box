@@ -1716,6 +1716,27 @@
         <h4>当前路径</h4>
         <p>{{ gamePath || "尚未选择 Stardew Valley 安装目录" }}</p>
       </div>
+
+      <div class="side-card game-status-card">
+        <h4>游戏状态</h4>
+        <div class="info-line">
+          <span>Stardew Valley</span>
+          <strong :class="stardewExists ? 'ok' : 'bad'">{{ stardewExists ? "已找到" : "未找到" }}</strong>
+        </div>
+        <div class="info-line">
+          <span>SMAPI</span>
+          <strong :class="smapiExists ? 'ok' : 'bad'">{{ smapiExists ? "已安装" : "未安装" }}</strong>
+        </div>
+        <div class="info-line">
+          <span>缺失依赖</span>
+          <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">{{ missingDependencies.length }}</strong>
+        </div>
+        <div class="info-line">
+          <span>启动前检查</span>
+          <strong :class="launchHealthStatus.className">{{ launchHealthStatus.label }}</strong>
+        </div>
+        <button class="side-check-button" :disabled="!gamePath" @click="handleRunLaunchCheck">检查环境</button>
+      </div>
     </aside>
 
     <!-- 下载队列浮动按钮 -->
@@ -2628,6 +2649,27 @@ const filteredProfileSelectableMods = computed<DisplayModInfo[]>(() => {
       .toLowerCase()
       .includes(query)
   );
+});
+
+const launchHealthStatus = computed(() => {
+  if (!gamePath.value) {
+    return { label: "未配置", className: "bad" };
+  }
+  if (!stardewExists.value) {
+    return { label: "异常", className: "bad" };
+  }
+  const warningCount =
+    missingDependencies.value.length +
+    skippedFolders.value.length +
+    duplicateEnabledUniqueIds.value.length +
+    (modsFolderExists.value ? 0 : 1);
+  if (!smapiExists.value) {
+    return { label: "缺少 SMAPI", className: "bad" };
+  }
+  if (warningCount > 0) {
+    return { label: `${warningCount} 个警告`, className: "bad" };
+  }
+  return { label: "正常", className: "ok" };
 });
 
 const selectedMod = computed<DisplayModInfo | null>(() => {
@@ -3701,6 +3743,10 @@ async function handleRecheckSmapiInstall() {
     "warning",
     "仍未检测到 StardewModdingAPI.exe。请确认 SMAPI 安装器已经完成安装，并且安装到了当前选择的 Stardew Valley 目录。"
   );
+}
+
+async function handleRunLaunchCheck() {
+  await runLaunchEnvironmentCheck("smapi", true);
 }
 
 async function handleLaunchSmapi() {
