@@ -51,9 +51,10 @@
           <button
             v-if="activeView === 'mods' && gamePath"
             class="secondary compact-header-button"
+            :disabled="isScanning"
             @click="scanMods"
           >
-            重新扫描
+            {{ isScanning ? "扫描中..." : "重新扫描" }}
           </button>
 
           <button
@@ -95,7 +96,7 @@
               <button class="hero-action-button" @click="handleSelectPath">
                 选择游戏目录
               </button>
-              <button class="hero-action-button secondary" :disabled="!gamePath" @click="scanMods">
+              <button class="hero-action-button secondary" :disabled="!gamePath || isScanning" @click="scanMods">
                 重新扫描
               </button>
               <button class="hero-action-button" :disabled="!smapiExists" @click="handleLaunchSmapi">
@@ -694,6 +695,7 @@
                   :disabled="!gamePath"
                   @click="handleExportProblemReport"
                 >
+                  导出问题报告
                 </button>
               </div>
             </article>
@@ -946,7 +948,7 @@
             <div class="tool-section-header compact-result-header">
               <div class="tool-section-icon">🔎</div>
               <div>
-                <h3>更新检测第一版</h3>
+                <h3>更新检测</h3>
                 <p>读取 manifest.json 里的 UpdateKeys，只提供可打开的更新来源，不自动下载。</p>
               </div>
             </div>
@@ -1272,7 +1274,7 @@
           <div class="profile-hero-main">
             <div>
               <p class="eyebrow">Profiles</p>
-              <h3>配置方案（实验）</h3>
+              <h3>配置方案</h3>
               <p class="muted-text">
                 配置方案会保存一组要启用的 Mod。当前版本适合快速创建和测试不同组合。
               </p>
@@ -2132,6 +2134,7 @@ const stardewExists = ref(false);
 const smapiExists = ref(false);
 const smapiDetectedVersion = ref("");
 const modsFolderExists = ref(false);
+const isScanning = ref(false);
 const isSmapiInstalling = ref(false);
 const smapiInstallerOpened = ref(false);
 const smapiInstallerVersion = ref("");
@@ -3334,6 +3337,9 @@ async function scanMods() {
     return;
   }
 
+  if (isScanning.value) return;
+  isScanning.value = true;
+
   const modsFolder = `${gamePath.value}\\Mods`;
   const disabledModsFolder = `${gamePath.value}\\Disabled Mods`;
 
@@ -3376,6 +3382,8 @@ async function scanMods() {
         : "扫描完成：没有找到已启用 Mod。";
   } catch (error) {
     message.value = `扫描 Mods 失败：${String(error)}`;
+  } finally {
+    isScanning.value = false;
   }
 }
 
@@ -4053,9 +4061,9 @@ async function setupZipDragDrop() {
     });
   } catch (error) {
     console.warn("注册 ZIP 拖拽事件失败", error);
+    setNotice("warning", "ZIP 拖拽功能不可用，请使用「选择 ZIP 文件」按钮。");
   }
 }
-
 
 function parseNxmLink(link: string): ParsedNxmRequest {
   const empty: ParsedNxmRequest = {
