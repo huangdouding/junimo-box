@@ -4,9 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::collections::HashMap;
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc, Mutex,
 };
 use std::thread;
 use std::path::{Path, PathBuf};
@@ -528,6 +529,7 @@ struct UrlZipDownloadResult {
     zip_path: String,
     file_name: String,
     file_size: u64,
+    download_id: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -538,14 +540,50 @@ struct SmapiInstallStagePayload {
     downloaded_bytes: Option<u64>,
 }
 
-#[tauri::command]
-async fn download_zip_from_url(url: String, game_path: String) -> Result<UrlZipDownloadResult, String> {
-    tauri::async_runtime::spawn_blocking(move || download_zip_from_url_blocking(url, game_path))
-        .await
-        .map_err(|error| format!("ZIP download task failed: {}", error))?
+#[derive(Serialize, Clone)]
+struct DownloadProgressPayload {
+    download_id: String,
+    file_name: String,
+    stage: String,
+    downloaded_bytes: u64,
+    total_bytes: u64,
+    speed_bytes_per_sec: u64,
+    message: String,
+    zip_path: Option<String>,
 }
 
-fn download_zip_from_url_blocking(url: String, game_path: String) -> Result<UrlZipDownloadResult, String> {
+type CancelledFlag = Arc<AtomicBool>;
+type CancellationMap = Arc<Mutex<HashMap<String, CancelledFlag>>>;
+
+fn cancellation_map() -> &'static CancellationMap {
+    static MAP: std::sync::OnceLock<CancellationMap> = std::sync::OnceLock::new();
+    MAP.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
+
+fn emit_download_progress(app: &AppHandle, payload: &DownloadProgressPayload) {
+    let _ = app.emit("download-progress", payload);
+}
+
+#[tauri::command]
+async fn download_zip_from_url(
+    app: AppHandle,
+    url: String,
+    game_path: String,
+    download_id: String,
+) -> Result<UrlZipDownloadResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        download_zip_from_url_blocking(app, url, game_path, download_id)
+    })
+    .await
+    .map_err(|error| format!("ZIP download task failed: {}", error))?
+}
+
+fn download_zip_from_url_blocking(
+    app: AppHandle,
+    url: String,
+    game_path: String,
+    download_id: String,
+) -> Result<UrlZipDownloadResult, String> {
     let trimmed_url = url.trim().to_string();
 
     if !is_http_url(&trimmed_url) {
@@ -571,8 +609,38 @@ fn download_zip_from_url_blocking(url: String, game_path: String) -> Result<UrlZ
 
     let file_name = infer_zip_file_name_from_url(&trimmed_url);
     let target_path = unique_download_path(&downloads_dir, &file_name);
+    let cancel_flag = Arc::new(AtomicBool::new(false));
 
-    download_generic_zip_file(&client, &trimmed_url, &target_path)?;
+    {
+        let mut map = cancellation_map()
+            .lock()
+            .map_err(|e| e.to_string())?;
+        map.insert(download_id.clone(), Arc::clone(&cancel_flag));
+    }
+
+    let result = download_generic_zip_file_with_progress(
+        &client,
+        &trimmed_url,
+        &target_path,
+        &app,
+        &download_id,
+        &file_name,
+        &cancel_flag,
+        0,
+    );
+
+    if cancel_flag.load(Ordering::Relaxed) {
+        let _ = fs::remove_file(&target_path);
+        {
+            let mut map = cancellation_map()
+                .lock()
+                .map_err(|e| e.to_string())?;
+            map.remove(&download_id);
+        }
+        return Err("下载已取消".to_string());
+    }
+
+    result?;
 
     let metadata = fs::metadata(&target_path)
         .map_err(|error| format!("Failed to read downloaded ZIP metadata: {}", error))?;
@@ -591,6 +659,13 @@ fn download_zip_from_url_blocking(url: String, game_path: String) -> Result<UrlZ
         ));
     }
 
+    {
+        let mut map = cancellation_map()
+            .lock()
+            .map_err(|e| e.to_string())?;
+        map.remove(&download_id);
+    }
+
     Ok(UrlZipDownloadResult {
         download_url: trimmed_url,
         zip_path: target_path.to_string_lossy().to_string(),
@@ -599,6 +674,7 @@ fn download_zip_from_url_blocking(url: String, game_path: String) -> Result<UrlZ
             .map(|name| name.to_string_lossy().to_string())
             .unwrap_or_else(|| file_name),
         file_size,
+        download_id,
     })
 }
 
@@ -1252,26 +1328,115 @@ fn unique_download_path(folder: &Path, file_name: &str) -> PathBuf {
     folder.join(format!("{}-{}.{}", stem, current_timestamp().unwrap_or(0), extension))
 }
 
-fn download_generic_zip_file(client: &Client, url: &str, target_path: &Path) -> Result<(), String> {
-    match download_generic_zip_file_parallel(client, url, target_path) {
+fn download_generic_zip_file_with_progress(
+    client: &Client,
+    url: &str,
+    target_path: &Path,
+    app: &AppHandle,
+    download_id: &str,
+    file_name: &str,
+    cancel_flag: &Arc<AtomicBool>,
+    total_bytes: u64,
+) -> Result<(), String> {
+    let file_size = if total_bytes > 0 {
+        total_bytes
+    } else {
+        get_remote_file_size(client, url).unwrap_or(0)
+    };
+
+    let result = match download_generic_zip_file_parallel(
+        client,
+        url,
+        target_path,
+        Some((app, download_id, file_name, file_size, cancel_flag)),
+    ) {
         Ok(()) => Ok(()),
         Err(parallel_error) => {
+            if cancel_flag.load(Ordering::Relaxed) {
+                let _ = fs::remove_file(target_path);
+                return Err("下载已取消".to_string());
+            }
+
             eprintln!(
-                "Parallel URL ZIP download failed, falling back to single connection: {}",
+                "Parallel ZIP download failed, falling back to single connection: {}",
                 parallel_error
             );
 
-            download_generic_zip_file_single(client, url, target_path).map_err(|single_error| {
+            download_generic_zip_file_single(
+                client,
+                url,
+                target_path,
+                Some((app, download_id, file_name, file_size, cancel_flag)),
+            )
+            .map_err(|single_error| {
                 format!(
                     "多线程下载失败：{}；普通下载也失败：{}",
                     parallel_error, single_error
                 )
             })
         }
+    };
+
+    let final_file_size = fs::metadata(target_path).map(|m| m.len()).unwrap_or(0);
+
+    match &result {
+        Ok(()) => {
+            emit_download_progress(
+                app,
+                &DownloadProgressPayload {
+                    download_id: download_id.to_string(),
+                    file_name: file_name.to_string(),
+                    stage: "completed".to_string(),
+                    downloaded_bytes: final_file_size,
+                    total_bytes: file_size,
+                    speed_bytes_per_sec: 0,
+                    message: "下载完成".to_string(),
+                    zip_path: Some(target_path.to_string_lossy().to_string()),
+                },
+            );
+            cancellation_map()
+                .lock()
+                .map_err(|e| e.to_string())?
+                .remove(download_id);
+        }
+        Err(error_msg) => {
+            if cancel_flag.load(Ordering::Relaxed) {
+                cancellation_map()
+                    .lock()
+                    .map_err(|e| e.to_string())?
+                    .remove(download_id);
+                return Err("下载已取消".to_string());
+            }
+
+            emit_download_progress(
+                app,
+                &DownloadProgressPayload {
+                    download_id: download_id.to_string(),
+                    file_name: file_name.to_string(),
+                    stage: "failed".to_string(),
+                    downloaded_bytes: 0,
+                    total_bytes: file_size,
+                    speed_bytes_per_sec: 0,
+                    message: error_msg.clone(),
+                    zip_path: None,
+                },
+            );
+            cancellation_map()
+                .lock()
+                .map_err(|e| e.to_string())?
+                .remove(download_id);
+        }
     }
+
+    result
 }
 
-fn download_generic_zip_file_parallel(client: &Client, url: &str, target_path: &Path) -> Result<(), String> {
+fn download_generic_zip_file_parallel(
+    client: &Client,
+    url: &str,
+    target_path: &Path,
+    progress: Option<(&AppHandle, &str, &str, u64, &Arc<AtomicBool>)>,
+) -> Result<(), String> {
     const THREAD_COUNT: u64 = 8;
     const MIN_PARALLEL_SIZE: u64 = 2 * 1024 * 1024;
 
@@ -1287,6 +1452,29 @@ fn download_generic_zip_file_parallel(client: &Client, url: &str, target_path: &
     let temp_path = target_path.with_extension("zip.download");
     clear_download_artifacts(target_path, THREAD_COUNT)?;
 
+    if let Some((app, download_id, file_name, total_size, _)) = &progress {
+        if app
+            .emit(
+                "download-progress",
+                DownloadProgressPayload {
+                    download_id: download_id.to_string(),
+                    file_name: file_name.to_string(),
+                    stage: "downloading".to_string(),
+                    downloaded_bytes: 0,
+                    total_bytes: *total_size,
+                    speed_bytes_per_sec: 0,
+                    message: "正在多线程下载...".to_string(),
+                    zip_path: None,
+                },
+            )
+            .is_err()
+        {
+            // ignore emit errors
+        }
+    }
+
+    let downloaded_total = Arc::new(AtomicU64::new(0));
+    let next_report = Arc::new(AtomicU64::new(1024 * 1024));
     let mut handles = Vec::new();
     let chunk_size = (file_size + THREAD_COUNT - 1) / THREAD_COUNT;
 
@@ -1302,6 +1490,12 @@ fn download_generic_zip_file_parallel(client: &Client, url: &str, target_path: &
         let part_path = part_path_for(target_path, index);
         let url = url.to_string();
         let client = client.clone();
+        let cancel_flag = progress.as_ref().map(|(_, _, _, _, cf)| Arc::clone(*cf));
+        let downloaded_total = Arc::clone(&downloaded_total);
+        let next_report = Arc::clone(&next_report);
+        let progress_owned = progress.as_ref().map(|(a, did, fn_, ts, _)| {
+            (AppHandle::clone(a), did.to_string(), fn_.to_string(), *ts)
+        });
 
         let handle = thread::spawn(move || -> Result<(), String> {
             let range_header = format!("bytes={}-{}", start, end);
@@ -1324,8 +1518,66 @@ fn download_generic_zip_file_parallel(client: &Client, url: &str, target_path: &
             let mut output_file = File::create(&part_path)
                 .map_err(|error| format!("failed to create part {} file: {}", index, error))?;
 
-            let part_size = std::io::copy(&mut response, &mut output_file)
-                .map_err(|error| format!("failed to save part {}: {}", index, error))?;
+            let mut part_size = 0_u64;
+            let mut buffer = [0_u8; 128 * 1024];
+
+            loop {
+                if let Some(ref cf) = cancel_flag {
+                    if cf.load(Ordering::Relaxed) {
+                        return Err("下载已取消".to_string());
+                    }
+                }
+
+                let bytes_read = response
+                    .read(&mut buffer)
+                    .map_err(|error| format!("failed to read part {}: {}", index, error))?;
+
+                if bytes_read == 0 {
+                    break;
+                }
+
+                output_file
+                    .write_all(&buffer[..bytes_read])
+                    .map_err(|error| format!("failed to write part {}: {}", index, error))?;
+
+                part_size += bytes_read as u64;
+                let total = downloaded_total.fetch_add(bytes_read as u64, Ordering::Relaxed)
+                    + bytes_read as u64;
+
+                if let Some((ref app, ref did, ref fn_, ts)) = &progress_owned {
+                    let mut report_at = next_report.load(Ordering::Relaxed);
+                    while total >= report_at {
+                        match next_report.compare_exchange(
+                            report_at,
+                            report_at + 1024 * 1024,
+                            Ordering::Relaxed,
+                            Ordering::Relaxed,
+                        ) {
+                            Ok(_) => {
+                                let _ = app.emit(
+                                    "download-progress",
+                                    DownloadProgressPayload {
+                                        download_id: did.to_string(),
+                                        file_name: fn_.to_string(),
+                                        stage: "downloading".to_string(),
+                                        downloaded_bytes: total,
+                                        total_bytes: *ts,
+                                        speed_bytes_per_sec: 0,
+                                        message: format!(
+                                            "下载中：{} / {}",
+                                            format_bytes(total),
+                                            format_bytes(*ts)
+                                        ),
+                                        zip_path: None,
+                                    },
+                                );
+                                break;
+                            }
+                            Err(current) => report_at = current,
+                        }
+                    }
+                }
+            }
 
             output_file
                 .flush()
@@ -1347,9 +1599,21 @@ fn download_generic_zip_file_parallel(client: &Client, url: &str, target_path: &
     }
 
     for handle in handles {
+        if let Some((_, _, _, _, cancel_flag)) = &progress {
+            if cancel_flag.load(Ordering::Relaxed) {
+                return Err("下载已取消".to_string());
+            }
+        }
+
         handle
             .join()
             .map_err(|_| "parallel download thread panicked".to_string())??;
+    }
+
+    if let Some((_, _, _, _, cancel_flag)) = &progress {
+        if cancel_flag.load(Ordering::Relaxed) {
+            return Err("下载已取消".to_string());
+        }
     }
 
     merge_download_parts(target_path, &temp_path, THREAD_COUNT, file_size)?;
@@ -1362,10 +1626,21 @@ fn download_generic_zip_file_parallel(client: &Client, url: &str, target_path: &
     fs::rename(&temp_path, target_path)
         .map_err(|error| format!("Failed to finalize downloaded file: {}", error))?;
 
+    if let Some((_, _, _, _, cancel_flag)) = &progress {
+        if cancel_flag.load(Ordering::Relaxed) {
+            return Err("下载已取消".to_string());
+        }
+    }
+
     Ok(())
 }
 
-fn download_generic_zip_file_single(client: &Client, url: &str, target_path: &Path) -> Result<(), String> {
+fn download_generic_zip_file_single(
+    client: &Client,
+    url: &str,
+    target_path: &Path,
+    progress: Option<(&AppHandle, &str, &str, u64, &Arc<AtomicBool>)>,
+) -> Result<(), String> {
     let temp_path = target_path.with_extension("zip.download");
 
     if temp_path.exists() {
@@ -1384,8 +1659,64 @@ fn download_generic_zip_file_single(client: &Client, url: &str, target_path: &Pa
     let mut output_file = File::create(&temp_path)
         .map_err(|error| format!("Failed to create temp download file: {}", error))?;
 
-    let downloaded_size = std::io::copy(&mut response, &mut output_file)
-        .map_err(|error| format!("Failed to save downloaded file: {}", error))?;
+    let mut downloaded_size = 0_u64;
+    let mut next_report_size = 0_u64;
+    let mut buffer = [0_u8; 128 * 1024];
+    let mut last_emit = std::time::Instant::now();
+
+    loop {
+        if let Some((_, _, _, _, cancel_flag)) = &progress {
+            if cancel_flag.load(Ordering::Relaxed) {
+                let _ = fs::remove_file(&temp_path);
+                return Err("下载已取消".to_string());
+            }
+        }
+
+        let bytes_read = response
+            .read(&mut buffer)
+            .map_err(|error| format!("Failed to read downloaded data: {}", error))?;
+
+        if bytes_read == 0 {
+            break;
+        }
+
+        output_file
+            .write_all(&buffer[..bytes_read])
+            .map_err(|error| format!("Failed to save downloaded data: {}", error))?;
+
+        downloaded_size += bytes_read as u64;
+
+        if let Some((app, download_id, file_name, total_size, _)) = &progress {
+            if downloaded_size >= next_report_size || last_emit.elapsed().as_secs() >= 2 {
+                let _ = app.emit(
+                    "download-progress",
+                    DownloadProgressPayload {
+                        download_id: download_id.to_string(),
+                        file_name: file_name.to_string(),
+                        stage: "downloading".to_string(),
+                        downloaded_bytes: downloaded_size,
+                        total_bytes: *total_size,
+                        speed_bytes_per_sec: 0,
+                        message: format!(
+                            "下载中：{} / {}",
+                            format_bytes(downloaded_size),
+                            format_bytes(*total_size)
+                        ),
+                        zip_path: None,
+                    },
+                );
+                next_report_size = downloaded_size + 1024 * 1024;
+                last_emit = std::time::Instant::now();
+            }
+        }
+    }
+
+    if let Some((_, _, _, _, cancel_flag)) = &progress {
+        if cancel_flag.load(Ordering::Relaxed) {
+            let _ = fs::remove_file(&temp_path);
+            return Err("下载已取消".to_string());
+        }
+    }
 
     output_file
         .flush()
@@ -1738,19 +2069,25 @@ struct ParsedNxmLink {
 
 #[tauri::command]
 async fn download_nxm_file(
+    app: AppHandle,
     nxm_link: String,
     game_path: String,
     api_key: Option<String>,
+    download_id: String,
 ) -> Result<UrlZipDownloadResult, String> {
-    tauri::async_runtime::spawn_blocking(move || download_nxm_file_blocking(nxm_link, game_path, api_key))
-        .await
-        .map_err(|error| format!("NXM download task failed: {}", error))?
+    tauri::async_runtime::spawn_blocking(move || {
+        download_nxm_file_blocking(app, nxm_link, game_path, api_key, download_id)
+    })
+    .await
+    .map_err(|error| format!("NXM download task failed: {}", error))?
 }
 
 fn download_nxm_file_blocking(
+    app: AppHandle,
     nxm_link: String,
     game_path: String,
     api_key: Option<String>,
+    download_id: String,
 ) -> Result<UrlZipDownloadResult, String> {
     let parsed = parse_nxm_link(&nxm_link)?;
 
@@ -1787,8 +2124,38 @@ fn download_nxm_file_blocking(
         sanitize_file_name(&parsed.file_id)
     );
     let target_path = unique_download_path(&downloads_dir, &file_name);
+    let cancel_flag = Arc::new(AtomicBool::new(false));
 
-    download_generic_zip_file(&client, &direct_url, &target_path)?;
+    {
+        let mut map = cancellation_map()
+            .lock()
+            .map_err(|e| e.to_string())?;
+        map.insert(download_id.clone(), Arc::clone(&cancel_flag));
+    }
+
+    let result = download_generic_zip_file_with_progress(
+        &client,
+        &direct_url,
+        &target_path,
+        &app,
+        &download_id,
+        &file_name,
+        &cancel_flag,
+        0,
+    );
+
+    if cancel_flag.load(Ordering::Relaxed) {
+        let _ = fs::remove_file(&target_path);
+        {
+            let mut map = cancellation_map()
+                .lock()
+                .map_err(|e| e.to_string())?;
+            map.remove(&download_id);
+        }
+        return Err("下载已取消".to_string());
+    }
+
+    result?;
 
     let metadata = fs::metadata(&target_path)
         .map_err(|error| format!("Failed to read downloaded NXM ZIP metadata: {}", error))?;
@@ -1807,6 +2174,13 @@ fn download_nxm_file_blocking(
         ));
     }
 
+    {
+        let mut map = cancellation_map()
+            .lock()
+            .map_err(|e| e.to_string())?;
+        map.remove(&download_id);
+    }
+
     Ok(UrlZipDownloadResult {
         download_url: parsed.raw,
         zip_path: target_path.to_string_lossy().to_string(),
@@ -1815,6 +2189,7 @@ fn download_nxm_file_blocking(
             .map(|name| name.to_string_lossy().to_string())
             .unwrap_or(file_name),
         file_size,
+        download_id,
     })
 }
 
@@ -2229,6 +2604,19 @@ fn open_url_in_browser(url: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn cancel_download(download_id: String) -> Result<(), String> {
+    let map = cancellation_map()
+        .lock()
+        .map_err(|e| e.to_string())?;
+
+    if let Some(flag) = map.get(&download_id) {
+        flag.store(true, Ordering::Relaxed);
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let startup_nxm_link = extract_startup_nxm_arg();
@@ -2262,7 +2650,8 @@ pub fn run() {
             register_nxm_protocol,
             read_startup_nxm_link,
             read_pending_nxm_link,
-            open_url_in_browser
+            open_url_in_browser,
+            cancel_download
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

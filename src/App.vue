@@ -800,22 +800,17 @@
                 class="url-zip-input"
                 type="text"
                 placeholder="粘贴 Mod ZIP 下载链接，例如 https://.../mod.zip"
-                :disabled="isUrlZipDownloading"
                 @keydown.enter="handleDownloadZipFromUrl"
               />
 
               <button
                 class="url-zip-button"
-                :disabled="!gamePath || isUrlZipDownloading || !urlZipInput.trim()"
+                :disabled="!gamePath || !urlZipInput.trim()"
                 @click="handleDownloadZipFromUrl"
               >
-                {{ isUrlZipDownloading ? "下载中..." : "下载并预览" }}
+                下载并预览
               </button>
             </div>
-
-            <p v-if="urlZipDownloadMessage" class="tool-section-note url-zip-status">
-              {{ urlZipDownloadMessage }}
-            </p>
           </div>
 
           <div class="nxm-box">
@@ -1013,6 +1008,21 @@
                     已安装：{{ getZipConflictForPreview(mod)?.installedMod.name }}
                     v{{ getZipConflictForPreview(mod)?.installedMod.version || "未知版本" }}，
                     准备安装 v{{ mod.version || "未知版本" }}
+                    <span
+                      :class="'version-diff-tag ' + getVersionDiffClass(
+                        compareVersions(
+                          mod.version || '',
+                          getZipConflictForPreview(mod)?.installedMod.version || ''
+                        )
+                      )"
+                    >
+                      {{ getVersionDiffLabel(
+                        compareVersions(
+                          mod.version || '',
+                          getZipConflictForPreview(mod)?.installedMod.version || ''
+                        )
+                      ) }}
+                    </span>
                   </div>
 
                   <p class="mod-description compact-description">
@@ -1630,6 +1640,91 @@
         <p>{{ gamePath || "尚未选择 Stardew Valley 安装目录" }}</p>
       </div>
     </aside>
+
+    <!-- 下载队列浮动按钮 -->
+    <button
+      class="download-queue-fab"
+      :class="{ 'has-active': downloadQueue.some(i => i.status === 'downloading' || i.status === 'connecting') }"
+      @click="isDownloadQueueOpen = !isDownloadQueueOpen"
+      :title="`下载队列 (${downloadQueue.filter(i => i.status === 'queued' || i.status === 'downloading' || i.status === 'connecting').length} 活跃)`"
+    >
+      <span class="dq-fab-count">
+        {{ downloadQueue.filter(i => i.status === 'queued' || i.status === 'downloading' || i.status === 'connecting').length }}
+      </span>
+      ⬇
+    </button>
+
+    <!-- 下载队列面板 -->
+    <div v-if="isDownloadQueueOpen" class="download-queue-panel">
+      <div class="dq-header">
+        <h3>下载队列</h3>
+        <div class="dq-header-actions">
+          <button
+            v-if="downloadQueue.some(i => i.status === 'completed' || i.status === 'failed' || i.status === 'cancelled')"
+            class="tiny-button"
+            @click="handleClearCompletedQueue"
+          >
+            清除已完成
+          </button>
+          <button class="tiny-button" @click="isDownloadQueueOpen = false">
+            关闭
+          </button>
+        </div>
+      </div>
+
+      <div class="dq-list">
+        <div
+          v-for="item in downloadQueue"
+          :key="item.id"
+          class="dq-item"
+          :class="`dq-${item.status}`"
+        >
+          <div class="dq-item-top">
+            <span class="dq-file-name" :title="item.sourceUrl">{{ item.fileName }}</span>
+            <span class="dq-source-tag">{{ item.source === "nxm" ? "NXM" : "URL" }}</span>
+            <span class="dq-status-badge" :class="`dq-badge-${item.status}`">
+              {{ item.status === "queued" ? "排队" : item.status === "connecting" ? "连接" : item.status === "downloading" ? "下载" : item.status === "merging" ? "合并" : item.status === "completed" ? "完成" : item.status === "cancelled" ? "取消" : "失败" }}
+            </span>
+          </div>
+
+          <div
+            v-if="item.status === 'downloading' || item.status === 'merging'"
+            class="dq-progress-bar"
+          >
+            <div
+              class="dq-progress-fill"
+              :style="{ width: item.totalBytes > 0 ? (item.downloadedBytes / item.totalBytes * 100) + '%' : '5%' }"
+            ></div>
+          </div>
+
+          <div class="dq-item-bottom">
+            <span class="dq-message">{{ item.message }}</span>
+            <span v-if="item.speedBytesPerSec > 0" class="dq-speed">{{ formatSpeed(item.speedBytesPerSec) }}</span>
+            <span v-if="item.totalBytes > 0" class="dq-bytes">{{ formatBytes(item.downloadedBytes) }} / {{ formatBytes(item.totalBytes) }}</span>
+          </div>
+
+          <div class="dq-item-actions">
+            <button
+              v-if="item.status === 'failed' || item.status === 'cancelled'"
+              class="tiny-button"
+              @click="handleRetryDownload(item.id)"
+            >
+              重试
+            </button>
+            <button
+              class="tiny-button"
+              @click="handleRemoveFromQueue(item.id)"
+            >
+              {{ item.status === "downloading" || item.status === "connecting" ? "取消" : "删除" }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="downloadQueue.length === 0" class="dq-empty">
+          没有下载任务
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- 自定义模态对话框 -->
@@ -1676,6 +1771,7 @@ const PROFILES_STORAGE_KEY = "junimo-box-profiles";
 const CURRENT_PROFILE_STORAGE_KEY = "junimo-box-current-profile";
 const INSTALL_HISTORY_STORAGE_KEY = "junimo-box-install-history";
 const NEXUS_API_KEY_STORAGE_KEY = "junimo-box-nexus-api-key";
+const DOWNLOAD_QUEUE_STORAGE_KEY = "junimo-box-download-queue";
 
 type ViewId = "overview" | "mods" | "logs" | "tools" | "profiles" | "settings";
 type ModStatusFilter = "all" | "enabled" | "disabled";
@@ -1770,6 +1866,7 @@ type UrlZipDownloadResult = {
   zip_path: string;
   file_name: string;
   file_size: number;
+  download_id: string;
 };
 
 type NexusUserInfo = {
@@ -1821,6 +1918,35 @@ type ZipDependencyRow = {
   isBundled: boolean;
   statusLabel: string;
   className: string;
+};
+
+type DownloadQueueStatus = "queued" | "connecting" | "downloading" | "merging" | "completed" | "failed" | "cancelled";
+
+type DownloadQueueItem = {
+  id: string;
+  fileName: string;
+  source: "nxm" | "url";
+  sourceUrl: string;
+  status: DownloadQueueStatus;
+  downloadedBytes: number;
+  totalBytes: number;
+  speedBytesPerSec: number;
+  message: string;
+  createdAt: string;
+  completedAt?: string;
+  zipPath?: string;
+  errorMessage?: string;
+};
+
+type DownloadProgressPayload = {
+  download_id: string;
+  file_name: string;
+  stage: string;
+  downloaded_bytes: number;
+  total_bytes: number;
+  speed_bytes_per_sec: number;
+  message: string;
+  zip_path?: string | null;
 };
 
 type ModProfile = {
@@ -1972,13 +2098,14 @@ const installHistory = ref<InstallHistoryItem[]>([]);
 const updateCheckResults = ref<UpdateCheckItem[]>([]);
 const isZipDragOver = ref(false);
 const urlZipInput = ref("");
-const isUrlZipDownloading = ref(false);
-const urlZipDownloadMessage = ref("");
 const nxmManualInput = ref("");
 const nxmProtocolStatus = ref("");
 const nxmRequestLink = ref("");
 const isNxmDownloading = ref(false);
 const nxmDownloadMessage = ref("");
+const downloadQueue = ref<DownloadQueueItem[]>([]);
+const isDownloadQueueOpen = ref(false);
+let unlistenDownloadProgress: (() => void) | null = null;
 const nexusApiKey = ref("");
 const nexusApiKeyDraft = ref("");
 const showNexusApiKey = ref(false);
@@ -2336,9 +2463,45 @@ onMounted(async () => {
     }
   );
 
+  unlistenDownloadProgress = await listen<DownloadProgressPayload>(
+    "download-progress",
+    (event) => {
+      const payload = event.payload;
+      const idx = downloadQueue.value.findIndex((item) => item.id === payload.download_id);
+
+      if (idx === -1) return;
+
+      const item = downloadQueue.value[idx];
+      item.status = mapStageToStatus(payload.stage);
+      item.downloadedBytes = payload.downloaded_bytes;
+      item.totalBytes = payload.total_bytes;
+      item.speedBytesPerSec = payload.speed_bytes_per_sec;
+      item.message = payload.message;
+
+      if (payload.stage === "completed" && payload.zip_path) {
+        item.completedAt = new Date().toISOString();
+        item.zipPath = payload.zip_path;
+        void previewZipPath(payload.zip_path, item.source === "nxm" ? "nxm" : "url");
+        void processNextInQueue();
+      }
+
+      if (payload.stage === "failed") {
+        item.errorMessage = payload.message;
+        void processNextInQueue();
+      }
+
+      if (payload.stage === "cancelled") {
+        void processNextInQueue();
+      }
+
+      saveDownloadQueue();
+    }
+  );
+
   loadProfiles();
   loadCurrentProfile();
   loadInstallHistory();
+  loadDownloadQueue();
   loadNexusApiKey();
   await setupZipDragDrop();
 
@@ -2367,6 +2530,11 @@ onUnmounted(() => {
   if (unlistenSmapiInstallStage) {
     unlistenSmapiInstallStage();
     unlistenSmapiInstallStage = null;
+  }
+
+  if (unlistenDownloadProgress) {
+    unlistenDownloadProgress();
+    unlistenDownloadProgress = null;
   }
 
   if (nxmPendingPollTimer) {
@@ -2448,6 +2616,26 @@ function loadInstallHistory() {
 
 function saveInstallHistory() {
   localStorage.setItem(INSTALL_HISTORY_STORAGE_KEY, JSON.stringify(installHistory.value.slice(0, 50)));
+}
+
+function loadDownloadQueue() {
+  try {
+    const raw = localStorage.getItem(DOWNLOAD_QUEUE_STORAGE_KEY);
+    if (!raw) {
+      downloadQueue.value = [];
+      return;
+    }
+    const parsed = JSON.parse(raw) as DownloadQueueItem[];
+    downloadQueue.value = Array.isArray(parsed) ? parsed.filter(
+      (item) => item.status !== "completed" && item.status !== "failed" && item.status !== "cancelled"
+    ) : [];
+  } catch {
+    downloadQueue.value = [];
+  }
+}
+
+function saveDownloadQueue() {
+  localStorage.setItem(DOWNLOAD_QUEUE_STORAGE_KEY, JSON.stringify(downloadQueue.value.slice(0, 100)));
 }
 
 function addInstallHistory(
@@ -3923,6 +4111,149 @@ async function handleOpenNxmNexusPage() {
 }
 
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(1) + " " + units[i];
+}
+
+function formatSpeed(bytesPerSec: number): string {
+  if (bytesPerSec === 0) return "";
+  return formatBytes(bytesPerSec) + "/s";
+}
+
+function mapStageToStatus(stage: string): DownloadQueueStatus {
+  switch (stage) {
+    case "connecting": return "connecting";
+    case "downloading": return "downloading";
+    case "merging": return "merging";
+    case "completed": return "completed";
+    case "failed": return "failed";
+    case "cancelled": return "cancelled";
+    default: return "queued";
+  }
+}
+
+function compareVersions(a: string, b: string): "newer" | "downgrade" | "same" | "unknown" {
+  if (!a || !b) return "unknown";
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na > nb) return "newer";
+    if (na < nb) return "downgrade";
+  }
+  return "same";
+}
+
+function getVersionDiffLabel(diff: "newer" | "downgrade" | "same" | "unknown"): string {
+  switch (diff) {
+    case "newer": return "更新";
+    case "downgrade": return "降级";
+    case "same": return "版本相同";
+    default: return "版本未知";
+  }
+}
+
+function getVersionDiffClass(diff: "newer" | "downgrade" | "same" | "unknown"): string {
+  switch (diff) {
+    case "newer": return "diff-newer";
+    case "downgrade": return "diff-downgrade";
+    case "same": return "diff-same";
+    default: return "diff-unknown";
+  }
+}
+
+function addToQueue(id: string, fileName: string, source: "nxm" | "url", sourceUrl: string) {
+  downloadQueue.value.push({
+    id,
+    fileName,
+    source,
+    sourceUrl,
+    status: "queued",
+    downloadedBytes: 0,
+    totalBytes: 0,
+    speedBytesPerSec: 0,
+    message: "等待下载...",
+    createdAt: new Date().toISOString(),
+  });
+  saveDownloadQueue();
+  isDownloadQueueOpen.value = true;
+  void processNextInQueue();
+}
+
+async function processNextInQueue() {
+  const nextItem = downloadQueue.value.find((item) => item.status === "queued");
+
+  if (!nextItem) return;
+
+  nextItem.status = "connecting";
+  nextItem.message = "正在连接...";
+  saveDownloadQueue();
+
+  try {
+    if (nextItem.source === "url") {
+      await invoke<UrlZipDownloadResult>("download_zip_from_url", {
+        url: nextItem.sourceUrl,
+        gamePath: gamePath.value,
+        downloadId: nextItem.id,
+      });
+    } else if (nextItem.source === "nxm") {
+      const savedNexusApiKey = nexusApiKey.value.trim() || nexusApiKeyDraft.value.trim();
+      await invoke<UrlZipDownloadResult>("download_nxm_file", {
+        nxmLink: nextItem.sourceUrl,
+        gamePath: gamePath.value,
+        apiKey: savedNexusApiKey || null,
+        downloadId: nextItem.id,
+      });
+    }
+  } catch (error) {
+    const idx = downloadQueue.value.findIndex((item) => item.id === nextItem.id);
+    if (idx !== -1) {
+      downloadQueue.value[idx].status = "failed";
+      downloadQueue.value[idx].errorMessage = String(error);
+      downloadQueue.value[idx].message = String(error);
+      saveDownloadQueue();
+    }
+  }
+}
+
+function handleRemoveFromQueue(itemId: string) {
+  const idx = downloadQueue.value.findIndex((item) => item.id === itemId);
+  if (idx === -1) return;
+
+  if (downloadQueue.value[idx].status === "downloading" || downloadQueue.value[idx].status === "connecting") {
+    void invoke("cancel_download", { downloadId: itemId });
+  }
+
+  downloadQueue.value.splice(idx, 1);
+  saveDownloadQueue();
+}
+
+function handleClearCompletedQueue() {
+  downloadQueue.value = downloadQueue.value.filter(
+    (item) => item.status !== "completed" && item.status !== "failed" && item.status !== "cancelled"
+  );
+  saveDownloadQueue();
+}
+
+function handleRetryDownload(itemId: string) {
+  const idx = downloadQueue.value.findIndex((item) => item.id === itemId);
+  if (idx === -1) return;
+
+  const item = downloadQueue.value[idx];
+  if (item.status !== "failed" && item.status !== "cancelled") return;
+
+  item.status = "queued";
+  item.errorMessage = "";
+  item.message = "准备重试...";
+  item.downloadedBytes = 0;
+  saveDownloadQueue();
+  void processNextInQueue();
+}
+
 async function handleDownloadNxmRequest() {
   if (!gamePath.value) {
     message.value = "请先选择 Stardew Valley 游戏目录，再处理 NXM 下载。";
@@ -3946,29 +4277,13 @@ async function handleDownloadNxmRequest() {
     return;
   }
 
-  isNxmDownloading.value = true;
-  nxmDownloadMessage.value = "正在通过 Nexus NXM 链接下载 ZIP，并使用已保存的 Nexus API Key 认证...";
-  setNotice("info", nxmDownloadMessage.value);
+  const downloadId = `nxm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const file_name = `nexus-${parsedNxmRequest.value.modId}-${parsedNxmRequest.value.fileId}.zip`;
 
-  try {
-    const result = await invoke<UrlZipDownloadResult>("download_nxm_file", {
-      nxmLink: nxmRequestLink.value,
-      gamePath: gamePath.value,
-      apiKey: savedNexusApiKey,
-    });
-
-    nxmDownloadMessage.value = `下载完成：${result.file_name}，正在生成 ZIP 预览...`;
-    setNotice("success", nxmDownloadMessage.value);
-
-    await previewZipPath(result.zip_path, "nxm");
-    nxmRequestLink.value = "";
-    nxmDownloadMessage.value = "";
-  } catch (error) {
-    nxmDownloadMessage.value = `NXM 自动下载失败：${String(error)}。你仍然可以打开 Nexus 页面手动下载，然后选择 ZIP 预览安装。`;
-    setNotice("warning", nxmDownloadMessage.value);
-  } finally {
-    isNxmDownloading.value = false;
-  }
+  addToQueue(downloadId, file_name, "nxm", nxmRequestLink.value);
+  nxmRequestLink.value = "";
+  closeNxmRequest();
+  setNotice("info", `NXM 下载已加入队列`);
 }
 
 async function handleChooseDownloadedZipForNxm() {
@@ -4019,26 +4334,12 @@ async function handleDownloadZipFromUrl() {
     return;
   }
 
-  isUrlZipDownloading.value = true;
-  urlZipDownloadMessage.value = "正在下载 ZIP Mod，下载速度取决于链接来源和网络环境...";
-  activeView.value = "tools";
+  const file_name = url.split("/").pop() || "download.zip";
+  const downloadId = `url-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  try {
-    const result = await invoke<UrlZipDownloadResult>("download_zip_from_url", {
-      url,
-      gamePath: gamePath.value,
-    });
-
-    urlZipDownloadMessage.value = `下载完成：${result.file_name}，正在生成安装预览...`;
-    urlZipInput.value = "";
-
-    await previewZipPath(result.zip_path, "url");
-  } catch (error) {
-    urlZipDownloadMessage.value = "";
-    message.value = `下载 ZIP Mod 失败：${String(error)}`;
-  } finally {
-    isUrlZipDownloading.value = false;
-  }
+  addToQueue(downloadId, file_name, "url", url);
+  urlZipInput.value = "";
+  setNotice("info", `URL 下载已加入队列`);
 }
 
 async function handlePreviewZipMod() {
@@ -8902,5 +9203,257 @@ button.secondary:hover:not(:disabled),
   .hero-chip-row {
     gap: 8px;
   }
+}
+
+/* 下载队列浮动按钮 */
+.download-queue-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: linear-gradient(180deg, #f9f0da, #ecdfc3);
+  color: var(--text-primary);
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(61, 40, 21, 0.25);
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.download-queue-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(61, 40, 21, 0.35);
+}
+
+.download-queue-fab.has-active {
+  border-color: var(--green-bg);
+  animation: dq-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dq-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(61, 40, 21, 0.25); }
+  50% { box-shadow: 0 4px 24px rgba(111, 168, 95, 0.5); }
+}
+
+.dq-fab-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* 下载队列面板 */
+.download-queue-panel {
+  position: fixed;
+  bottom: 84px;
+  right: 24px;
+  z-index: 999;
+  width: 380px;
+  max-height: 460px;
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  box-shadow: 0 12px 40px rgba(61, 40, 21, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+
+.dq-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dq-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.dq-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.dq-item {
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  font-size: 13px;
+}
+
+.dq-item:last-child {
+  margin-bottom: 0;
+}
+
+.dq-item.dq-completed {
+  border-color: var(--green-bg);
+}
+
+.dq-item.dq-failed {
+  border-color: var(--danger-bg);
+}
+
+.dq-item.dq-cancelled {
+  border-color: var(--border-subtle);
+  opacity: 0.6;
+}
+
+.dq-item.dq-downloading,
+.dq-item.dq-merging {
+  border-color: #d4b87a;
+  background: #fef9ed;
+}
+
+.dq-item-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.dq-file-name {
+  flex: 1;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dq-source-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.dq-status-badge {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dq-badge-queued { background: #e8e0d0; color: #7a6652; }
+.dq-badge-connecting { background: #f8e7c8; color: #8a7540; }
+.dq-badge-downloading { background: #f8e7c8; color: #8a7540; }
+.dq-badge-merging { background: #d4e8c8; color: #4a7a3a; }
+.dq-badge-completed { background: #d4e8c8; color: #3a6a2a; }
+.dq-badge-failed { background: #f4d0cc; color: #a04030; }
+.dq-badge-cancelled { background: #e0d8d0; color: #8a7a6a; }
+
+.dq-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-subtle);
+  margin: 6px 0;
+  overflow: hidden;
+}
+
+.dq-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #b8d4a0, var(--green-bg));
+  transition: width 0.3s ease;
+}
+
+.dq-item-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dq-message {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.dq-speed {
+  font-variant-numeric: tabular-nums;
+}
+
+.dq-bytes {
+  font-variant-numeric: tabular-nums;
+}
+
+.dq-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  justify-content: flex-end;
+}
+
+.dq-empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* 版本对比标签 */
+.version-diff-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.version-diff-tag.diff-newer {
+  background: #d4e8c8;
+  color: #3a6a2a;
+}
+
+.version-diff-tag.diff-downgrade {
+  background: #f4d0cc;
+  color: #a04030;
+}
+
+.version-diff-tag.diff-same {
+  background: #e0d8d0;
+  color: #8a7a6a;
+}
+
+.version-diff-tag.diff-unknown {
+  background: var(--border-subtle);
+  color: var(--text-secondary);
 }
 </style>
