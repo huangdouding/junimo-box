@@ -2262,7 +2262,6 @@ const isSmapiInstalling = ref(false);
 const smapiInstallerOpened = ref(false);
 const smapiInstallerVersion = ref("");
 const smapiInstallStageMessage = ref("");
-const smapiInstallDownloadedBytes = ref(0);
 type NoticeType = "success" | "info" | "warning" | "error";
 
 type NoticePayload = {
@@ -2711,7 +2710,6 @@ onMounted(async () => {
     "smapi-install-stage",
     (event) => {
       smapiInstallStageMessage.value = event.payload.message;
-      smapiInstallDownloadedBytes.value = event.payload.downloaded_bytes ?? smapiInstallDownloadedBytes.value;
 
       if (isSmapiInstalling.value) {
         setNotice("info", event.payload.message);
@@ -3749,7 +3747,6 @@ async function handleInstallSmapi() {
   smapiInstallerOpened.value = false;
   smapiInstallerVersion.value = "";
   smapiInstallStageMessage.value = "正在读取 SMAPI 下载源...";
-  smapiInstallDownloadedBytes.value = 0;
   setNotice("info", smapiInstallStageMessage.value);
 
   try {
