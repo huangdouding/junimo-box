@@ -2617,6 +2617,323 @@ fn cancel_download(download_id: String) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Serialize, Clone)]
+struct DeletedModInfo {
+    folder_name: String,
+    original_name: String,
+    deleted_at: String,
+}
+
+fn parse_deleted_folder_name(folder_name: &str) -> (String, String) {
+    let bytes = folder_name.as_bytes();
+    if bytes.len() < 24 {
+        return (folder_name.to_string(), String::new());
+    }
+
+    for i in (0..bytes.len().saturating_sub(19)).rev() {
+        if bytes[i] == b'-'
+            && bytes[i + 1].is_ascii_digit()
+            && bytes[i + 2].is_ascii_digit()
+            && bytes[i + 3].is_ascii_digit()
+            && bytes[i + 4].is_ascii_digit()
+            && bytes[i + 5] == b'-'
+            && bytes[i + 6].is_ascii_digit()
+            && bytes[i + 7].is_ascii_digit()
+            && bytes[i + 8] == b'-'
+            && bytes[i + 9].is_ascii_digit()
+            && bytes[i + 10].is_ascii_digit()
+            && bytes[i + 11] == b'T'
+        {
+            let original = &folder_name[..i];
+            if original.is_empty() {
+                break;
+            }
+            let ts = &folder_name[i + 1..];
+            return (original.to_string(), ts.to_string());
+        }
+    }
+
+    (folder_name.to_string(), String::new())
+}
+
+fn recycle_bin_path(game_path: &str) -> PathBuf {
+    Path::new(game_path).join("Junimo Box Deleted Mods")
+}
+
+fn mods_path(game_path: &str) -> PathBuf {
+    Path::new(game_path).join("Mods")
+}
+
+fn disabled_mods_path(game_path: &str) -> PathBuf {
+    Path::new(game_path).join("Disabled Mods")
+}
+
+#[tauri::command]
+fn list_deleted_mods(game_path: String) -> Result<Vec<DeletedModInfo>, String> {
+    let bin = recycle_bin_path(&game_path);
+    if !bin.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut items = Vec::new();
+    let mut entries: Vec<_> = fs::read_dir(&bin)
+        .map_err(|error| format!("Failed to read recycle bin: {}", error))?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .collect();
+
+    entries.sort_by(|a, b| {
+        let am = a.metadata().and_then(|m| m.created()).ok();
+        let bm = b.metadata().and_then(|m| m.created()).ok();
+        bm.cmp(&am)
+    });
+
+    for entry in entries {
+        let folder_name = entry.file_name().to_string_lossy().to_string();
+        let (original_name, deleted_at) = parse_deleted_folder_name(&folder_name);
+        items.push(DeletedModInfo {
+            folder_name,
+            original_name,
+            deleted_at,
+        });
+    }
+
+    Ok(items)
+}
+
+#[tauri::command]
+fn restore_deleted_mod(game_path: String, folder_name: String) -> Result<String, String> {
+    let from = recycle_bin_path(&game_path).join(&folder_name);
+    if !from.exists() {
+        return Err(format!("Deleted mod folder not found: {}", folder_name));
+    }
+
+    let (original_name, _) = parse_deleted_folder_name(&folder_name);
+    let mods_dir = mods_path(&game_path);
+
+    let mut target = mods_dir.join(&original_name);
+    if target.exists() {
+        let stem = &original_name;
+        for n in 1..100 {
+            target = mods_dir.join(format!("{}-恢复-{}", stem, n));
+            if !target.exists() {
+                break;
+            }
+        }
+    }
+
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create Mods folder: {}", error))?;
+    }
+
+    fs::rename(&from, &target).map_err(|error| {
+        format!("Failed to restore deleted mod: {}", error)
+    })?;
+
+    Ok(target
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or(original_name))
+}
+
+#[tauri::command]
+fn permanently_delete_mod(game_path: String, folder_name: String) -> Result<(), String> {
+    let target = recycle_bin_path(&game_path).join(&folder_name);
+    if !target.exists() {
+        return Err(format!("Mod folder not found in recycle bin: {}", folder_name));
+    }
+
+    fs::remove_dir_all(&target).map_err(|error| {
+        format!("Failed to permanently delete mod: {}", error)
+    })?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn empty_recycle_bin(game_path: String) -> Result<(), String> {
+    let bin = recycle_bin_path(&game_path);
+    if !bin.exists() {
+        return Ok(());
+    }
+
+    fs::remove_dir_all(&bin).map_err(|error| {
+        format!("Failed to empty recycle bin: {}", error)
+    })?;
+
+    fs::create_dir_all(&bin).map_err(|error| {
+        format!("Failed to recreate recycle bin: {}", error)
+    })?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn export_mods_backup(game_path: String, backup_path: String) -> Result<String, String> {
+    let mods_dir = mods_path(&game_path);
+    let disabled_dir = disabled_mods_path(&game_path);
+
+    let mut enabled_mods: Vec<String> = Vec::new();
+    let mut disabled_mods: Vec<String> = Vec::new();
+
+    if mods_dir.exists() {
+        let mut entries: Vec<_> = fs::read_dir(&mods_dir)
+            .map_err(|error| format!("Failed to read Mods folder: {}", error))?
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .collect();
+        entries.sort();
+        enabled_mods = entries;
+    }
+
+    if disabled_dir.exists() {
+        let mut entries: Vec<_> = fs::read_dir(&disabled_dir)
+            .map_err(|error| format!("Failed to read Disabled Mods folder: {}", error))?
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .collect();
+        entries.sort();
+        disabled_mods = entries;
+    }
+
+    let now = chrono_now_fallback();
+    let backup = serde_json::json!({
+        "app": "Junimo Box",
+        "type": "mods-backup",
+        "version": 1,
+        "exportedAt": now,
+        "enabledMods": enabled_mods,
+        "disabledMods": disabled_mods,
+    });
+
+    let content = serde_json::to_string_pretty(&backup)
+        .map_err(|error| format!("Failed to serialize backup: {}", error))?;
+
+    let path = Path::new(&backup_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create backup parent folder: {}", error))?;
+    }
+
+    fs::write(path, content)
+        .map_err(|error| format!("Failed to write backup file: {}", error))?;
+
+    let total = backup["enabledMods"].as_array().map(|a| a.len()).unwrap_or(0)
+        + backup["disabledMods"].as_array().map(|a| a.len()).unwrap_or(0);
+
+    Ok(format!(
+        "备份完成：已启用 {} 个，已禁用 {} 个，共 {} 个 Mod",
+        enabled_mods.len(),
+        disabled_mods.len(),
+        total
+    ))
+}
+
+fn chrono_now_fallback() -> String {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+
+    let secs = now.as_secs();
+    const SECS_PER_DAY: u64 = 86400;
+    const DAYS_FROM_0000_TO_1970: u64 = 719468;
+    let days = secs / SECS_PER_DAY;
+    let remaining = secs % SECS_PER_DAY;
+    let hours = remaining / 3600;
+    let minutes = (remaining % 3600) / 60;
+    let seconds = remaining % 60;
+
+    let z = days + DAYS_FROM_0000_TO_1970;
+    let era_days = z % 146097;
+    let era_years = (era_days - era_days / 1460 + era_days / 36524 - era_days / 146096) / 365;
+    let y = era_years + 2000;
+    let yday = era_days - (365 * era_years + era_years / 4 - era_years / 100);
+    let mp = (5 * yday + 2) / 153;
+    let d = yday - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        y, m, d, hours, minutes, seconds
+    )
+}
+
+#[tauri::command]
+fn import_mods_backup(game_path: String, backup_path: String) -> Result<String, String> {
+    let content = fs::read_to_string(&backup_path)
+        .map_err(|error| format!("Failed to read backup file: {}", error))?;
+
+    let parsed: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|error| format!("Failed to parse backup file: {}", error))?;
+
+    if parsed.get("app").and_then(|v| v.as_str()) != Some("Junimo Box") {
+        return Err("Invalid backup file: not a Junimo Box backup".to_string());
+    }
+    if parsed.get("type").and_then(|v| v.as_str()) != Some("mods-backup") {
+        return Err("Invalid backup file: not a mods backup".to_string());
+    }
+
+    let mods_dir = mods_path(&game_path);
+    let disabled_dir = disabled_mods_path(&game_path);
+
+    fs::create_dir_all(&mods_dir)
+        .map_err(|error| format!("Failed to ensure Mods folder: {}", error))?;
+    fs::create_dir_all(&disabled_dir)
+        .map_err(|error| format!("Failed to ensure Disabled Mods folder: {}", error))?;
+
+    let enabled_mods: Vec<String> = parsed["enabledMods"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let disabled_mods: Vec<String> = parsed["disabledMods"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut restored_count = 0;
+    let mut disabled_count = 0;
+
+    for folder_name in &enabled_mods {
+        let from = disabled_dir.join(folder_name);
+        let to = mods_dir.join(folder_name);
+        if from.exists() && !to.exists() {
+            fs::rename(&from, &to).map_err(|error| {
+                format!("Failed to restore mod '{}': {}", folder_name, error)
+            })?;
+            restored_count += 1;
+        }
+    }
+
+    for folder_name in &disabled_mods {
+        let from = mods_dir.join(folder_name);
+        let to = disabled_dir.join(folder_name);
+        if from.exists() && !to.exists() {
+            fs::rename(&from, &to).map_err(|error| {
+                format!("Failed to disable mod '{}': {}", folder_name, error)
+            })?;
+            disabled_count += 1;
+        }
+    }
+
+    Ok(format!(
+        "还原完成：已启用 {} 个，已禁用 {} 个",
+        restored_count, disabled_count
+    ))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let startup_nxm_link = extract_startup_nxm_arg();
@@ -2651,7 +2968,13 @@ pub fn run() {
             read_startup_nxm_link,
             read_pending_nxm_link,
             open_url_in_browser,
-            cancel_download
+            cancel_download,
+            list_deleted_mods,
+            restore_deleted_mod,
+            permanently_delete_mod,
+            empty_recycle_bin,
+            export_mods_backup,
+            import_mods_backup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

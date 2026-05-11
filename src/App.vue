@@ -694,12 +694,100 @@
                   :disabled="!gamePath"
                   @click="handleExportProblemReport"
                 >
-                  导出问题报告
                 </button>
+              </div>
+            </article>
+            <article class="panel tool-section-card compact-tool-card">
+              <div class="tool-section-header">
+                <div class="tool-section-icon">♻️</div>
+                <div>
+                  <h3>回收站</h3>
+                  <p>管理已删除的 Mod，可还原或永久删除。</p>
+                </div>
+              </div>
+
+              <div class="tool-section-actions">
+                <button
+                  class="tool-action-button"
+                  :disabled="!gamePath || isRecycleBinLoading"
+                  @click="handleListDeletedMods"
+                >
+                  {{ isRecycleBinLoading ? "扫描中..." : "扫描回收站" }}
+                </button>
+                <button
+                  class="tool-action-button"
+                  :disabled="deletedMods.length === 0"
+                  @click="handleEmptyRecycleBin"
+                >
+                  清空回收站 ({{ deletedMods.length }})
+                </button>
+              </div>
+
+              <div v-if="isRecycleBinLoading" class="rb-empty">
+                正在扫描回收站...
+              </div>
+
+              <div v-else-if="deletedMods.length > 0" class="recycle-bin-list">
+                <div
+                  v-for="item in deletedMods"
+                  :key="item.folder_name"
+                  class="recycle-bin-row"
+                >
+                  <div class="rb-info">
+                    <strong>{{ item.original_name || item.folder_name }}</strong>
+                    <span class="rb-time">{{ item.deleted_at || "未知时间" }}</span>
+                  </div>
+                  <div class="rb-actions">
+                    <button
+                      class="tiny-button"
+                      :disabled="isRestoringMap[item.folder_name]"
+                      @click="handleRestoreDeletedMod(item.folder_name)"
+                    >
+                      {{ isRestoringMap[item.folder_name] ? "还原中..." : "还原" }}
+                    </button>
+                    <button
+                      class="tiny-button danger"
+                      @click="handlePermanentlyDeleteMod(item.folder_name)"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="rb-empty">
+                点击"扫描回收站"查看已删除的 Mod
               </div>
             </article>
           </div>
         </div>
+
+        <article class="panel tool-section-card toolbox-full-card">
+          <div class="tool-section-header">
+            <div class="tool-section-icon">💾</div>
+            <div>
+              <h3>备份与恢复</h3>
+              <p>备份当前 Mod 启用状态（已启用/已禁用），还原时自动调整 Mods 文件夹状态。</p>
+            </div>
+          </div>
+
+          <div class="tool-section-actions">
+            <button
+              class="tool-action-button"
+              :disabled="!gamePath || totalModCount === 0"
+              @click="handleExportBackup"
+            >
+              导出备份
+            </button>
+            <button
+              class="tool-action-button"
+              :disabled="!gamePath"
+              @click="handleImportBackup"
+            >
+              还原备份
+            </button>
+          </div>
+        </article>
 
         <article class="panel tool-section-card smapi-tool-card toolbox-full-card">
           <div class="tool-section-header">
@@ -917,6 +1005,7 @@
 
             <div class="history-header-actions">
               <button class="tiny-button" @click="handleInstallHistoryZipSelect">选择 ZIP 安装</button>
+              <button class="tiny-button secondary" :disabled="installHistory.length === 0" @click="handleExportInstallHistory">导出历史</button>
               <button class="tiny-button secondary" :disabled="installHistory.length === 0" @click="clearInstallHistory">清空历史</button>
             </div>
           </div>
@@ -2007,6 +2096,12 @@ type ZipInstallConflictRow = {
   installedMod: DisplayModInfo;
 };
 
+type DeletedModInfo = {
+  folder_name: string;
+  original_name: string;
+  deleted_at: string;
+};
+
 const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
   { id: "overview", label: "总览", icon: "🏡" },
   { id: "mods", label: "Mods", icon: "📦" },
@@ -2205,6 +2300,9 @@ const profileDraftName = ref("");
 const profileDraftSearchQuery = ref("");
 const profileDraftEnabledFolders = ref<string[]>([]);
 const expandedProfileId = ref("");
+const deletedMods = ref<DeletedModInfo[]>([]);
+const isRecycleBinLoading = ref(false);
+const isRestoringMap = ref<Record<string, boolean>>({});
 
 const enabledModUniqueIds = computed(() =>
   new Set(mods.value.map((mod) => mod.uniqueId).filter(Boolean))
@@ -2678,6 +2776,24 @@ function clearInstallHistory() {
   setNotice("info", "已清空安装历史。");
 }
 
+async function handleExportInstallHistory() {
+  const filePath = await save({
+    title: "导出安装历史",
+    defaultPath: `junimo-box-install-history-${new Date().toISOString().slice(0, 10)}.json`,
+    filters: [{ name: "JSON 文件", extensions: ["json"] }],
+  });
+  if (!filePath) return;
+  try {
+    await invoke("write_text_file", {
+      path: filePath,
+      content: JSON.stringify(installHistory.value, null, 2),
+    });
+    setNotice("success", "安装历史已导出。");
+  } catch (error) {
+    setNotice("error", `导出安装历史失败：${String(error)}`);
+  }
+}
+
 function createProfileId() {
   return `profile-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -2827,7 +2943,8 @@ function normalizeProfileImportItem(item: unknown): ProfileExportItem | null {
 
   const enabledFolderNames = raw.enabledFolderNames
     .filter((folderName): folderName is string => typeof folderName === "string" && folderName.trim().length > 0)
-    .map((folderName) => folderName.trim());
+    .map((folderName) => folderName.trim())
+    .filter((folderName) => !/[\\/]/.test(folderName));
 
   if (enabledFolderNames.length === 0) {
     return null;
@@ -2954,6 +3071,18 @@ async function handleImportProfiles() {
 
   try {
     const content = await readTextFile(selected);
+    const rawParsed = JSON.parse(content) as Record<string, unknown>;
+    const importWarnings: string[] = [];
+
+    if (rawParsed && typeof rawParsed === "object") {
+      if (rawParsed.app && rawParsed.app !== "Junimo Box") {
+        importWarnings.push(`该文件来自 "${rawParsed.app}"，可能不兼容。`);
+      }
+      if (rawParsed.version !== undefined && rawParsed.version !== 1) {
+        importWarnings.push(`配置文件版本为 ${rawParsed.version}，当前支持版本 1，可能无法正确导入。`);
+      }
+    }
+
     const importedProfiles = parseProfileImportFile(content);
 
     if (importedProfiles.length === 0) {
@@ -2973,7 +3102,11 @@ async function handleImportProfiles() {
     profiles.value = [...normalizedProfiles, ...profiles.value];
     saveProfiles();
 
-    setNotice("success", `已导入 ${normalizedProfiles.length} 个配置方案。`);
+    let noticeText = `已导入 ${normalizedProfiles.length} 个配置方案。`;
+    if (importWarnings.length > 0) {
+      noticeText += " " + importWarnings.join(" ");
+    }
+    setNotice(importWarnings.length > 0 ? "warning" : "success", noticeText);
   } catch (error) {
     setNotice("error", `导入配置方案失败：${String(error)}`);
   }
@@ -4340,6 +4473,103 @@ async function handleDownloadZipFromUrl() {
   addToQueue(downloadId, file_name, "url", url);
   urlZipInput.value = "";
   setNotice("info", `URL 下载已加入队列`);
+}
+
+async function handleListDeletedMods() {
+  if (!gamePath.value) return;
+  isRecycleBinLoading.value = true;
+  try {
+    deletedMods.value = await invoke<DeletedModInfo[]>("list_deleted_mods", {
+      gamePath: gamePath.value,
+    });
+  } catch (error) {
+    message.value = `扫描回收站失败：${String(error)}`;
+  } finally {
+    isRecycleBinLoading.value = false;
+  }
+}
+
+async function handleRestoreDeletedMod(folderName: string) {
+  isRestoringMap.value[folderName] = true;
+  try {
+    await invoke<string>("restore_deleted_mod", {
+      gamePath: gamePath.value,
+      folderName,
+    });
+    deletedMods.value = deletedMods.value.filter((item) => item.folder_name !== folderName);
+    setNotice("info", `Mod 已还原`);
+    await scanMods();
+  } catch (error) {
+    message.value = `还原 Mod 失败：${String(error)}`;
+  } finally {
+    isRestoringMap.value[folderName] = false;
+  }
+}
+
+async function handlePermanentlyDeleteMod(folderName: string) {
+  const confirmed = await showConfirmModal("永久删除", `确定要永久删除 " ${folderName} " 吗？此操作不可撤销。`);
+  if (!confirmed) return;
+  try {
+    await invoke("permanently_delete_mod", {
+      gamePath: gamePath.value,
+      folderName,
+    });
+    deletedMods.value = deletedMods.value.filter((item) => item.folder_name !== folderName);
+    setNotice("info", `Mod 已永久删除`);
+  } catch (error) {
+    message.value = `永久删除失败：${String(error)}`;
+  }
+}
+
+async function handleEmptyRecycleBin() {
+  const confirmed = await showConfirmModal("清空回收站", "确定要清空回收站吗？所有已删除的 Mod 将被永久删除。");
+  if (!confirmed) return;
+  try {
+    await invoke("empty_recycle_bin", { gamePath: gamePath.value });
+    deletedMods.value = [];
+    setNotice("info", "回收站已清空");
+  } catch (error) {
+    message.value = `清空回收站失败：${String(error)}`;
+  }
+}
+
+async function handleExportBackup() {
+  if (!gamePath.value) return;
+  const backupPath = await save({
+    defaultPath: `junimo-box-mods-backup-${new Date().toISOString().slice(0, 10)}.json`,
+    filters: [{ name: "JSON 备份文件", extensions: ["json"] }],
+  });
+  if (!backupPath) return;
+  try {
+    const result = await invoke<string>("export_mods_backup", {
+      gamePath: gamePath.value,
+      backupPath,
+    });
+    setNotice("info", result);
+  } catch (error) {
+    message.value = `导出备份失败：${String(error)}`;
+  }
+}
+
+async function handleImportBackup() {
+  if (!gamePath.value) return;
+  const selected = await open({
+    directory: false,
+    multiple: false,
+    title: "选择备份文件",
+    filters: [{ name: "JSON 备份文件", extensions: ["json"] }],
+  });
+  if (typeof selected !== "string") return;
+  try {
+    const result = await invoke<string>("import_mods_backup", {
+      gamePath: gamePath.value,
+      backupPath: selected,
+    });
+    setNotice("info", result);
+    await scanMods();
+  } catch (error) {
+    message.value = `还原备份失败：${String(error)}`;
+  }
 }
 
 async function handlePreviewZipMod() {
@@ -9455,5 +9685,66 @@ button.secondary:hover:not(:disabled),
 .version-diff-tag.diff-unknown {
   background: var(--border-subtle);
   color: var(--text-secondary);
+}
+
+/* 回收站 */
+.recycle-bin-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 6px;
+}
+
+.recycle-bin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 8px;
+}
+
+.recycle-bin-row:last-child {
+  border-bottom: none;
+}
+
+.rb-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rb-info strong {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rb-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.rb-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.rb-empty {
+  text-align: center;
+  padding: 16px 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.tool-action-button.danger {
+  color: var(--danger-bg);
+  border-color: var(--danger-bg);
 }
 </style>
