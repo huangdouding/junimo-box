@@ -11,7 +11,7 @@
         </div>
         <div>
           <h1>Junimo Box</h1>
-          <p>祝尼魔盒</p>
+          <p>{{ t('brand.subtitle') }}</p>
         </div>
       </div>
 
@@ -34,14 +34,14 @@
           :disabled="!smapiExists"
           @click="handleLaunchSmapi"
         >
-          启动 SMAPI
+          {{ t('sidebar.smapiLaunch') }}
         </button>
         <button
           class="sidebar-launch-button vanilla"
           :disabled="!stardewExists"
           @click="handleLaunchVanilla"
         >
-          启动原版
+          {{ t('sidebar.vanillaLaunch') }}
         </button>
       </div>
     </aside>
@@ -63,14 +63,14 @@
             class="secondary compact-header-button"
             @click="handleSelectPath"
           >
-            选择目录
+            {{ t('overview.selectPath') }}
           </button>
           <button
             v-if="activeView === 'overview' && !gamePath"
             class="secondary compact-header-button"
             @click="handleDetectPath"
           >
-            自动检测
+            {{ t('overview.autoDetect') }}
           </button>
 
           <button
@@ -79,7 +79,7 @@
             :disabled="isScanning"
             @click="scanMods"
           >
-            {{ isScanning ? "扫描中..." : "重新扫描" }}
+            {{ isScanning ? t('overview.scanInProgress') : t('overview.rescan') }}
           </button>
 
           <button
@@ -87,7 +87,7 @@
             class="secondary compact-header-button"
             @click="handleReadLatestSmapiLog"
           >
-            读取最新日志
+            {{ t('overview.readLatestLog') }}
           </button>
         </div>
       </header>
@@ -124,27 +124,27 @@
         <div class="overview-hero panel">
           <div class="overview-hero-copy">
             <p class="eyebrow">Junimo Box</p>
-            <h3>像素风的星露谷 Mod 小屋</h3>
+            <h3>{{ t('overview.heroTitle') }}</h3>
             <p>
-              把目录、安装、更新和启动收进一个温暖清楚的第三方管理器里，让玩家少折腾文件夹。
+              {{ t('overview.heroDesc') }}
             </p>
 
             <div class="hero-chip-row">
-              <span>{{ gamePath ? "游戏目录已就绪" : "先选择游戏目录" }}</span>
-              <span>{{ smapiExists ? "SMAPI 可启动" : "SMAPI 待安装" }}</span>
-              <span>{{ totalModCount }} 个 Mod</span>
-              <span>{{ currentProfile?.name || "默认配置" }}</span>
+              <span>{{ gamePath ? t('overview.chipGamePathReady') : t('overview.chipGamePathMissing') }}</span>
+              <span>{{ smapiExists ? t('overview.chipSmapiReady') : t('overview.chipSmapiMissing') }}</span>
+              <span>{{ t('overview.chipModCount', { n: totalModCount }) }}</span>
+              <span>{{ currentProfile?.name || t('overview.chipDefaultProfile') }}</span>
             </div>
 
             <div class="hero-action-row">
               <button class="hero-action-button" @click="handleSelectPath">
-                选择游戏目录
+                {{ t('overview.selectPath') }}
               </button>
               <button class="hero-action-button secondary" :disabled="!gamePath || isScanning" @click="scanMods">
-                重新扫描
+                {{ t('overview.rescan') }}
               </button>
               <button class="hero-action-button" :disabled="!smapiExists" @click="handleLaunchSmapi">
-                启动游戏
+                {{ t('overview.launchGame') }}
               </button>
             </div>
           </div>
@@ -170,37 +170,37 @@
         <div class="overview-grid">
           <div class="panel compact-panel">
             <div class="panel-header">
-              <h3>当前环境</h3>
-              <span>{{ gamePath ? "已配置" : "未配置" }}</span>
+              <h3>{{ t('overview.envTitle') }}</h3>
+              <span>{{ gamePath ? t('overview.envConfigured') : t('overview.envNotConfigured') }}</span>
             </div>
 
             <div class="status-grid">
               <div class="status-card">
-                <span>游戏目录</span>
+                <span>{{ t('overview.envGamePath') }}</span>
                 <strong :class="gamePath ? 'ok' : 'bad'">
-                  {{ gamePath ? "已选择" : "未选择" }}
+                  {{ gamePath ? t('overview.envSelected') : t('overview.envNotSelected') }}
                 </strong>
               </div>
 
               <div class="status-card">
                 <span>Stardew Valley</span>
                 <strong :class="stardewExists ? 'ok' : 'bad'">
-                  {{ stardewExists ? "已找到" : "未找到" }}
+                  {{ stardewExists ? t('overview.envFound') : t('overview.envNotFound') }}
                 </strong>
               </div>
 
               <div class="status-card">
                 <span>SMAPI</span>
                 <strong :class="smapiExists ? 'ok' : 'bad'">
-                  {{ smapiExists ? "已安装" : "未安装" }}
+                  {{ smapiExists ? t('overview.envInstalled') : t('overview.envNotInstalled') }}
                 </strong>
-                <small v-if="smapiExists">版本：{{ smapiDetectedVersion || "未识别" }}</small>
+                <small v-if="smapiExists">{{ t('overview.envVersion', { v: smapiDetectedVersion || t('overview.envVersionUnknown') }) }}</small>
               </div>
 
               <div class="status-card">
-                <span>Mods 文件夹</span>
+                <span>{{ t('overview.envModsFolder') }}</span>
                 <strong :class="modsFolderExists ? 'ok' : 'bad'">
-                  {{ modsFolderExists ? "已找到" : "未找到" }}
+                  {{ modsFolderExists ? t('overview.envFound') : t('overview.envNotFound') }}
                 </strong>
               </div>
             </div>
@@ -208,30 +208,30 @@
 
           <div class="panel compact-panel">
             <div class="panel-header">
-              <h3>Mod 概览</h3>
-              <span>{{ totalModCount }} 个</span>
+              <h3>{{ t('overview.modSummary') }}</h3>
+              <span>{{ t('overview.modCount', { n: totalModCount }) }}</span>
             </div>
 
             <div class="summary-row">
               <div>
-                <span>已启用</span>
+                <span>{{ t('overview.modEnabled') }}</span>
                 <strong>{{ mods.length }}</strong>
               </div>
 
               <div>
-                <span>已禁用</span>
+                <span>{{ t('overview.modDisabled') }}</span>
                 <strong>{{ disabledMods.length }}</strong>
               </div>
 
               <div>
-                <span>缺失依赖</span>
+                <span>{{ t('overview.modMissingDeps') }}</span>
                 <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">
                   {{ missingDependencies.length }}
                 </strong>
               </div>
 
               <div>
-                <span>未识别</span>
+                <span>{{ t('overview.modUnrecognized') }}</span>
                 <strong>{{ skippedFolders.length }}</strong>
               </div>
             </div>
@@ -249,19 +249,19 @@
               <input
                 v-model="modSearchQuery"
                 type="text"
-                placeholder="搜索 Mod 名称、作者、UniqueID、文件夹或描述..."
+                :placeholder="t('mods.searchPlaceholder')"
                 @keydown.escape="modSearchQuery = ''"
               />
             </div>
 
             <button class="tiny-button" @click="clearModFilters">
-              清空筛选
+              {{ t('mods.clearFilters') }}
             </button>
           </div>
 
           <div class="filter-row">
             <div class="filter-group">
-              <span class="filter-label">状态</span>
+              <span class="filter-label">{{ t('mods.filterStatus') }}</span>
               <button
                 v-for="option in statusFilterOptions"
                 :key="option.value"
@@ -274,7 +274,7 @@
             </div>
 
             <div class="filter-group">
-              <span class="filter-label">依赖</span>
+              <span class="filter-label">{{ t('mods.filterDependency') }}</span>
               <button
                 v-for="option in dependencyFilterOptions"
                 :key="option.value"
@@ -289,15 +289,15 @@
 
           <div class="filter-summary-row">
             <p class="filter-result-text">
-              当前显示 {{ filteredMods.length }} / {{ allDisplayMods.length }} 个 Mod。
+              {{ t('mods.filterResult', { n: filteredMods.length, m: allDisplayMods.length }) }}
             </p>
             <p v-if="modSearchQuery || modStatusFilter !== 'all' || modDependencyFilter !== 'all'" class="active-filter-text">
-              筛选已启用
+              {{ t('mods.filterActive') }}
             </p>
           </div>
 
           <div v-if="lastInstalledZipMods.length > 0" class="inline-install-summary">
-            <span>最近安装：</span>
+            <span>{{ t('mods.recentInstall') }}</span>
             <strong>
               {{
                 lastInstalledZipMods
@@ -307,24 +307,22 @@
               }}
             </strong>
             <span v-if="lastInstalledZipMods.length > 3">
-              等 {{ lastInstalledZipMods.length }} 个 Mod
+              {{ t('mods.recentInstallMore', { n: lastInstalledZipMods.length }) }}
             </span>
           </div>
 
           <div v-if="mods.length > 0 && missingDependencies.length > 0" class="inline-dependency-summary">
-            <span>依赖提醒：</span>
-            <strong>{{ missingDependencies.length }} 项缺失依赖</strong>
-            <span>，请在相关 Mod 详情中查看。</span>
+            <span>{{ t('mods.depWarning', { n: missingDependencies.length }) }}</span>
           </div>
         </div>
 
         <div v-if="selectedModKeys.size > 0" class="batch-action-bar">
-          <span class="batch-count">已选择 {{ selectedModKeys.size }} 个 Mod</span>
+          <span class="batch-count">{{ t('mods.batchSelected', { n: selectedModKeys.size }) }}</span>
           <div class="batch-actions">
-            <button class="tiny-button" @click="handleBatchEnable">批量启用</button>
-            <button class="tiny-button danger" @click="handleBatchDisable">批量禁用</button>
-            <button class="tiny-button danger delete-mod-button" @click="handleBatchDelete">批量删除</button>
-            <button class="tiny-button ghost-button" @click="selectedModKeys = new Set()">取消选择</button>
+            <button class="tiny-button" @click="handleBatchEnable">{{ t('mods.batchEnable') }}</button>
+            <button class="tiny-button danger" @click="handleBatchDisable">{{ t('mods.batchDisable') }}</button>
+            <button class="tiny-button danger delete-mod-button" @click="handleBatchDelete">{{ t('mods.batchDelete') }}</button>
+            <button class="tiny-button ghost-button" @click="selectedModKeys = new Set()">{{ t('mods.batchClear') }}</button>
           </div>
         </div>
 
@@ -332,12 +330,12 @@
           <div class="panel mods-list-panel">
             <div class="panel-header sticky-panel-header">
               <div>
-                <h3>Mod 列表</h3>
+                <h3>{{ t('mods.listTitle') }}</h3>
                 <p class="detail-subtitle">
-                  点击列表项打开独立详情卡片。
+                  {{ t('mods.listHint') }}
                 </p>
               </div>
-              <span>{{ filteredMods.length }} 个</span>
+              <span>{{ t('mods.listCount', { n: filteredMods.length }) }}</span>
             </div>
 
             <div class="mods-list compact-mods-list scrollable-mods-list">
@@ -357,25 +355,25 @@
                     <div class="mod-title-block">
                       <h4><span v-html="highlightText(mod.name, modSearchQuery)"></span></h4>
                       <p class="mod-meta">
-                        <span v-html="highlightText(mod.author || '未知作者', modSearchQuery)"></span> · v{{ mod.version || "未知版本" }}
+                        <span v-html="highlightText(mod.author || t('mods.authorUnknown'), modSearchQuery)"></span> · v{{ mod.version || t('mods.versionUnknown') }}
                       </p>
                     </div>
 
                     <div class="mod-badges compact-badges">
                       <span class="status-badge" :class="mod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
-                        {{ mod.isDisabled ? "已禁用" : "已启用" }}
+                        {{ mod.isDisabled ? t('mods.statusDisabled') : t('mods.statusEnabled') }}
                       </span>
                       <span class="status-badge type-badge">
                         {{ mod.modType.label }}
                       </span>
                       <span v-if="mod.hasMissingRequiredDependency" class="status-badge missing-badge">
-                        缺失依赖
+                        {{ t('mods.badgeMissingDeps') }}
                       </span>
                     </div>
                   </div>
 
                   <p class="mod-description compact-description">
-                    {{ mod.description || "没有描述。" }}
+                    {{ mod.description || t('mods.noDescription') }}
                   </p>
 
                   <div class="mod-card-footer">
@@ -383,7 +381,7 @@
 
                     <div class="mod-actions compact-card-actions">
                       <button class="tiny-button ghost-button" @click.stop="handleOpenDisplayedModFolder(mod)">
-                        打开
+                        {{ t('mods.openFolder') }}
                       </button>
 
                       <button
@@ -391,7 +389,7 @@
                         class="tiny-button"
                         @click.stop="handleEnableMod(mod.folderName)"
                       >
-                        启用
+                        {{ t('mods.enable') }}
                       </button>
 
                       <button
@@ -399,14 +397,14 @@
                         class="tiny-button danger"
                         @click.stop="handleDisableMod(mod.folderName)"
                       >
-                        禁用
+                        {{ t('mods.disable') }}
                       </button>
 
                       <button
                         class="tiny-button danger delete-mod-button"
                         @click.stop="handleDeleteDisplayedMod(mod)"
                       >
-                        删除
+                        {{ t('mods.delete') }}
                       </button>
                     </div>
                   </div>
@@ -428,31 +426,31 @@
               <div>
                 <p class="eyebrow">Mod Detail</p>
                 <h3>{{ selectedMod.name }}</h3>
-                <p>{{ selectedMod.modType.label }} · {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}</p>
+                <p>{{ t('mods.detailStatus', { type: selectedMod.modType.label, status: selectedMod.isDisabled ? t('mods.statusDisabled') : t('mods.statusEnabled') }) }}</p>
               </div>
 
               <button class="tiny-button" @click="closeModDetail">
-                关闭
+                {{ t('mods.detailClose') }}
               </button>
             </div>
 
             <div class="mod-badges detail-badges">
               <span class="status-badge" :class="selectedMod.isDisabled ? 'disabled-badge' : 'enabled-badge'">
-                {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+                {{ selectedMod.isDisabled ? t('mods.statusDisabled') : t('mods.statusEnabled') }}
               </span>
               <span class="status-badge type-badge">{{ selectedMod.modType.label }}</span>
               <span v-if="selectedMod.hasMissingRequiredDependency" class="status-badge missing-badge">
-                缺失依赖
+                {{ t('mods.badgeMissingDeps') }}
               </span>
             </div>
 
             <p class="detail-description">
-              {{ selectedMod.description || "没有描述。" }}
+              {{ selectedMod.description || t('mods.noDescription') }}
             </p>
 
             <div class="detail-actions detail-actions-inline">
               <button class="tiny-button" @click="handleOpenDisplayedModFolder(selectedMod)">
-                打开文件夹
+                {{ t('mods.detailOpenFolder') }}
               </button>
 
               <button
@@ -460,7 +458,7 @@
                 class="tiny-button"
                 @click="handleEnableMod(selectedMod.folderName)"
               >
-                启用 Mod
+                {{ t('mods.detailEnableMod') }}
               </button>
 
               <button
@@ -468,59 +466,59 @@
                 class="tiny-button danger"
                 @click="handleDisableMod(selectedMod.folderName)"
               >
-                禁用 Mod
+                {{ t('mods.detailDisableMod') }}
               </button>
 
               <button
                 class="tiny-button danger delete-mod-button"
                 @click="handleDeleteDisplayedMod(selectedMod)"
               >
-                删除 Mod
+                {{ t('mods.detailDeleteMod') }}
               </button>
             </div>
 
             <div class="detail-grid detail-card-grid">
               <div>
-                <span>作者</span>
-                <strong>{{ selectedMod.author || "未知作者" }}</strong>
+                <span>{{ t('mods.detailAuthor') }}</span>
+                <strong>{{ selectedMod.author || t('mods.authorUnknown') }}</strong>
               </div>
               <div>
-                <span>版本</span>
-                <strong>{{ selectedMod.version || "未知版本" }}</strong>
+                <span>{{ t('mods.detailVersion') }}</span>
+                <strong>{{ selectedMod.version || t('mods.versionUnknown') }}</strong>
               </div>
               <div>
-                <span>UniqueID</span>
-                <strong>{{ selectedMod.uniqueId || "未提供" }}</strong>
+                <span>{{ t('mods.detailUniqueId') }}</span>
+                <strong>{{ selectedMod.uniqueId || t('mods.detailNotProvided') }}</strong>
               </div>
               <div>
-                <span>文件夹</span>
+                <span>{{ t('mods.detailFolder') }}</span>
                 <strong>{{ selectedMod.folderName }}</strong>
               </div>
               <div>
-                <span>EntryDll</span>
-                <strong>{{ selectedMod.entryDll || "无" }}</strong>
+                <span>{{ t('mods.detailEntryDll') }}</span>
+                <strong>{{ selectedMod.entryDll || t('mods.detailNone') }}</strong>
               </div>
               <div>
-                <span>当前状态</span>
+                <span>{{ t('mods.detailCurrentStatus') }}</span>
                 <strong :class="selectedMod.isDisabled ? 'optional' : 'ok'">
-                  {{ selectedMod.isDisabled ? "已禁用" : "已启用" }}
+                  {{ selectedMod.isDisabled ? t('mods.statusDisabled') : t('mods.statusEnabled') }}
                 </strong>
               </div>
             </div>
 
             <div class="detail-dependencies">
-              <h4>依赖关系</h4>
+              <h4>{{ t('mods.detailDependencies') }}</h4>
 
               <p v-if="!selectedMod.contentPackFor && selectedMod.dependencies.length === 0" class="muted-text">
-                这个 Mod 没有声明依赖。
+                {{ t('mods.detailNoDeps') }}
               </p>
 
               <div v-else class="dependency-detail-list">
                 <div v-if="selectedMod.contentPackFor" class="dependency-detail-item">
-                  <span>内容包依赖</span>
+                  <span>{{ t('mods.detailContentPackFor') }}</span>
                   <strong :class="selectedMod.contentPackFor.isInstalled ? 'ok' : 'bad'">
                     {{ selectedMod.contentPackFor.uniqueId }}
-                    {{ selectedMod.contentPackFor.isInstalled ? "已安装" : "缺失" }}
+                    {{ selectedMod.contentPackFor.isInstalled ? t('mods.detailInstalled') : t('mods.detailMissing') }}
                   </strong>
                 </div>
 
@@ -529,7 +527,7 @@
                   :key="dependency.uniqueId"
                   class="dependency-detail-item"
                 >
-                  <span>{{ dependency.isRequired ? "必需依赖" : "可选依赖" }}</span>
+                  <span>{{ dependency.isRequired ? t('mods.detailRequired') : t('mods.detailOptional') }}</span>
                   <strong
                     :class="
                       dependency.isInstalled
@@ -542,10 +540,10 @@
                     {{ dependency.uniqueId }}
                     {{
                       dependency.isInstalled
-                        ? "已安装"
+                        ? t('mods.detailInstalled')
                         : dependency.isRequired
-                          ? "缺失"
-                          : "可选未安装"
+                          ? t('mods.detailMissing')
+                          : t('mods.detailOptionalNotInstalled')
                     }}
                   </strong>
                 </div>
@@ -555,15 +553,15 @@
         </div>
 
         <div v-if="gamePath && allDisplayMods.length > 0 && filteredMods.length === 0" class="empty-state">
-          <h3>没有符合条件的 Mod</h3>
-          <p>试试清空搜索词，或者切换筛选条件。</p>
-          <button class="tiny-button" @click="clearModFilters" style="margin-top:8px">清空筛选</button>
+          <h3>{{ t('mods.emptyNoResults') }}</h3>
+          <p>{{ t('mods.emptyNoResultsHint') }}</p>
+          <button class="tiny-button" @click="clearModFilters" style="margin-top:8px">{{ t('mods.clearFilters') }}</button>
         </div>
 
         <div v-if="skippedFolders.length > 0" class="panel">
           <div class="panel-header">
-            <h3>未识别文件夹</h3>
-            <span>{{ skippedFolders.length }} 个</span>
+            <h3>{{ t('mods.skippedTitle') }}</h3>
+            <span>{{ t('mods.skippedCount', { n: skippedFolders.length }) }}</span>
           </div>
 
           <div class="mods-list">
@@ -575,7 +573,7 @@
               <div class="mod-main">
                 <h4>{{ folder }}</h4>
                 <p class="mod-description">
-                  这个文件夹没有被识别为 Mod。通常是因为没有 manifest.json，或者 manifest.json 读取失败。
+                  {{ t('mods.skippedHint') }}
                 </p>
               </div>
             </article>
@@ -586,10 +584,10 @@
           v-if="gamePath && allDisplayMods.length === 0 && skippedFolders.length === 0"
           class="empty-state"
         >
-          <h3>还没有扫描到 Mod</h3>
-          <p>点击下方按钮扫描 Mods 文件夹。</p>
+          <h3>{{ t('mods.emptyNoScan') }}</h3>
+          <p>{{ t('mods.emptyNoScanHint') }}</p>
           <button class="tool-action-button" :disabled="isScanning" @click="scanMods" style="margin-top:12px">
-            {{ isScanning ? "扫描中..." : "扫描 Mods 文件夹" }}
+            {{ isScanning ? t('mods.scanInProgress') : t('mods.scanButton') }}
           </button>
         </div>
       </section>
@@ -597,30 +595,30 @@
       <section v-if="activeView === 'logs'" class="view-stack">
         <div v-if="smapiLogAnalysis" class="panel">
           <div class="panel-header">
-            <h3>日志诊断摘要</h3>
+            <h3>{{ t('logs.diagnosisTitle') }}</h3>
             <span>{{ smapiLogFileName }}</span>
           </div>
 
           <div class="diagnosis-grid">
             <div class="diagnosis-card">
-              <span>SMAPI 版本</span>
-              <strong>{{ smapiLogAnalysis.smapiVersion || "未识别" }}</strong>
+              <span>{{ t('logs.diagnosisSmapiVersion') }}</span>
+              <strong>{{ smapiLogAnalysis.smapiVersion || t('logs.diagnosisUnknown') }}</strong>
             </div>
 
             <div class="diagnosis-card">
-              <span>游戏版本</span>
-              <strong>{{ smapiLogAnalysis.gameVersion || "未识别" }}</strong>
+              <span>{{ t('logs.diagnosisGameVersion') }}</span>
+              <strong>{{ smapiLogAnalysis.gameVersion || t('logs.diagnosisUnknown') }}</strong>
             </div>
 
             <div class="diagnosis-card">
-              <span>警告</span>
+              <span>{{ t('logs.diagnosisWarnings') }}</span>
               <strong :class="smapiLogAnalysis.warningLines.length > 0 ? 'bad' : 'ok'">
                 {{ smapiLogAnalysis.warningLines.length }}
               </strong>
             </div>
 
             <div class="diagnosis-card">
-              <span>错误</span>
+              <span>{{ t('logs.diagnosisErrors') }}</span>
               <strong :class="smapiLogAnalysis.errorLines.length > 0 ? 'bad' : 'ok'">
                 {{ smapiLogAnalysis.errorLines.length }}
               </strong>
@@ -628,12 +626,12 @@
           </div>
 
           <div v-if="smapiLogAnalysis.modsPath" class="diagnosis-section">
-            <h4>Mods 路径</h4>
+            <h4>{{ t('logs.diagnosisModsPath') }}</h4>
             <p class="code-text">{{ smapiLogAnalysis.modsPath }}</p>
           </div>
 
           <div v-if="smapiLogAnalysis.suggestions.length > 0" class="diagnosis-section">
-            <h4>建议处理</h4>
+            <h4>{{ t('logs.suggestions') }}</h4>
             <ul class="diagnosis-list">
               <li v-for="suggestion in smapiLogAnalysis.suggestions" :key="suggestion">
                 {{ suggestion }}
@@ -642,8 +640,8 @@
           </div>
 
           <div v-if="smapiLogAnalysis.affectedAssets.length > 0" class="diagnosis-section warning-box">
-            <h4>受影响的游戏文件</h4>
-            <p>SMAPI 检测到游戏原始内容文件可能被修改或损坏。常见原因是旧式 XNB 模组覆盖了游戏文件。</p>
+            <h4>{{ t('logs.affectedAssets') }}</h4>
+            <p>{{ t('logs.affectedAssetsDesc') }}</p>
             <ul class="diagnosis-list">
               <li v-for="asset in smapiLogAnalysis.affectedAssets" :key="asset">
                 {{ asset }}
@@ -652,46 +650,46 @@
           </div>
 
           <div v-if="smapiLogAnalysis.skippedMods.length > 0" class="diagnosis-section warning-box">
-            <h4>被 SMAPI 跳过的 Mod</h4>
+            <h4>{{ t('logs.skippedMods') }}</h4>
             <div
               v-for="skippedMod in smapiLogAnalysis.skippedMods"
               :key="skippedMod.path"
               class="diagnosis-item"
             >
               <strong>{{ skippedMod.path }}</strong>
-              <p>{{ skippedMod.reason || "SMAPI 跳过了这个文件夹。" }}</p>
+              <p>{{ skippedMod.reason || t('logs.skippedReason') }}</p>
             </div>
           </div>
 
           <div v-if="smapiLogAnalysis.errorLines.length > 0" class="diagnosis-section error-box">
-            <h4>错误行</h4>
+            <h4>{{ t('logs.errorLines') }}</h4>
             <pre class="small-log">{{ smapiLogAnalysis.errorLines.join("\n") }}</pre>
           </div>
 
           <div v-if="smapiLogAnalysis.warningLines.length > 0" class="diagnosis-section">
-            <h4>警告行</h4>
+            <h4>{{ t('logs.warningLines') }}</h4>
             <pre class="small-log">{{ smapiLogAnalysis.warningLines.join("\n") }}</pre>
           </div>
         </div>
 
         <div v-if="smapiLogContent" class="panel">
           <div class="panel-header">
-            <h3>原始日志</h3>
+            <h3>{{ t('logs.rawLog') }}</h3>
             <button class="tiny-button" @click="showRawSmapiLog = !showRawSmapiLog">
-              {{ showRawSmapiLog ? "收起" : "展开" }}
+              {{ showRawSmapiLog ? t('logs.rawLogCollapse') : t('logs.rawLogExpand') }}
             </button>
           </div>
 
           <pre v-if="showRawSmapiLog" class="log-viewer">{{ smapiLogContent }}</pre>
 
           <p v-else class="muted-text">
-            原始日志已隐藏。通常只需要查看上方诊断摘要；需要完整内容时再展开。
+            {{ t('logs.rawLogHidden') }}
           </p>
         </div>
 
         <div v-if="!smapiLogContent" class="empty-state">
-          <h3>还没有读取日志</h3>
-          <p>点击"读取最新日志"，Junimo Box 会读取最近一次 SMAPI 日志并生成诊断摘要。</p>
+          <h3>{{ t('logs.emptyTitle') }}</h3>
+          <p>{{ t('logs.emptyHint') }}</p>
         </div>
       </section>
 
@@ -699,8 +697,8 @@
         <div class="toolbox-section-block">
           <div class="toolbox-section-title-row">
             <div>
-              <h3>常用操作</h3>
-              <p>目录、导出和基础维护入口集中放在这里。</p>
+              <h3>{{ t('tools.quickActions') }}</h3>
+              <p>{{ t('tools.quickActionsDesc') }}</p>
             </div>
           </div>
 
@@ -709,14 +707,14 @@
               <div class="tool-section-header">
                 <div class="tool-section-icon">📁</div>
                 <div>
-                  <h3>文件夹</h3>
-                  <p>快速打开常用目录，方便手动检查文件。</p>
+                  <h3>{{ t('tools.folders') }}</h3>
+                  <p>{{ t('tools.foldersDesc') }}</p>
                 </div>
               </div>
 
               <div class="tool-section-actions">
                 <button class="tool-action-button" @click="handleOpenGameFolder">
-                  打开游戏目录
+                  {{ t('tools.openGameDir') }}
                 </button>
 
                 <button
@@ -724,11 +722,11 @@
                   :disabled="!modsFolderExists"
                   @click="handleOpenModsFolder"
                 >
-                  打开 Mods 文件夹
+                  {{ t('tools.openModsDir') }}
                 </button>
 
                 <button class="tool-action-button" @click="handleOpenSmapiLogFolder">
-                  打开日志文件夹
+                  {{ t('tools.openLogsDir') }}
                 </button>
               </div>
             </article>
@@ -737,8 +735,8 @@
               <div class="tool-section-header">
                 <div class="tool-section-icon">📤</div>
                 <div>
-                  <h3>导出与报告</h3>
-                  <p>导出 Mod 列表或问题报告，方便备份和求助。</p>
+                  <h3>{{ t('tools.export') }}</h3>
+                  <p>{{ t('tools.exportDesc') }}</p>
                 </div>
               </div>
 
@@ -748,7 +746,7 @@
                   :disabled="mods.length === 0 && disabledMods.length === 0"
                   @click="handleExportModList"
                 >
-                  导出 Mod 列表
+                  {{ t('tools.exportModList') }}
                 </button>
 
                 <button
@@ -756,7 +754,7 @@
                   :disabled="!gamePath"
                   @click="handleExportProblemReport"
                 >
-                  导出问题报告
+                  {{ t('tools.exportProblemReport') }}
                 </button>
               </div>
             </article>
@@ -764,8 +762,8 @@
               <div class="tool-section-header">
                 <div class="tool-section-icon">♻️</div>
                 <div>
-                  <h3>回收站</h3>
-                  <p>管理已删除的 Mod，可还原或永久删除。</p>
+                  <h3>{{ t('tools.recycleBin') }}</h3>
+                  <p>{{ t('tools.recycleBinDesc') }}</p>
                 </div>
               </div>
 
@@ -775,19 +773,19 @@
                   :disabled="!gamePath || isRecycleBinLoading"
                   @click="handleListDeletedMods"
                 >
-                  {{ isRecycleBinLoading ? "扫描中..." : "扫描回收站" }}
+                  {{ isRecycleBinLoading ? t('tools.scanInProgress') : t('tools.scanRecycleBin') }}
                 </button>
                 <button
                   class="tool-action-button"
                   :disabled="deletedMods.length === 0"
                   @click="handleEmptyRecycleBin"
                 >
-                  清空回收站 ({{ deletedMods.length }})
+                  {{ t('tools.emptyRecycleBin', { n: deletedMods.length }) }}
                 </button>
               </div>
 
               <div v-if="isRecycleBinLoading" class="rb-empty">
-                正在扫描回收站...
+                {{ t('tools.scanningRecycle') }}
               </div>
 
               <div v-else-if="deletedMods.length > 0" class="recycle-bin-list">
@@ -798,7 +796,7 @@
                 >
                   <div class="rb-info">
                     <strong>{{ item.original_name || item.folder_name }}</strong>
-                    <span class="rb-time">{{ item.deleted_at || "未知时间" }}</span>
+                    <span class="rb-time">{{ item.deleted_at || t('tools.deletedTimeUnknown') }}</span>
                   </div>
                   <div class="rb-actions">
                     <button
@@ -806,20 +804,20 @@
                       :disabled="isRestoringMap[item.folder_name]"
                       @click="handleRestoreDeletedMod(item.folder_name)"
                     >
-                      {{ isRestoringMap[item.folder_name] ? "还原中..." : "还原" }}
+                      {{ isRestoringMap[item.folder_name] ? t('tools.restoring') : t('tools.restore') }}
                     </button>
                     <button
                       class="tiny-button danger"
                       @click="handlePermanentlyDeleteMod(item.folder_name)"
                     >
-                      删除
+                      {{ t('tools.permanentDelete') }}
                     </button>
                   </div>
                 </div>
               </div>
 
               <div v-else class="rb-empty">
-                点击"扫描回收站"查看已删除的 Mod
+                {{ t('tools.recycleEmpty') }}
               </div>
             </article>
           </div>
@@ -829,8 +827,8 @@
           <div class="tool-section-header">
             <div class="tool-section-icon">💾</div>
             <div>
-              <h3>备份与恢复</h3>
-              <p>备份当前 Mod 启用状态（已启用/已禁用），还原时自动调整 Mods 文件夹状态。</p>
+              <h3>{{ t('tools.backup') }}</h3>
+              <p>{{ t('tools.backupDesc') }}</p>
             </div>
           </div>
 
@@ -840,14 +838,14 @@
               :disabled="!gamePath || totalModCount === 0"
               @click="handleExportBackup"
             >
-              导出备份
+              {{ t('tools.exportBackup') }}
             </button>
             <button
               class="tool-action-button"
               :disabled="!gamePath"
               @click="handleImportBackup"
             >
-              还原备份
+              {{ t('tools.importBackup') }}
             </button>
           </div>
         </article>
@@ -856,21 +854,21 @@
           <div class="tool-section-header">
             <div class="tool-section-icon">🧩</div>
             <div>
-              <h3>SMAPI 管理</h3>
-              <p>自动下载最新 SMAPI，并打开官方 Windows 安装器完成安装。</p>
+              <h3>{{ t('tools.smapiManage') }}</h3>
+              <p>{{ t('tools.smapiManageDesc') }}</p>
             </div>
           </div>
 
           <div class="tool-status-row">
-            <span>当前状态</span>
+            <span>{{ t('tools.smapiStatus') }}</span>
             <strong :class="smapiExists ? 'ok' : 'bad'">
-              {{ smapiExists ? "已安装" : "未安装" }}
+              {{ smapiExists ? t('tools.smapiInstalled') : t('tools.smapiNotInstalled') }}
             </strong>
           </div>
 
           <div v-if="smapiExists" class="tool-status-row">
-            <span>SMAPI 版本</span>
-            <strong>{{ smapiDetectedVersion || "未识别" }}</strong>
+            <span>{{ t('tools.smapiVersion') }}</span>
+            <strong>{{ smapiDetectedVersion || t('tools.smapiVersionUnknown') }}</strong>
           </div>
 
           <div class="tool-section-actions">
@@ -879,7 +877,7 @@
               :disabled="!gamePath || !stardewExists || isSmapiInstalling"
               @click="handleInstallSmapi"
             >
-              {{ isSmapiInstalling ? smapiInstallStageMessage || "正在安装 SMAPI..." : smapiExists ? "更新 / 重装 SMAPI" : "下载并安装 SMAPI" }}
+              {{ isSmapiInstalling ? smapiInstallStageMessage || t('tools.smapiInstallingBtn') : smapiExists ? t('tools.smapiReinstallBtn') : t('tools.smapiInstallBtn') }}
             </button>
 
             <button
@@ -888,21 +886,21 @@
               :disabled="isSmapiInstalling"
               @click="handleRecheckSmapiInstall"
             >
-              我已完成安装，重新检测
+              {{ t('tools.smapiRecheckBtn') }}
             </button>
           </div>
 
           <p v-if="isSmapiInstalling" class="tool-section-note smapi-install-stage-text">
-            {{ smapiInstallStageMessage || "正在准备 SMAPI 安装..." }}
+            {{ smapiInstallStageMessage || t('tools.smapiInstallingStage') }}
           </p>
 
           <p v-if="smapiInstallerOpened && !isSmapiInstalling" class="tool-section-note smapi-install-stage-text">
-            SMAPI {{ smapiInstallerVersion || "" }} 安装器已打开。请按官方安装器提示完成安装，完成后点击"我已完成安装，重新检测"。
+            {{ t('tools.smapiInstallerOpened', { v: smapiInstallerVersion || "" }) }}
           </p>
 
           <p class="tool-section-note">
-            Junimo Box 会下载 SMAPI 最新安装包，解压后运行官方 install on Windows.bat。
-            安装过程仍以 SMAPI 官方安装器为准。
+            {{ t('tools.smapiInstallNote1') }}
+            {{ t('tools.smapiInstallNote2') }}
           </p>
         </article>
 
@@ -912,8 +910,8 @@
               <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 7l-7.5-4-7.5 4m15 0l-7.5 4m7.5-4v8.5l-7.5 4m0-10.5L3.5 7m7.5 4.5v8.5"/></svg>
             </div>
             <div>
-              <h3>安装 ZIP Mod</h3>
-              <p>所有外部来源最终都进入 ZIP 预览和依赖检查，确认后再安装到 Mods 文件夹。</p>
+              <h3>{{ t('tools.zipInstall') }}</h3>
+              <p>{{ t('tools.zipInstallDesc') }}</p>
             </div>
           </div>
 
@@ -925,26 +923,26 @@
             >
               <div class="zip-drop-icon">＋</div>
               <div>
-                <strong>拖拽 ZIP Mod 到这里</strong>
-                <p>拖入 .zip 后会自动生成安装预览，不会直接安装。</p>
+                <strong>{{ t('tools.zipDropZone') }}</strong>
+                <p>{{ t('tools.zipDropZoneHint') }}</p>
               </div>
             </div>
 
             <div class="zip-tool-actions compact-zip-actions">
               <button @click="handlePreviewZipMod">
-                选择 ZIP 文件
+                {{ t('tools.zipSelectFile') }}
               </button>
 
               <span class="zip-tool-hint">
-                支持安装前依赖检查、链接下载、NXM 接收和临时目录安全解压。
+                {{ t('tools.zipInstallHint') }}
               </span>
             </div>
           </div>
 
           <div class="url-zip-box">
             <div class="url-zip-header">
-              <strong>从链接安装 ZIP</strong>
-              <span>支持直接 .zip 下载链接</span>
+              <strong>{{ t('tools.urlInstall') }}</strong>
+              <span>{{ t('tools.urlInstallDesc') }}</span>
             </div>
 
             <div class="url-zip-form">
@@ -952,7 +950,7 @@
                 v-model="urlZipInput"
                 class="url-zip-input"
                 type="text"
-                placeholder="粘贴 Mod ZIP 下载链接，例如 https://.../mod.zip"
+                :placeholder="t('tools.urlPlaceholder')"
                 @keydown.enter="handleDownloadZipFromUrl"
               />
 
@@ -961,24 +959,24 @@
                 :disabled="!gamePath || !urlZipInput.trim()"
                 @click="handleDownloadZipFromUrl"
               >
-                下载并预览
+                {{ t('tools.urlDownloadBtn') }}
               </button>
             </div>
           </div>
 
           <div class="nxm-box">
             <div class="url-zip-header">
-              <strong>Nexus NXM 下载入口</strong>
-              <span>接收 Nexus 的 Mod Manager Download，并自动下载后进入 ZIP 预览</span>
+              <strong>{{ t('tools.nxmSection') }}</strong>
+              <span>{{ t('tools.nxmSectionDesc') }}</span>
             </div>
 
             <div class="nxm-action-row">
               <button class="url-zip-button" @click="handleRegisterNxmProtocol">
-                关联 NXM 协议
+                {{ t('tools.nxmRegisterProtocol') }}
               </button>
 
               <button class="secondary" @click="handleChooseDownloadedZipForNxm">
-                选择已下载 ZIP
+                {{ t('tools.nxmChooseFile') }}
               </button>
             </div>
 
@@ -991,7 +989,7 @@
                 v-model="nxmManualInput"
                 class="url-zip-input"
                 type="text"
-                placeholder="也可以手动粘贴 nxm:// 链接测试下载"
+                :placeholder="t('tools.nxmManualPlaceholder')"
                 @keydown.enter="handleParseManualNxm"
               />
 
@@ -1000,7 +998,7 @@
                 :disabled="!nxmManualInput.trim()"
                 @click="handleParseManualNxm"
               >
-                解析 / 下载
+                {{ t('tools.nxmParseBtn') }}
               </button>
             </div>
           </div>
@@ -1011,8 +1009,8 @@
             <div class="tool-section-header compact-result-header">
               <div class="tool-section-icon">🔎</div>
               <div>
-                <h3>更新检测</h3>
-                <p>读取 manifest.json 里的 UpdateKeys，只提供可打开的更新来源，不自动下载。</p>
+                <h3>{{ t('tools.updateCheck') }}</h3>
+                <p>{{ t('tools.updateCheckDesc') }}</p>
               </div>
             </div>
 
@@ -1021,12 +1019,12 @@
               :disabled="totalModCount === 0"
               @click="handleRunUpdateCheck"
             >
-              检查更新来源
+              {{ t('tools.updateCheckBtn') }}
             </button>
           </div>
 
           <p v-if="updateCheckResults.length > 0" class="tool-section-note update-check-summary">
-            已检查 {{ updateCheckResults.length }} 个 Mod，{{ updateCheckResults.filter((item) => item.sourceUrl).length }} 个提供可打开的更新来源。
+            {{ t('tools.updateResult', { n: updateCheckResults.length, m: updateCheckResults.filter((item) => item.sourceUrl).length }) }}
           </p>
 
           <div v-if="updateCheckResults.length > 0" class="update-result-table">
@@ -1037,25 +1035,25 @@
             >
               <div class="update-result-main">
                 <strong>{{ item.name }}</strong>
-                <span>当前版本：{{ item.version }} · {{ item.statusLabel }}</span>
+                <span>{{ t('tools.updateVersionStatus', { v: item.version, label: item.statusLabel }) }}</span>
               </div>
               <button class="tiny-button" :disabled="!item.sourceUrl" @click="handleOpenUpdateSource(item)">
-                打开来源
+                {{ t('tools.updateOpenSource') }}
               </button>
             </article>
           </div>
 
           <p v-else class="tool-section-note">
-            点击检查后，会在这里以全宽列表显示提供 Nexus / ModDrop / GitHub 更新来源的 Mod，不再挤在半宽卡片里。
+            {{ t('tools.updateEmptyHint') }}
           </p>
         </article>
 
         <div v-if="recentInstallHistory.length === 0" class="tool-inline-state">
           <div>
-            <strong>安装历史</strong>
-            <span>暂无安装历史。完成本地 ZIP、URL ZIP 或 NXM 安装后会显示在这里。</span>
+            <strong>{{ t('tools.installHistory') }}</strong>
+            <span>{{ t('tools.installHistoryEmpty') }}</span>
           </div>
-          <button class="tiny-button" @click="handleInstallHistoryZipSelect">选择 ZIP 安装</button>
+          <button class="tiny-button" @click="handleInstallHistoryZipSelect">{{ t('tools.installHistoryPickZip') }}</button>
         </div>
 
         <article v-else class="panel tool-section-card install-history-panel toolbox-result-panel">
@@ -1063,15 +1061,15 @@
             <div class="tool-section-header compact-result-header">
               <div class="tool-section-icon">🧾</div>
               <div>
-                <h3>安装历史</h3>
-                <p>记录最近通过本地 ZIP、URL ZIP 或 NXM 处理的安装。</p>
+                <h3>{{ t('tools.installHistoryPanel') }}</h3>
+                <p>{{ t('tools.installHistoryDesc') }}</p>
               </div>
             </div>
 
             <div class="history-header-actions">
-              <button class="tiny-button" @click="handleInstallHistoryZipSelect">选择 ZIP 安装</button>
-              <button class="tiny-button secondary" :disabled="installHistory.length === 0" @click="handleExportInstallHistory">导出历史</button>
-              <button class="tiny-button secondary" :disabled="installHistory.length === 0" @click="clearInstallHistory">清空历史</button>
+              <button class="tiny-button" @click="handleInstallHistoryZipSelect">{{ t('tools.installHistoryPickZip') }}</button>
+              <button class="tiny-button secondary" :disabled="installHistory.length === 0" @click="handleExportInstallHistory">{{ t('tools.installHistoryExport') }}</button>
+              <button class="tiny-button secondary" :disabled="installHistory.length === 0" @click="clearInstallHistory">{{ t('tools.installHistoryClear') }}</button>
             </div>
           </div>
 
@@ -1082,7 +1080,7 @@
               class="history-result-row"
             >
               <div>
-                <strong>{{ item.mods.map((mod) => mod.name).join('、') || '未知 Mod' }}</strong>
+                <strong>{{ item.mods.map((mod) => mod.name).join('、') || t('tools.unknownMod') }}</strong>
                 <p>{{ item.sourceLabel }} · {{ item.note }} · {{ formatDateTime(item.installedAt) }}</p>
               </div>
             </article>
@@ -1098,35 +1096,35 @@
             <div class="zip-preview-card-header">
               <div>
                 <p class="eyebrow">ZIP Installer</p>
-                <h3>ZIP Mod 安装预览</h3>
-                <p>已检测到 {{ zipModPreviews.length }} 个 Mod。确认依赖状态后再安装到 Mods 文件夹。</p>
+                <h3>{{ t('tools.zipPreview') }}</h3>
+                <p>{{ t('tools.zipPreviewDesc', { n: zipModPreviews.length }) }}</p>
               </div>
 
               <button class="tiny-button" @click="closeZipPreview">
-                关闭
+                {{ t('tools.zipPreviewClose') }}
               </button>
             </div>
 
-            <p class="muted-text path-text zip-card-path">当前压缩包：{{ selectedZipPath }}</p>
+            <p class="muted-text path-text zip-card-path">{{ t('tools.zipCurrentPath', { path: selectedZipPath }) }}</p>
 
             <div
               v-if="hasZipInstallConflicts"
               class="zip-conflict-summary"
             >
-              <strong>检测到 {{ zipInstallConflicts.length }} 个已安装 Mod</strong>
-              <p>这些目标文件夹已经存在。可以取消、跳过已有 Mod，或使用安全替换 / 更新。</p>
+              <strong>{{ t('tools.zipConflictFound', { n: zipInstallConflicts.length }) }}</strong>
+              <p>{{ t('tools.zipConflictDesc') }}</p>
             </div>
 
             <div
               class="zip-dependency-summary"
               :class="zipMissingRequiredDependencies.length > 0 ? 'has-warning' : 'is-ok'"
             >
-              <strong>安装前依赖检查</strong>
+              <strong>{{ t('tools.zipDepCheck') }}</strong>
               <p v-if="zipMissingRequiredDependencies.length === 0">
-                ✅ 必需依赖已满足，或依赖也包含在这个 ZIP 中。
+                ✅ {{ t('tools.zipDepOk') }}
               </p>
               <p v-else>
-                ⚠️ 缺少 {{ zipMissingRequiredDependencies.length }} 项必需依赖。安装后对应 Mod 可能无法正常加载。
+                ⚠️ {{ t('tools.zipDepWarning', { n: zipMissingRequiredDependencies.length }) }}
               </p>
 
               <ul v-if="zipMissingRequiredDependencies.length > 0" class="zip-missing-list">
@@ -1134,7 +1132,7 @@
                   v-for="dependency in zipMissingRequiredDependencies"
                   :key="dependency.uniqueId"
                 >
-                  {{ dependency.uniqueId }}：被 {{ dependency.requiredBy.join("、") }} 需要
+                  {{ t('tools.zipDepMissing', { id: dependency.uniqueId, mods: dependency.requiredBy.join("、") }) }}
                 </li>
               </ul>
             </div>
@@ -1152,16 +1150,16 @@
                   </div>
 
                   <p class="mod-meta">
-                    {{ mod.author || "未知作者" }} · v{{ mod.version || "未知版本" }}
+                    {{ mod.author || t('mods.authorUnknown') }} · v{{ mod.version || t('mods.versionUnknown') }}
                   </p>
 
                   <div
                     v-if="getZipConflictForPreview(mod)"
                     class="zip-conflict-line"
                   >
-                    已安装：{{ getZipConflictForPreview(mod)?.installedMod.name }}
-                    v{{ getZipConflictForPreview(mod)?.installedMod.version || "未知版本" }}，
-                    准备安装 v{{ mod.version || "未知版本" }}
+                    {{ t('tools.zipInstalled', { name: getZipConflictForPreview(mod)?.installedMod.name }) }}
+                    v{{ getZipConflictForPreview(mod)?.installedMod.version || t('mods.versionUnknown') }}，
+                    {{ t('tools.zipPrepareInstall', { v: mod.version || t('mods.versionUnknown') }) }}
                     <span
                       :class="'version-diff-tag ' + getVersionDiffClass(
                         compareVersions(
@@ -1180,16 +1178,16 @@
                   </div>
 
                   <p class="mod-description compact-description">
-                    {{ mod.description || "没有描述。" }}
+                    {{ mod.description || t('mods.noDescription') }}
                   </p>
 
                   <div class="zip-preview-meta-grid">
                     <div>
-                      <span>UniqueID</span>
-                      <strong>{{ mod.unique_id || "未提供" }}</strong>
+                      <span>{{ t('mods.detailUniqueId') }}</span>
+                      <strong>{{ mod.unique_id || t('mods.detailNotProvided') }}</strong>
                     </div>
                     <div>
-                      <span>目标文件夹</span>
+                      <span>{{ t('tools.zipTargetFolder') }}</span>
                       <strong>{{ mod.suggested_folder }}</strong>
                     </div>
                     <div class="wide">
@@ -1202,13 +1200,13 @@
                     v-if="getZipDependencyRows(mod).length > 0"
                     class="zip-dependencies"
                   >
-                    <p class="dependency-title">依赖检查</p>
+                    <p class="dependency-title">{{ t('tools.zipDepSection') }}</p>
                     <p
                       v-for="dependency in getZipDependencyRows(mod)"
                       :key="dependency.uniqueId"
                       class="dependency-line"
                     >
-                      依赖：
+                      {{ t('tools.zipDepPrefix') }}
                       <span :class="dependency.className">
                         {{ dependency.uniqueId }}
                         {{ dependency.statusLabel }}
@@ -1221,7 +1219,7 @@
 
             <div class="zip-preview-footer">
               <button class="secondary" @click="closeZipPreview">
-                取消
+                {{ t('tools.zipCancel') }}
               </button>
 
               <button
@@ -1229,7 +1227,7 @@
                 :disabled="!gamePath"
                 @click="handleInstallZipMod('cancel')"
               >
-                安装到 Mods
+                {{ t('tools.zipInstallBtn') }}
               </button>
 
               <button
@@ -1237,7 +1235,7 @@
                 :disabled="!gamePath"
                 @click="handleInstallZipMod('skip')"
               >
-                跳过已有并安装新 Mod
+                {{ t('tools.zipSkipBtn') }}
               </button>
 
               <button
@@ -1245,7 +1243,7 @@
                 :disabled="!gamePath"
                 @click="handleInstallZipMod('replace')"
               >
-                替换 / 更新
+                {{ t('tools.zipReplaceBtn') }}
               </button>
             </div>
           </section>
@@ -1264,46 +1262,46 @@
             <div class="zip-preview-card-header">
               <div>
                 <p class="eyebrow">Nexus NXM</p>
-                <h3>来自 Nexus 的下载请求</h3>
-                <p>Junimo Box 已接收到 nxm:// 链接。现在会优先自动下载，下载完成后直接进入 ZIP 预览。</p>
+                <h3>{{ t('tools.nxmRequestTitle') }}</h3>
+                <p>{{ t('tools.nxmRequestDesc') }}</p>
               </div>
 
               <button class="tiny-button" @click="closeNxmRequest">
-                关闭
+                {{ t('tools.nxmRequestClose') }}
               </button>
             </div>
 
             <div class="nxm-detail-grid">
               <div>
-                <span>游戏</span>
-                <strong>{{ parsedNxmRequest.gameDomain || "未识别" }}</strong>
+                <span>{{ t('tools.nxmRequestGame') }}</span>
+                <strong>{{ parsedNxmRequest.gameDomain || t('health.unknown') }}</strong>
               </div>
 
               <div>
-                <span>Mod ID</span>
-                <strong>{{ parsedNxmRequest.modId || "未识别" }}</strong>
+                <span>{{ t('tools.nxmRequestModId') }}</span>
+                <strong>{{ parsedNxmRequest.modId || t('health.unknown') }}</strong>
               </div>
 
               <div>
-                <span>File ID</span>
-                <strong>{{ parsedNxmRequest.fileId || "未识别" }}</strong>
+                <span>{{ t('tools.nxmRequestFileId') }}</span>
+                <strong>{{ parsedNxmRequest.fileId || t('health.unknown') }}</strong>
               </div>
             </div>
 
             <p class="muted-text path-text">
-              原始链接：{{ nxmRequestLink }}
+              {{ t('tools.nxmRequestLink', { link: nxmRequestLink }) }}
             </p>
 
             <div class="zip-dependency-summary" :class="isNxmDownloading ? 'has-warning' : 'has-info'">
-              <strong>{{ isNxmDownloading ? "正在下载" : "下载说明" }}</strong>
+              <strong>{{ isNxmDownloading ? t('tools.nxmRequestDownloading') : t('tools.nxmRequestInfo') }}</strong>
               <p>
-                {{ nxmDownloadMessage || "点击「自动下载并预览」后，Junimo Box 会使用这个 NXM 链接中的下载参数获取 ZIP。失败时仍可打开 Nexus 页面或选择已下载 ZIP。" }}
+                {{ nxmDownloadMessage || t('tools.nxmRequestHint') }}
               </p>
             </div>
 
             <div class="zip-preview-footer">
               <button class="secondary" @click="closeNxmRequest">
-                关闭
+                {{ t('tools.nxmRequestClose') }}
               </button>
 
               <button
@@ -1311,7 +1309,7 @@
                 :disabled="!parsedNxmRequest.nexusPageUrl || isNxmDownloading"
                 @click="handleOpenNxmNexusPage"
               >
-                打开 Nexus 页面
+                {{ t('tools.nxmRequestOpenNexus') }}
               </button>
 
               <button
@@ -1319,14 +1317,14 @@
                 :disabled="isNxmDownloading"
                 @click="handleChooseDownloadedZipForNxm"
               >
-                选择已下载 ZIP
+                {{ t('tools.nxmRequestChooseFile') }}
               </button>
 
               <button
                 :disabled="isNxmDownloading || !parsedNxmRequest.modId || !parsedNxmRequest.fileId"
                 @click="handleDownloadNxmRequest"
               >
-                {{ isNxmDownloading ? "正在下载..." : "自动下载并预览" }}
+                {{ isNxmDownloading ? t('tools.nxmRequestDownloadingBtn') : t('tools.nxmRequestDownloadBtn') }}
               </button>
             </div>
           </section>
@@ -1337,22 +1335,22 @@
           <div class="profile-hero-main">
             <div>
               <p class="eyebrow">Profiles</p>
-              <h3>配置方案</h3>
+              <h3>{{ t('profiles.title') }}</h3>
               <p class="muted-text">
-                配置方案会保存一组要启用的 Mod。当前版本适合快速创建和测试不同组合。
+                {{ t('profiles.desc') }}
               </p>
             </div>
 
             <div class="profile-hero-stats">
-              <span>{{ profiles.length }} 个配置</span>
-              <span>{{ totalModCount }} 个可选 Mod</span>
+              <span>{{ t('profiles.count', { n: profiles.length }) }}</span>
+              <span>{{ t('profiles.modCount', { n: totalModCount }) }}</span>
             </div>
           </div>
 
           <div class="profile-action-cards">
             <button class="profile-action-card primary" @click="startCreateProfile(false)">
-              <strong>＋ 新建配置</strong>
-              <span>手动勾选要启用的 Mod</span>
+              <strong>{{ t('profiles.createNew') }}</strong>
+              <span>{{ t('profiles.createNewDesc') }}</span>
             </button>
 
             <button
@@ -1360,8 +1358,8 @@
               :disabled="mods.length === 0"
               @click="startCreateProfile(true)"
             >
-              <strong>基于当前启用创建</strong>
-              <span>先带入当前已启用的 {{ mods.length }} 个 Mod</span>
+              <strong>{{ t('profiles.createFromCurrent') }}</strong>
+              <span>{{ t('profiles.createFromCurrentDesc', { n: mods.length }) }}</span>
             </button>
 
             <button
@@ -1369,13 +1367,13 @@
               :disabled="profiles.length === 0"
               @click="handleExportAllProfiles"
             >
-              <strong>导出全部配置</strong>
-              <span>保存为 Junimo Box 配置 JSON</span>
+              <strong>{{ t('profiles.exportAll') }}</strong>
+              <span>{{ t('profiles.exportAllDesc') }}</span>
             </button>
 
             <button class="profile-action-card" @click="handleImportProfiles">
-              <strong>导入配置</strong>
-              <span>从 JSON 文件导入一个或多个配置</span>
+              <strong>{{ t('profiles.importProfiles') }}</strong>
+              <span>{{ t('profiles.importProfilesDesc') }}</span>
             </button>
           </div>
         </div>
@@ -1389,46 +1387,46 @@
             <div class="profile-card-header">
               <div>
                 <p class="eyebrow">Profile Editor</p>
-                <h3>{{ profileEditorMode === 'edit' ? '编辑配置' : '新建配置' }}</h3>
+                <h3>{{ profileEditorMode === 'edit' ? t('profiles.editorTitle') : t('profiles.editorTitleNew') }}</h3>
                 <p>
-                  勾选此配置要启用的 Mod。应用配置时，其余 Mod 会移动到 Disabled Mods。
+                  {{ t('profiles.editorDesc') }}
                 </p>
               </div>
 
               <button class="tiny-button" @click="closeProfileEditor">
-                关闭
+                {{ t('profiles.editorClose') }}
               </button>
             </div>
 
             <div class="profile-editor-grid">
               <label class="profile-field">
-                <span>配置名称</span>
+                <span>{{ t('profiles.editorName') }}</span>
                 <input
                   v-model="profileDraftName"
                   class="profile-input"
-                  placeholder="例如：日常游玩 / SVE / 多人联机"
+                  :placeholder="t('profiles.editorNamePlaceholder')"
                 />
               </label>
 
               <label class="profile-field">
-                <span>搜索 Mod</span>
+                <span>{{ t('profiles.editorSearchLabel') }}</span>
                 <input
                   v-model="profileDraftSearchQuery"
                   class="profile-input"
-                  placeholder="按名称、作者、文件夹或类型搜索"
+                  :placeholder="t('profiles.editorSearchPlaceholder')"
                 />
               </label>
             </div>
 
             <div class="profile-editor-summary compact-editor-summary">
-              <span>已选择 {{ profileDraftEnabledFolders.length }} / {{ profileSelectableMods.length }} 个 Mod</span>
+              <span>{{ t('profiles.editorSelected', { n: profileDraftEnabledFolders.length, m: profileSelectableMods.length }) }}</span>
 
               <div class="profile-editor-actions">
                 <button class="tiny-button" @click="selectAllProfileMods">
-                  全选
+                  {{ t('profiles.editorSelectAll') }}
                 </button>
                 <button class="tiny-button" @click="clearProfileDraft">
-                  清空
+                  {{ t('profiles.editorClear') }}
                 </button>
               </div>
             </div>
@@ -1448,14 +1446,14 @@
 
                 <div class="profile-select-main">
                   <strong>{{ mod.name }}</strong>
-                  <p>{{ mod.author || '未知作者' }} · v{{ mod.version || '未知版本' }}</p>
+                  <p>{{ mod.author || t('mods.authorUnknown') }} · v{{ mod.version || t('mods.versionUnknown') }}</p>
                   <span>{{ mod.folderName }}</span>
                 </div>
 
                 <div class="profile-select-tags">
                   <span class="mod-type">{{ mod.modType.label }}</span>
                   <span :class="mod.isDisabled ? 'status-badge disabled' : 'status-badge enabled'">
-                    {{ mod.isDisabled ? '当前禁用' : '当前启用' }}
+                    {{ mod.isDisabled ? t('profiles.editorStatusDisabled') : t('profiles.editorStatusEnabled') }}
                   </span>
                 </div>
               </label>
@@ -1466,11 +1464,11 @@
                 :disabled="!profileDraftName.trim() || profileDraftEnabledFolders.length === 0"
                 @click="handleSaveProfileDraft"
               >
-                保存配置
+                {{ t('profiles.editorSave') }}
               </button>
 
               <button class="secondary" @click="closeProfileEditor">
-                取消
+                {{ t('profiles.editorCancel') }}
               </button>
             </div>
           </section>
@@ -1486,12 +1484,12 @@
               <div class="profile-main">
                 <div class="profile-title-row">
                   <h4>{{ profile.name }}</h4>
-                  <span v-if="currentProfileId === profile.id" class="experiment-chip current-profile-chip">当前</span>
-                  <span v-else class="experiment-chip">配置</span>
+                  <span v-if="currentProfileId === profile.id" class="experiment-chip current-profile-chip">{{ t('profiles.cardCurrent') }}</span>
+                  <span v-else class="experiment-chip">{{ t('profiles.cardProfile') }}</span>
                 </div>
 
                 <p>
-                  {{ profile.enabledFolderNames.length }} 个启用 Mod · 更新于 {{ formatDateTime(profile.updatedAt) }}
+                  {{ t('profiles.cardSummary', { n: profile.enabledFolderNames.length, time: formatDateTime(profile.updatedAt) }) }}
                 </p>
               </div>
 
@@ -1502,7 +1500,7 @@
                     :disabled="!gamePath"
                     @click="handleApplyProfile(profile)"
                   >
-                    {{ currentProfileId === profile.id ? '重新应用当前配置' : '应用并切换' }}
+                    {{ currentProfileId === profile.id ? t('profiles.cardReapply') : t('profiles.cardApply') }}
                   </button>
 
                   <button
@@ -1510,16 +1508,16 @@
                     class="tiny-button profile-mark-action"
                     @click="handleSetCurrentProfile(profile)"
                   >
-                    仅标记当前
+                    {{ t('profiles.cardMarkOnly') }}
                   </button>
 
                   <span v-else class="profile-current-note">
-                    已是当前配置
+                    {{ t('profiles.cardAlreadyCurrent') }}
                   </span>
                 </div>
 
                 <p class="profile-action-note">
-                  "应用并切换"会移动 Mods / Disabled Mods；"仅标记当前"只改变右侧显示，不移动文件。
+                  {{ t('profiles.cardActionHint') }}
                 </p>
 
                 <div class="profile-secondary-actions">
@@ -1527,35 +1525,35 @@
                     class="tiny-button"
                     @click="startEditProfile(profile)"
                   >
-                    编辑
+                    {{ t('profiles.cardEdit') }}
                   </button>
 
                   <button
                     class="tiny-button"
                     @click="handleRenameProfile(profile)"
                   >
-                    改名
+                    {{ t('profiles.cardRename') }}
                   </button>
 
                   <button
                     class="tiny-button"
                     @click="handleCopyProfile(profile)"
                   >
-                    复制
+                    {{ t('profiles.cardCopy') }}
                   </button>
 
                   <button
                     class="tiny-button"
                     @click="handleExportProfile(profile)"
                   >
-                    导出
+                    {{ t('profiles.cardExport') }}
                   </button>
 
                   <button
                     class="tiny-button danger"
                     @click="handleDeleteProfile(profile.id)"
                   >
-                    删除
+                    {{ t('profiles.cardDelete') }}
                   </button>
                 </div>
               </div>
@@ -1566,7 +1564,7 @@
                 class="profile-link-button"
                 @click="toggleProfilePreview(profile.id)"
               >
-                {{ expandedProfileId === profile.id ? '收起包含的 Mod' : '查看包含的 Mod' }}
+                {{ expandedProfileId === profile.id ? t('profiles.cardCollapse') : t('profiles.cardExpand') }}
               </button>
 
               <div
@@ -1600,11 +1598,11 @@
         </div>
 
         <div v-else class="empty-state profile-empty-state">
-          <h3>还没有配置方案</h3>
-          <p>创建配置方案来保存不同的 Mod 启用组合。</p>
+          <h3>{{ t('profiles.emptyTitle') }}</h3>
+          <p>{{ t('profiles.emptyDesc') }}</p>
           <div class="profile-empty-actions" style="margin-top:12px;display:flex;gap:8px;justify-content:center">
-            <button class="tool-action-button" @click="startCreateProfile(false)">新建配置</button>
-            <button class="tool-action-button secondary" @click="handleImportProfiles">导入配置</button>
+            <button class="tool-action-button" @click="startCreateProfile(false)">{{ t('profiles.emptyCreate') }}</button>
+            <button class="tool-action-button secondary" @click="handleImportProfiles">{{ t('profiles.emptyImport') }}</button>
           </div>
         </div>
       </section>
@@ -1612,28 +1610,36 @@
       <section v-if="activeView === 'settings'" class="view-stack">
         <div class="panel compact-panel">
           <div class="panel-header">
-            <h3>基础设置</h3>
-            <span>本地配置</span>
+            <h3>{{ t('settings.basic') }}</h3>
+            <span>{{ t('settings.basicDesc') }}</span>
           </div>
 
           <div class="setting-block">
-            <span>当前游戏路径</span>
-            <strong>{{ gamePath || "未选择" }}</strong>
+            <span>{{ t('settings.language') }}</span>
+            <div class="language-toggle">
+              <button :class="{ active: localeFilterZh }" @click="handleSetLocale('zh')">中文</button>
+              <button :class="{ active: !localeFilterZh }" @click="handleSetLocale('en')">English</button>
+            </div>
+          </div>
+
+          <div class="setting-block">
+            <span>{{ t('settings.gamePath') }}</span>
+            <strong>{{ gamePath || t('settings.noPath') }}</strong>
           </div>
 
           <div class="setting-actions">
-            <button @click="handleSelectPath">重新选择游戏目录</button>
+            <button @click="handleSelectPath">{{ t('settings.changePath') }}</button>
           </div>
         </div>
 
         <div class="panel compact-panel">
           <div class="panel-header">
-            <h3>Nexus Mods</h3>
-            <span>NXM 下载认证</span>
+            <h3>{{ t('settings.nexusSection') }}</h3>
+            <span>{{ t('settings.nexusDesc') }}</span>
           </div>
 
           <p class="muted-text">
-            NXM 自动下载需要 Nexus Personal API Key。Junimo Box 只会把它保存在本机 localStorage，不会写入项目文件。
+            {{ t('settings.nexusExplanation') }}
           </p>
 
           <div class="nexus-key-form">
@@ -1641,33 +1647,33 @@
               v-model="nexusApiKeyDraft"
               class="url-zip-input"
               :type="showNexusApiKey ? 'text' : 'password'"
-              placeholder="粘贴 Nexus Personal API Key"
+              :placeholder="t('settings.nexusPlaceholder')"
               autocomplete="off"
             />
 
             <button class="secondary" @click="showNexusApiKey = !showNexusApiKey">
-              {{ showNexusApiKey ? "隐藏" : "显示" }}
+              {{ showNexusApiKey ? t('settings.nexusHide') : t('settings.nexusShow') }}
             </button>
           </div>
 
           <div class="setting-actions nexus-setting-actions">
-            <button @click="handleSaveNexusApiKey">保存 API Key</button>
+            <button @click="handleSaveNexusApiKey">{{ t('settings.nexusSave') }}</button>
             <button
               class="secondary"
               :disabled="isTestingNexusApiKey || !nexusApiKeyDraft.trim()"
               @click="handleTestNexusApiKey"
             >
-              {{ isTestingNexusApiKey ? "测试中..." : "测试连接" }}
+              {{ isTestingNexusApiKey ? t('settings.nexusTesting') : t('settings.nexusTest') }}
             </button>
             <button class="danger-button" :disabled="!nexusApiKey && !nexusApiKeyDraft" @click="handleClearNexusApiKey">
-              清除
+              {{ t('settings.nexusClear') }}
             </button>
           </div>
 
           <div class="setting-block nexus-status-block">
-            <span>连接状态</span>
+            <span>{{ t('settings.nexusStatus') }}</span>
             <strong>{{ nexusApiStatus }}</strong>
-            <small v-if="nexusApiUserName">账号：{{ nexusApiUserName }} · {{ nexusApiIsPremium ? "Premium" : "Free / 未识别会员状态" }}</small>
+            <small v-if="nexusApiUserName">{{ nexusApiIsPremium ? t('settings.nexusPremiumKnown', { name: nexusApiUserName, isPremium: nexusApiIsPremium }) : t('settings.nexusPremiumUnknown', { name: nexusApiUserName }) }}</small>
           </div>
         </div>
       </section>
@@ -1677,8 +1683,8 @@
       <div class="launch-card">
         <div class="junimo-badge">🌱</div>
         <div>
-          <h3>启动中心</h3>
-          <p>管理你的星露谷 Mod 环境</p>
+          <h3>{{ t('sidebar.launchCenter') }}</h3>
+          <p>{{ t('sidebar.launchCenterDesc') }}</p>
         </div>
 
         <button
@@ -1686,7 +1692,7 @@
           :disabled="!smapiExists"
           @click="handleLaunchSmapi"
         >
-          启动 SMAPI
+          {{ t('sidebar.smapiLaunchBtn') }}
         </button>
 
         <button
@@ -1694,7 +1700,7 @@
           :disabled="!stardewExists"
           @click="handleLaunchVanilla"
         >
-          启动原版
+          {{ t('sidebar.vanillaLaunchBtn') }}
         </button>
 
         <button
@@ -1702,7 +1708,7 @@
           :disabled="!gamePath || !stardewExists || isSmapiInstalling"
           @click="handleInstallSmapi"
         >
-          {{ isSmapiInstalling ? smapiInstallStageMessage || "正在安装 SMAPI..." : smapiExists ? "更新 / 重装 SMAPI" : "安装 SMAPI" }}
+          {{ isSmapiInstalling ? smapiInstallStageMessage || t('sidebar.installingSmapi') : smapiExists ? t('sidebar.reinstallSmapi') : t('sidebar.installSmapi') }}
         </button>
 
         <button
@@ -1711,64 +1717,63 @@
           :disabled="isSmapiInstalling"
           @click="handleRecheckSmapiInstall"
         >
-          我已完成安装，重新检测
+          {{ t('sidebar.recheckSmapi') }}
         </button>
 
         <p v-if="isSmapiInstalling" class="side-install-stage">
-          {{ smapiInstallStageMessage || "正在准备 SMAPI 安装..." }}
+          {{ smapiInstallStageMessage || t('sidebar.smapiPreparing') }}
         </p>
 
         <p v-if="smapiInstallerOpened && !isSmapiInstalling" class="side-install-stage">
-          安装器已打开。完成安装后请重新检测。
+          {{ t('sidebar.smapiInstallerNote') }}
         </p>
       </div>
 
       <div class="side-card current-profile-side-card">
-        <h4>当前配置</h4>
+        <h4>{{ t('sidebar.currentProfile') }}</h4>
         <div class="info-line">
-          <span>配置方案</span>
-          <strong>{{ currentProfile?.name || "默认当前状态" }}</strong>
+          <span>{{ t('sidebar.profileLabel') }}</span>
+          <strong>{{ currentProfile?.name || t('sidebar.defaultProfile') }}</strong>
         </div>
         <div class="info-line">
-          <span>启用 Mod</span>
+          <span>{{ t('sidebar.enabledMods') }}</span>
           <strong>{{ currentProfileEnabledCount }}</strong>
         </div>
-        <button class="side-check-button" @click="activeView = 'profiles'">管理配置</button>
+        <button class="side-check-button" @click="activeView = 'profiles'">{{ t('sidebar.manageProfiles') }}</button>
       </div>
 
       <div class="side-card path-card">
-        <h4>当前路径</h4>
-        <p>{{ gamePath || "尚未选择 Stardew Valley 安装目录" }}</p>
+        <h4>{{ t('sidebar.currentPath') }}</h4>
+        <p>{{ gamePath || t('sidebar.noPath') }}</p>
       </div>
 
       <div class="side-card game-status-card">
-        <h4>游戏状态</h4>
+        <h4>{{ t('sidebar.gameStatus') }}</h4>
         <div class="info-line">
-          <span>Stardew Valley</span>
-          <strong :class="stardewExists ? 'ok' : 'bad'">{{ stardewExists ? "已找到" : "未找到" }}</strong>
+          <span>{{ t('sidebar.stardewValley') }}</span>
+          <strong :class="stardewExists ? 'ok' : 'bad'">{{ stardewExists ? t('sidebar.found') : t('sidebar.notFound') }}</strong>
         </div>
         <div class="info-line">
           <span>SMAPI</span>
-          <strong :class="smapiExists ? 'ok' : 'bad'">{{ smapiExists ? "已安装" : "未安装" }}</strong>
+          <strong :class="smapiExists ? 'ok' : 'bad'">{{ smapiExists ? t('sidebar.installed') : t('sidebar.notInstalled') }}</strong>
         </div>
         <div class="info-line">
-          <span>缺失依赖</span>
+          <span>{{ t('sidebar.missingDeps') }}</span>
           <strong :class="missingDependencies.length > 0 ? 'bad' : 'ok'">{{ missingDependencies.length }}</strong>
         </div>
         <div class="info-line">
-          <span>启动前检查</span>
+          <span>{{ t('sidebar.launchCheck') }}</span>
           <strong :class="launchHealthStatus.className">{{ launchHealthStatus.label }}</strong>
         </div>
-        <button class="side-check-button" :disabled="!gamePath" @click="handleRunLaunchCheck">检查环境</button>
+        <button class="side-check-button" :disabled="!gamePath" @click="handleRunLaunchCheck">{{ t('sidebar.checkEnv') }}</button>
       </div>
     </aside>
 
-    <!-- 下载队列浮动按钮 -->
     <button
       class="download-queue-fab"
       :class="{ 'has-active': downloadQueue.some(i => i.status === 'downloading' || i.status === 'connecting') }"
       @click="isDownloadQueueOpen = !isDownloadQueueOpen"
-      :title="`下载队列 (${downloadQueue.filter(i => i.status === 'queued' || i.status === 'downloading' || i.status === 'connecting').length} 活跃)`"
+      :title="t('queue.title', { n: downloadQueue.filter(i => i.status === 'queued' || i.status === 'downloading' || i.status === 'connecting').length })"
     >
       <span class="dq-fab-count">
         {{ downloadQueue.filter(i => i.status === 'queued' || i.status === 'downloading' || i.status === 'connecting').length }}
@@ -1776,20 +1781,19 @@
       ⬇
     </button>
 
-    <!-- 下载队列面板 -->
     <div v-if="isDownloadQueueOpen" class="download-queue-panel">
       <div class="dq-header">
-        <h3>下载队列</h3>
+        <h3>{{ t('queue.panelTitle') }}</h3>
         <div class="dq-header-actions">
           <button
             v-if="downloadQueue.some(i => i.status === 'completed' || i.status === 'failed' || i.status === 'cancelled')"
             class="tiny-button"
             @click="handleClearCompletedQueue"
           >
-            清除已完成
+            {{ t('queue.clearCompleted') }}
           </button>
           <button class="tiny-button" @click="isDownloadQueueOpen = false">
-            关闭
+            {{ t('queue.close') }}
           </button>
         </div>
       </div>
@@ -1805,7 +1809,7 @@
             <span class="dq-file-name" :title="item.sourceUrl">{{ item.fileName }}</span>
             <span class="dq-source-tag">{{ item.source === "nxm" ? "NXM" : "URL" }}</span>
             <span class="dq-status-badge" :class="`dq-badge-${item.status}`">
-              {{ item.status === "queued" ? "排队" : item.status === "connecting" ? "连接" : item.status === "downloading" ? "下载" : item.status === "merging" ? "合并" : item.status === "completed" ? "完成" : item.status === "cancelled" ? "取消" : "失败" }}
+              {{ item.status === "queued" ? t('queue.statusQueued') : item.status === "connecting" ? t('queue.statusConnecting') : item.status === "downloading" ? t('queue.statusDownloading') : item.status === "merging" ? t('queue.statusMerging') : item.status === "completed" ? t('queue.statusCompleted') : item.status === "cancelled" ? t('queue.statusCancelled') : t('queue.statusFailed') }}
             </span>
           </div>
 
@@ -1831,23 +1835,23 @@
               class="tiny-button"
               @click="handleRetryDownload(item.id)"
             >
-              重试
+              {{ t('queue.retry') }}
             </button>
             <button
               class="tiny-button"
               @click="handleRemoveFromQueue(item.id)"
             >
-              {{ item.status === "downloading" || item.status === "connecting" ? "取消" : "删除" }}
+              {{ item.status === "downloading" || item.status === "connecting" ? t('queue.cancel') : t('queue.delete') }}
             </button>
           </div>
         </div>
 
         <div v-if="downloadQueue.length === 0" class="dq-empty">
-          没有下载任务
+          {{ t('queue.empty') }}
         </div>
       </div>
     </div>
-    <!-- 新手引导 -->
+
     <div v-if="showWizard" class="wizard-overlay" @click.self="showWizard = false">
       <div class="wizard-card">
         <div class="wizard-steps">
@@ -1859,25 +1863,25 @@
 
         <div v-if="wizardStep === 0" class="wizard-body">
           <div class="wizard-icon">🌿</div>
-          <h3>欢迎使用 Junimo Box</h3>
-          <p>你的星露谷 Mod 管理小站。先选择游戏目录，开始管理 Mod 吧。</p>
+          <h3>{{ t('wizard.welcomeTitle') }}</h3>
+          <p>{{ t('wizard.welcomeDesc') }}</p>
           <div class="wizard-actions">
             <button class="hero-action-button wizard-primary" @click="handleWizardSelectPath">
-              选择游戏目录
+              {{ t('wizard.selectPath') }}
             </button>
             <button v-if="wizardSkippable" class="tiny-button ghost-button" @click="handleWizardSkip">
-              跳过引导
+              {{ t('wizard.skip') }}
             </button>
           </div>
         </div>
 
         <div v-if="wizardStep === 1" class="wizard-body">
           <div class="wizard-icon">🛠️</div>
-          <h3>检测 SMAPI</h3>
-          <p>SMAPI 是星露谷 Mod 的运行基石，大部分 Mod 都需要它。</p>
+          <h3>{{ t('wizard.stepSmapiTitle') }}</h3>
+          <p>{{ t('wizard.stepSmapiDesc') }}</p>
           <div class="wizard-status">
-            <span v-if="smapiExists" class="wizard-status-ok">✅ SMAPI 已安装</span>
-            <span v-else class="wizard-status-missing">❌ SMAPI 未安装</span>
+            <span v-if="smapiExists" class="wizard-status-ok">✅ {{ t('wizard.smapiFound') }}</span>
+            <span v-else class="wizard-status-missing">❌ {{ t('wizard.smapiNotFound') }}</span>
           </div>
           <div class="wizard-actions">
             <button
@@ -1886,26 +1890,26 @@
               :disabled="isSmapiInstalling"
               @click="handleWizardInstallSmapi"
             >
-              {{ isSmapiInstalling ? "正在安装..." : "下载并安装 SMAPI" }}
+              {{ isSmapiInstalling ? t('wizard.installingSmapi') : t('wizard.installSmapi') }}
             </button>
             <button class="hero-action-button secondary" @click="handleWizardNext">
-              下一步
+              {{ t('wizard.next') }}
             </button>
             <button v-if="wizardSkippable" class="tiny-button ghost-button" @click="handleWizardSkip">
-              跳过引导
+              {{ t('wizard.skip') }}
             </button>
           </div>
         </div>
 
         <div v-if="wizardStep === 2" class="wizard-body">
           <div class="wizard-icon">🔍</div>
-          <h3>扫描 Mods</h3>
-          <p>检查你的 Mods 文件夹，看看已经安装了多少 Mod。</p>
+          <h3>{{ t('wizard.stepScanTitle') }}</h3>
+          <p>{{ t('wizard.stepScanDesc') }}</p>
           <div class="wizard-status">
             <span v-if="totalModCount > 0">
-              已找到 {{ totalModCount }} 个 Mod（{{ mods.length }} 个启用，{{ disabledMods.length }} 个禁用）
+              {{ t('wizard.scanResult', { n: totalModCount, a: mods.length, b: disabledMods.length }) }}
             </span>
-            <span v-else>尚未扫描 Mods 文件夹。</span>
+            <span v-else>{{ t('wizard.scanEmpty') }}</span>
           </div>
           <div class="wizard-actions">
             <button
@@ -1913,27 +1917,27 @@
               :disabled="isScanning"
               @click="handleWizardScanMods"
             >
-              {{ isScanning ? "扫描中..." : "扫描 Mods 文件夹" }}
+              {{ isScanning ? t('wizard.scanInProgress') : t('wizard.scanBtn') }}
             </button>
             <button class="hero-action-button secondary" @click="handleWizardNext">
-              下一步
+              {{ t('wizard.next') }}
             </button>
             <button v-if="wizardSkippable" class="tiny-button ghost-button" @click="handleWizardSkip">
-              跳过引导
+              {{ t('wizard.skip') }}
             </button>
           </div>
         </div>
 
         <div v-if="wizardStep === 3" class="wizard-body">
           <div class="wizard-icon">🎉</div>
-          <h3>准备就绪</h3>
+          <h3>{{ t('wizard.stepDoneTitle') }}</h3>
           <p>
-            {{ gamePath ? `已选择游戏目录，找到 ${totalModCount} 个 Mod。` : "随时可以选择游戏目录开始管理。" }}
-            {{ smapiExists ? "SMAPI 已就绪，可以启动游戏。" : "" }}
+            {{ gamePath ? t('wizard.stepDoneWithMods', { n: totalModCount }) : t('wizard.stepDoneWithoutMods') }}
+            {{ smapiExists ? t('wizard.stepDoneSmapiReady') : "" }}
           </p>
           <div class="wizard-actions">
             <button class="hero-action-button wizard-primary" @click="handleWizardFinish">
-              开始使用
+              {{ t('wizard.finish') }}
             </button>
           </div>
         </div>
@@ -1941,7 +1945,6 @@
     </div>
   </main>
 
-  <!-- 自定义模态对话框 -->
   <teleport to="body">
     <div v-if="modalState.visible" class="modal-overlay" @click.self="handleModalCancel">
       <div class="modal-box">
@@ -1956,14 +1959,14 @@
         />
         <div class="modal-actions">
           <button class="tiny-button" @click="handleModalCancel">
-            {{ modalState.cancelLabel || "取消" }}
+            {{ modalState.cancelLabel || t('common.cancel') }}
           </button>
           <button
             class="tiny-button"
-            :class="modalState.confirmLabel === '确认删除' ? 'danger' : ''"
+            :class="modalState.isDangerConfirm ? 'danger' : ''"
             @click="handleModalConfirm"
           >
-            {{ modalState.confirmLabel || "确认" }}
+            {{ modalState.confirmLabel || t('common.confirm') }}
           </button>
         </div>
       </div>
@@ -1979,6 +1982,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
+import { t, locale, setLocaleAndNotify } from "./i18n";
 
 const STORAGE_KEY = "junimo-box-game-path";
 const PROFILES_STORAGE_KEY = "junimo-box-profiles";
@@ -2227,28 +2231,28 @@ type DeletedModInfo = {
   deleted_at: string;
 };
 
-const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
-  { id: "overview", label: "总览", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 9.5l7.5-7 7.5 7M4 8v9a1 1 0 001 1h3v-5h4v5h3a1 1 0 001-1V8"/></svg>` },
+const navItems = computed<Array<{ id: ViewId; label: string; icon: string }>>(() => [
+  { id: "overview", label: t('nav.overview'), icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 9.5l7.5-7 7.5 7M4 8v9a1 1 0 001 1h3v-5h4v5h3a1 1 0 001-1V8"/></svg>` },
   { id: "mods", label: "Mods", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6l-7-4-7 4m14 0l-7 4m7-4v8l-7 4m0-10L3 6m7 4v8"/></svg>` },
-  { id: "logs", label: "日志", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.5H5a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 005 18.5h10a1.5 1.5 0 001.5-1.5V6.5z"/><polyline points="12 1.5 12 6.5 17 6.5"/><line x1="13.5" y1="11" x2="6.5" y2="11"/><line x1="13.5" y1="14" x2="6.5" y2="14"/></svg>` },
-  { id: "tools", label: "工具箱", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.2 5.3a.8.8 0 000 1.1l1.4 1.4a.8.8 0 001.1 0l3.2-3.2a5 5 0 01-6.6 6.6l-5.8 5.8a1.8 1.8 0 01-2.5-2.5l5.8-5.8a5 5 0 016.6-6.6l-3.2 3.2z"/></svg>` },
-  { id: "profiles", label: "配置", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17.5v-1.5a3 3 0 00-3-3H5a3 3 0 00-3 3v1.5"/><circle cx="8" cy="5.5" r="3"/><path d="M19 17.5v-1.5a3 3 0 00-2.5-2.9"/><path d="M13.5 3a3 3 0 010 5.8"/></svg>` },
-  { id: "settings", label: "设置", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="M16.2 12.5a1.4 1.4 0 00.3 1.5l0 0a1.7 1.7 0 01-2.4 2.4l0 0a1.4 1.4 0 00-1.5-.3 1.4 1.4 0 00-.8 1.3V18a1.7 1.7 0 01-3.4 0v-.6a1.4 1.4 0 00-.8-1.3 1.4 1.4 0 00-1.5.3l0 0a1.7 1.7 0 01-2.4-2.4l0 0a1.4 1.4 0 00.3-1.5 1.4 1.4 0 00-1.3-.8H2a1.7 1.7 0 010-3.4h.6a1.4 1.4 0 001.3-.8 1.4 1.4 0 00-.3-1.5l0 0a1.7 1.7 0 012.4-2.4l0 0a1.4 1.4 0 001.5.3h.1a1.4 1.4 0 00.8-1.3V2a1.7 1.7 0 013.4 0v.6a1.4 1.4 0 00.8 1.3 1.4 1.4 0 001.5-.3l0 0a1.7 1.7 0 012.4 2.4l0 0a1.4 1.4 0 00-.3 1.5v.1a1.4 1.4 0 001.3.8H18a1.7 1.7 0 010 3.4h-.6a1.4 1.4 0 00-1.2.7z"/></svg>` },
-];
+  { id: "logs", label: t('nav.logs'), icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.5H5a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 005 18.5h10a1.5 1.5 0 001.5-1.5V6.5z"/><polyline points="12 1.5 12 6.5 17 6.5"/><line x1="13.5" y1="11" x2="6.5" y2="11"/><line x1="13.5" y1="14" x2="6.5" y2="14"/></svg>` },
+  { id: "tools", label: t('nav.tools'), icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.2 5.3a.8.8 0 000 1.1l1.4 1.4a.8.8 0 001.1 0l3.2-3.2a5 5 0 01-6.6 6.6l-5.8 5.8a1.8 1.8 0 01-2.5-2.5l5.8-5.8a5 5 0 016.6-6.6l-3.2 3.2z"/></svg>` },
+  { id: "profiles", label: t('nav.profiles'), icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17.5v-1.5a3 3 0 00-3-3H5a3 3 0 00-3 3v1.5"/><circle cx="8" cy="5.5" r="3"/><path d="M19 17.5v-1.5a3 3 0 00-2.5-2.9"/><path d="M13.5 3a3 3 0 010 5.8"/></svg>` },
+  { id: "settings", label: t('nav.settings'), icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="M16.2 12.5a1.4 1.4 0 00.3 1.5l0 0a1.7 1.7 0 01-2.4 2.4l0 0a1.4 1.4 0 00-1.5-.3 1.4 1.4 0 00-.8 1.3V18a1.7 1.7 0 01-3.4 0v-.6a1.4 1.4 0 00-.8-1.3 1.4 1.4 0 00-1.5.3l0 0a1.7 1.7 0 01-2.4-2.4l0 0a1.4 1.4 0 00.3-1.5 1.4 1.4 0 00-1.3-.8H2a1.7 1.7 0 010-3.4h.6a1.4 1.4 0 001.3-.8 1.4 1.4 0 00-.3-1.5l0 0a1.7 1.7 0 012.4-2.4l0 0a1.4 1.4 0 001.5.3h.1a1.4 1.4 0 00.8-1.3V2a1.7 1.7 0 013.4 0v.6a1.4 1.4 0 00.8 1.3 1.4 1.4 0 001.5-.3l0 0a1.7 1.7 0 012.4 2.4l0 0a1.4 1.4 0 00-.3 1.5v.1a1.4 1.4 0 001.3.8H18a1.7 1.7 0 010 3.4h-.6a1.4 1.4 0 00-1.2.7z"/></svg>` },
+]);
 
-const statusFilterOptions: Array<{ value: ModStatusFilter; label: string }> = [
-  { value: "all", label: "全部" },
-  { value: "enabled", label: "已启用" },
-  { value: "disabled", label: "已禁用" },
-];
+const statusFilterOptions = computed<Array<{ value: ModStatusFilter; label: string }>>(() => [
+  { value: "all", label: t('filter.all') },
+  { value: "enabled", label: t('filter.enabled') },
+  { value: "disabled", label: t('filter.disabled') },
+]);
 
-const dependencyFilterOptions: Array<{
+const dependencyFilterOptions = computed<Array<{
   value: ModDependencyFilter;
   label: string;
-}> = [
-  { value: "all", label: "全部依赖" },
-  { value: "missing", label: "缺失依赖" },
-];
+}>>(() => [
+  { value: "all", label: t('filter.allDeps') },
+  { value: "missing", label: t('filter.missingDeps') },
+]);
 
 const activeView = ref<ViewId>("mods");
 
@@ -2342,6 +2346,12 @@ const nexusApiKey = ref("");
 const nexusApiKeyDraft = ref("");
 const showNexusApiKey = ref(false);
 const isTestingNexusApiKey = ref(false);
+const localeFilterZh = computed(() => locale.value === "zh");
+
+function handleSetLocale(l: "zh" | "en") {
+  setLocaleAndNotify(l);
+}
+
 const nexusApiStatus = ref("未配置");
 const nexusApiUserName = ref("");
 const nexusApiIsPremium = ref(false);
@@ -2356,7 +2366,8 @@ interface ModalState {
   cancelLabel?: string;
   promptValue?: string;
   placeholder?: string;
-    resolve?: (value: any) => void;
+  resolve?: (value: any) => void;
+  isDangerConfirm?: boolean;
 }
 
 const modalState = ref<ModalState>({
@@ -2366,16 +2377,17 @@ const modalState = ref<ModalState>({
   message: "",
 });
 
-function showConfirmModal(title: string, message: string): Promise<boolean> {
+function showConfirmModal(title: string, message: string, options?: { isDanger?: boolean }): Promise<boolean> {
   return new Promise((resolve) => {
     modalState.value = {
       visible: true,
       mode: "confirm",
       title,
       message,
-      confirmLabel: "确认",
-      cancelLabel: "取消",
+      confirmLabel: t("common.confirm"),
+      cancelLabel: t("common.cancel"),
       resolve,
+      isDangerConfirm: options?.isDanger ?? false,
     };
   });
 }
@@ -2389,8 +2401,8 @@ function showPromptModal(title: string, placeholder: string, defaultValue?: stri
       message: "",
       promptValue: defaultValue || "",
       placeholder,
-      confirmLabel: "确认",
-      cancelLabel: "取消",
+      confirmLabel: t("common.confirm"),
+      cancelLabel: t("common.cancel"),
       resolve,
     };
   });
@@ -2509,38 +2521,14 @@ const totalModCount = computed(() => mods.value.length + disabledMods.value.leng
 
 const parsedNxmRequest = computed<ParsedNxmRequest>(() => parseNxmLink(nxmRequestLink.value));
 
-const viewMetaMap: Record<ViewId, ViewMeta> = {
-  overview: {
-    eyebrow: "Overview",
-    title: "总览",
-    description: "查看当前游戏环境、Mod 数量和依赖状态。",
-  },
-  mods: {
-    eyebrow: "Local Mods",
-    title: "本地 Mod 管理",
-    description: "搜索、筛选、查看、启用或禁用 Stardew Valley Mods。",
-  },
-  logs: {
-    eyebrow: "SMAPI Logs",
-    title: "SMAPI 日志",
-    description: "读取最近一次 SMAPI 日志，并生成基础诊断摘要。",
-  },
-  tools: {
-    eyebrow: "Toolbox",
-    title: "工具箱",
-    description: "打开常用目录，导出报告，预览并安装 ZIP Mod。",
-  },
-  profiles: {
-    eyebrow: "Profiles",
-    title: "配置方案",
-    description: "保存、查看并应用不同的 Mod 启用组合。",
-  },
-  settings: {
-    eyebrow: "Settings",
-    title: "设置",
-    description: "管理本地路径和 Junimo Box 基础偏好。",
-  },
-};
+const viewMetaMap = computed<Record<ViewId, ViewMeta>>(() => ({
+  overview: { eyebrow: "Overview", title: t("nav.overview"), description: t("overview.heroDesc") },
+  mods: { eyebrow: "Local Mods", title: t("nav.mods"), description: "Search, filter, view, enable or disable Stardew Valley mods." },
+  logs: { eyebrow: "SMAPI Logs", title: t("nav.logs"), description: "Read the latest SMAPI log and generate a diagnosis summary." },
+  tools: { eyebrow: "Toolbox", title: t("nav.tools"), description: "Open common directories, export reports, preview and install ZIP mods." },
+  profiles: { eyebrow: "Profiles", title: t("nav.profiles"), description: "Save, view and apply different mod combinations." },
+  settings: { eyebrow: "Settings", title: t("nav.settings"), description: "Manage local paths and Junimo Box preferences." },
+}));
 
 function setNotice(type: NoticeType, text: string) {
   notice.value = { type, text };
@@ -2570,34 +2558,49 @@ function removeToast(id: number) {
 }
 
 function inferNoticeType(text: string): NoticeType {
+  const lower = text.toLowerCase();
   if (
-    text.includes("但发现") ||
-    text.includes("跳过") ||
-    text.includes("缺失") ||
-    text.includes("未安装")
+    lower.includes("missing") ||
+    lower.includes("skip") ||
+    lower.includes("warning") ||
+    lower.includes("但发现") ||
+    lower.includes("跳过") ||
+    lower.includes("缺失") ||
+    lower.includes("未安装")
   ) {
     return "warning";
   }
 
   if (
-    text.includes("失败") ||
-    text.includes("错误") ||
-    text.includes("无法") ||
-    text.includes("请先") ||
-    text.includes("请选择") ||
-    text.includes("请拖入") ||
-    text.includes("请至少") ||
-    text.includes("未找到") ||
-    text.includes("没有找到")
+    lower.includes("fail") ||
+    lower.includes("error") ||
+    lower.includes("not found") ||
+    lower.includes("invalid") ||
+    lower.includes("missing parameter") ||
+    lower.includes("失败") ||
+    lower.includes("错误") ||
+    lower.includes("无法") ||
+    lower.includes("请先") ||
+    lower.includes("请选择") ||
+    lower.includes("请拖入") ||
+    lower.includes("请至少") ||
+    lower.includes("未找到") ||
+    lower.includes("没有找到")
   ) {
     return "error";
   }
 
   if (
-    text.includes("已") ||
-    text.includes("完成") ||
-    text.includes("正常") ||
-    text.includes("成功")
+    lower.includes("success") ||
+    lower.includes("complete") ||
+    lower.includes("exported") ||
+    lower.includes("imported") ||
+    lower.includes("saved") ||
+    lower.includes("opened") ||
+    lower.includes("已") ||
+    lower.includes("完成") ||
+    lower.includes("正常") ||
+    lower.includes("成功")
   ) {
     return "success";
   }
@@ -2605,7 +2608,7 @@ function inferNoticeType(text: string): NoticeType {
   return "info";
 }
 
-const currentViewMeta = computed<ViewMeta>(() => viewMetaMap[activeView.value]);
+const currentViewMeta = computed<ViewMeta>(() => viewMetaMap.value[activeView.value]);
 
 const allDisplayMods = computed<DisplayModInfo[]>(() => [
   ...mods.value.map((mod) => createDisplayMod(mod, false)),
@@ -3397,7 +3400,7 @@ function handleDeleteProfile(profileId: string) {
 
 async function handleApplyProfile(profile: ModProfile) {
   if (!gamePath.value) {
-    setNotice("error", "请先选择游戏目录。");
+    setNotice("error", t("error.noGamePath"));
     return;
   }
 
@@ -3467,19 +3470,19 @@ async function handleApplyProfile(profile: ModProfile) {
 
 async function handleDetectPath() {
   try {
-    addToast("info", "正在自动检测游戏路径...");
+    addToast("info", t("error.detectingPath"));
     const detected = await invoke<string | null>("detect_game_path");
     if (detected) {
       gamePath.value = detected;
       localStorage.setItem(STORAGE_KEY, detected);
       await checkGameFiles(detected);
       await scanMods();
-      addToast("success", `已自动检测到游戏目录：${detected}`);
+      addToast("success", t("error.gameDetected", { path: detected }));
     } else {
-      addToast("warning", "未能自动检测到 Stardew Valley，请手动选择游戏目录。");
+      addToast("warning", t("error.gameDetectionFailed"));
     }
   } catch (error) {
-    addToast("error", `自动检测失败：${String(error)}`);
+    addToast("error", t("error.detectionError", { err: String(error) }));
   }
 }
 
@@ -3487,7 +3490,7 @@ async function handleSelectPath() {
   const selected = await open({
     directory: true,
     multiple: false,
-    title: "选择 Stardew Valley 安装目录",
+    title: t("error.pathSelectTitle"),
   });
 
   if (typeof selected !== "string") {
@@ -3529,7 +3532,7 @@ async function checkGameFiles(selectedPath: string) {
 
 async function scanMods() {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
@@ -3548,7 +3551,7 @@ async function scanMods() {
     disabledMods.value = [];
     missingDependencies.value = [];
     skippedFolders.value = [];
-    message.value = "未找到 Mods 文件夹。";
+    message.value = t("error.noModsFolder");
     return;
   }
 
@@ -3576,10 +3579,10 @@ async function scanMods() {
 
     message.value =
       foundMods.length > 0
-        ? `扫描完成：找到 ${foundMods.length} 个已启用 Mod。`
-        : "扫描完成：没有找到已启用 Mod。";
+        ? t("toast.scanComplete", { n: foundMods.length })
+        : t("toast.scanCompleteNone");
   } catch (error) {
-    message.value = `扫描 Mods 失败：${String(error)}`;
+    message.value = t("error.scanFailed", { err: String(error) });
   } finally {
     isScanning.value = false;
   }
@@ -3728,14 +3731,14 @@ async function handleInstallHistoryZipSelect() {
 
 async function handleInstallSmapi() {
   if (!gamePath.value) {
-    setNotice("error", "请先选择游戏目录。");
+    setNotice("error", t("error.noGamePath"));
     return;
   }
 
   await checkGameFiles(gamePath.value);
 
   if (!stardewExists.value) {
-    setNotice("error", "未找到 Stardew Valley.exe，无法安装 SMAPI。");
+    setNotice("error", t("error.smapiNoStardew"));
     return;
   }
 
@@ -3746,7 +3749,7 @@ async function handleInstallSmapi() {
   isSmapiInstalling.value = true;
   smapiInstallerOpened.value = false;
   smapiInstallerVersion.value = "";
-  smapiInstallStageMessage.value = "正在读取 SMAPI 下载源...";
+  smapiInstallStageMessage.value = t("error.smapiReadingSource");
   setNotice("info", smapiInstallStageMessage.value);
 
   try {
@@ -3756,15 +3759,15 @@ async function handleInstallSmapi() {
 
     smapiInstallerOpened.value = true;
     smapiInstallerVersion.value = result.version || "";
-    smapiInstallStageMessage.value = "SMAPI 官方安装器已打开。";
+    smapiInstallStageMessage.value = t("error.smapiInstallerOpened");
 
     setNotice(
       "success",
-      `SMAPI ${result.version} 安装器已打开。请在安装器中完成安装，然后点击"我已完成安装，重新检测"。`
+      t("error.smapiInstallerOpenedMessage", { v: result.version })
     );
   } catch (error) {
     smapiInstallerOpened.value = false;
-    setNotice("error", `安装 SMAPI 失败：${String(error)}`);
+    setNotice("error", t("error.smapiInstallFailed", { err: String(error) }));
   } finally {
     isSmapiInstalling.value = false;
   }
@@ -3772,7 +3775,7 @@ async function handleInstallSmapi() {
 
 async function handleRecheckSmapiInstall() {
   if (!gamePath.value) {
-    setNotice("error", "请先选择游戏目录。");
+    setNotice("error", t("error.noGamePath"));
     return;
   }
 
@@ -3784,8 +3787,8 @@ async function handleRecheckSmapiInstall() {
     setNotice(
       "success",
       smapiDetectedVersion.value
-        ? `已检测到 StardewModdingAPI.exe，SMAPI ${smapiDetectedVersion.value} 安装完成。`
-        : "已检测到 StardewModdingAPI.exe，SMAPI 安装完成。"
+        ? `SMAPI ${smapiDetectedVersion.value} detected and installed.`
+        : "SMAPI installation detected."
     );
     await scanMods();
     return;
@@ -3793,8 +3796,8 @@ async function handleRecheckSmapiInstall() {
 
   setNotice(
     "warning",
-    "仍未检测到 StardewModdingAPI.exe。请确认 SMAPI 安装器已经完成安装，并且安装到了当前选择的 Stardew Valley 目录。"
-  );
+    t("error.smapiRecheckPending")
+);
 }
 
 async function handleRunLaunchCheck() {
@@ -3805,7 +3808,7 @@ async function handleLaunchSmapi() {
   const checkResult = await runLaunchEnvironmentCheck("smapi", false);
 
   if (!checkResult.canLaunch) {
-    setNotice("error", formatLaunchIssues("启动前检查未通过", checkResult.errors));
+    setNotice("error", formatLaunchIssues(t("error.launchCheckFailed"), checkResult.errors));
     return;
   }
 
@@ -3817,14 +3820,14 @@ async function handleLaunchSmapi() {
     if (checkResult.warnings.length > 0) {
       setNotice(
         "warning",
-        `启动前发现 ${checkResult.warnings.length} 个警告，仍正在通过 SMAPI 启动游戏。${formatLaunchIssues("", checkResult.warnings)}`
+        t("error.launchCheckWarnings", { n: checkResult.warnings.length }) + formatLaunchIssues("", checkResult.warnings)
       );
       return;
     }
 
-    setNotice("success", "启动前检查通过，正在通过 SMAPI 启动游戏...");
+    setNotice("success", t("error.launchCheckPassed"));
   } catch (error) {
-    setNotice("error", `启动失败：${String(error)}`);
+    setNotice("error", t("error.launchFailed", { err: String(error) }));
   }
 }
 
@@ -3832,7 +3835,7 @@ async function handleLaunchVanilla() {
   const checkResult = await runLaunchEnvironmentCheck("vanilla", false);
 
   if (!checkResult.canLaunch) {
-    setNotice("error", formatLaunchIssues("启动前检查未通过", checkResult.errors));
+    setNotice("error", formatLaunchIssues(t("error.launchCheckFailed"), checkResult.errors));
     return;
   }
 
@@ -3841,9 +3844,9 @@ async function handleLaunchVanilla() {
       path: `${gamePath.value}\\Stardew Valley.exe`,
     });
 
-    setNotice("success", "启动前检查通过，正在启动原版 Stardew Valley...");
+    setNotice("success", t("error.vanillaLaunchPassed"));
   } catch (error) {
-    setNotice("error", `启动失败：${String(error)}`);
+    setNotice("error", t("error.launchFailed", { err: String(error) }));
   }
 }
 
@@ -3857,11 +3860,11 @@ async function runLaunchEnvironmentCheck(
 
   if (showResult) {
     if (errors.length > 0) {
-      setNotice("error", formatLaunchIssues("启动前检查未通过", errors));
+      setNotice("error", formatLaunchIssues(t("error.launchCheckFailed"), errors));
     } else if (warnings.length > 0) {
-      setNotice("warning", formatLaunchIssues(`启动前发现 ${warnings.length} 个警告`, warnings));
+      setNotice("warning", formatLaunchIssues(t("error.launchHealthWarnings", { n: warnings.length }), warnings));
     } else {
-      setNotice("success", "启动前环境检查通过，可以启动 SMAPI。");
+      setNotice("success", t("error.launchHealthPassed"));
     }
   }
 
@@ -3878,7 +3881,7 @@ async function collectLaunchIssues(target: LaunchTarget): Promise<LaunchCheckIss
   if (!gamePath.value) {
     issues.push({
       level: "error",
-      title: "尚未选择 Stardew Valley 游戏目录。",
+      title: t("error.noStardewExe"),
     });
     return issues;
   }
@@ -3888,16 +3891,16 @@ async function collectLaunchIssues(target: LaunchTarget): Promise<LaunchCheckIss
   if (!stardewExists.value) {
     issues.push({
       level: "error",
-      title: "未找到 Stardew Valley.exe。",
-      detail: "请确认当前选择的是 Stardew Valley 安装目录。",
+      title: t("error.noStardewExe"),
+      detail: t("error.noStardewExeHint"),
     });
   }
 
   if (target === "smapi" && !smapiExists.value) {
     issues.push({
       level: "error",
-      title: "未找到 StardewModdingAPI.exe。",
-      detail: "请先安装 SMAPI，或确认 SMAPI 已安装到当前游戏目录。",
+      title: t("error.noSmapiExe"),
+      detail: t("error.noSmapiExeHint"),
     });
   }
 
@@ -3905,8 +3908,8 @@ async function collectLaunchIssues(target: LaunchTarget): Promise<LaunchCheckIss
     if (!modsFolderExists.value) {
       issues.push({
         level: "warning",
-        title: "未找到 Mods 文件夹。",
-        detail: "SMAPI 可以启动，但当前不会加载任何 Mod。",
+        title: t("error.noModsFolderFound"),
+        detail: t("error.noModsFolderHint"),
       });
     } else if (mods.value.length === 0 && disabledMods.value.length === 0) {
       await scanMods();
@@ -3920,23 +3923,23 @@ async function collectLaunchIssues(target: LaunchTarget): Promise<LaunchCheckIss
 
       issues.push({
         level: "warning",
-        title: `发现 ${missingDependencies.value.length} 项缺失依赖。`,
-        detail: preview ? `例如：${preview}` : undefined,
+        title: t("error.depMissing", { n: missingDependencies.value.length }),
+        detail: preview ? t("error.depExample", { names: preview }) : undefined,
       });
     }
 
     if (skippedFolders.value.length > 0) {
       issues.push({
         level: "warning",
-        title: `发现 ${skippedFolders.value.length} 个未识别文件夹。`,
-        detail: "这些文件夹可能不是有效 Mod，或 manifest.json 读取失败。",
+        title: t("error.skippedFolders", { n: skippedFolders.value.length }),
+        detail: t("error.skippedFoldersHint"),
       });
     }
 
     if (duplicateEnabledUniqueIds.value.length > 0) {
       issues.push({
         level: "warning",
-        title: `发现 ${duplicateEnabledUniqueIds.value.length} 个重复 UniqueID。`,
+        title: t("error.duplicateUniqueIds", { n: duplicateEnabledUniqueIds.value.length }),
         detail: duplicateEnabledUniqueIds.value.slice(0, 3).join("、"),
       });
     }
@@ -3949,12 +3952,12 @@ function formatLaunchIssues(title: string, issues: LaunchCheckIssue[]) {
   const lines = issues
     .slice(0, 5)
     .map((issue) => {
-      const detail = issue.detail ? `：${issue.detail}` : "";
+      const detail = issue.detail ? `: ${issue.detail}` : "";
       return `\n- ${issue.title}${detail}`;
     })
     .join("");
 
-  const more = issues.length > 5 ? `\n- 还有 ${issues.length - 5} 个问题未显示。` : "";
+  const more = issues.length > 5 ? `\n- ` + t("error.moreIssues", { n: issues.length - 5 }) : "";
 
   return `${title}${lines}${more}`.trim();
 }
@@ -3978,7 +3981,7 @@ function getDuplicateUniqueIds(modList: ModInfo[]) {
 
 async function handleOpenGameFolder() {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
@@ -3992,7 +3995,7 @@ async function handleOpenGameFolder() {
 
 async function handleOpenModsFolder() {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
@@ -4013,7 +4016,7 @@ async function handleOpenModsFolder() {
 
 async function handleOpenDisplayedModFolder(mod: DisplayModInfo) {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
@@ -4035,7 +4038,7 @@ async function handleOpenDisplayedModFolder(mod: DisplayModInfo) {
 
 async function handleDisableMod(folderName: string) {
   if (!gamePath.value) {
-    addToast("error", "请先选择游戏目录。");
+    addToast("error", t("error.noGamePath"));
     return;
   }
 
@@ -4043,12 +4046,12 @@ async function handleDisableMod(folderName: string) {
   const to = `${gamePath.value}\\Disabled Mods\\${folderName}`;
 
   if (!(await exists(from))) {
-    addToast("error", `禁用失败：没有找到 Mod 文件夹：${folderName}`);
+    addToast("error", t("error.disableNoFolder", { name: folderName }));
     return;
   }
 
   if (await exists(to)) {
-    addToast("error", `禁用失败：Disabled Mods 中已经存在同名文件夹：${folderName}`);
+    addToast("error", t("error.disableAlreadyExists", { name: folderName }));
     return;
   }
 
@@ -4056,19 +4059,19 @@ async function handleDisableMod(folderName: string) {
     await invoke("move_folder", { from, to });
     selectedModKey.value = "";
     selectedModKeys.value = new Set();
-    addToast("success", `已禁用 Mod：${folderName}`, {
-      label: "撤销",
+    addToast("success", t("toast.modDisabled", { name: folderName }), {
+      label: t("common.undo"),
       handler: () => { void handleEnableMod(folderName); },
     });
     await scanMods();
   } catch (error) {
-    addToast("error", `禁用 Mod 失败：${String(error)}`);
+    addToast("error", t("error.disableModFailed", { err: String(error) }));
   }
 }
 
 async function handleEnableMod(folderName: string) {
   if (!gamePath.value) {
-    addToast("error", "请先选择游戏目录。");
+    addToast("error", t("error.noGamePath"));
     return;
   }
 
@@ -4076,7 +4079,7 @@ async function handleEnableMod(folderName: string) {
   const to = `${gamePath.value}\\Mods\\${folderName}`;
 
   if (!(await exists(from))) {
-    addToast("error", `启用失败：没有找到已禁用的 Mod 文件夹：${folderName}`);
+    addToast("error", t("error.enableNoDisabledFolder", { name: folderName }));
     return;
   }
 
@@ -4090,7 +4093,7 @@ async function handleEnableMod(folderName: string) {
     selectedModKey.value = "";
     selectedModKeys.value = new Set();
     addToast("success", `已启用 Mod：${folderName}`, {
-      label: "撤销",
+      label: t("common.undo"),
       handler: () => { void handleDisableMod(folderName); },
     });
     await scanMods();
@@ -4102,13 +4105,13 @@ async function handleEnableMod(folderName: string) {
 
 async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
   if (!gamePath.value) {
-    addToast("error", "请先选择游戏目录。");
+    addToast("error", t("error.noGamePath"));
     return;
   }
 
   const confirmed = await showConfirmModal(
-    "确认删除 Mod",
-    `确定要删除「${mod.name}」吗？\n\nJunimo Box 会把它移动到游戏目录里的 Junimo Box Deleted Mods 文件夹，不会直接永久删除。`
+    t("error.confirmDeleteMod"),
+    t("error.confirmDeleteModMessage", { name: mod.name })
   );
 
   if (!confirmed) {
@@ -4125,7 +4128,7 @@ async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
 
   try {
     if (!(await exists(from))) {
-      addToast("error", `删除失败：没有找到 Mod 文件夹：${mod.folderName}`);
+      addToast("error", t("error.deleteNoFolder", { name: mod.folderName }));
       return;
     }
 
@@ -4136,8 +4139,8 @@ async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
     }
     selectedModKeys.value = new Set();
 
-    addToast("success", `已删除 Mod：${mod.name}`, {
-      label: "撤销",
+    addToast("success", t("toast.modDeleted", { name: mod.name }), {
+      label: t("common.undo"),
       handler: () => {
         const recycleFolderName = `${safeFolderName}-${timestamp}`;
         void handleRestoreDeletedMod(recycleFolderName);
@@ -4145,20 +4148,20 @@ async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
     });
     await scanMods();
   } catch (error) {
-    addToast("error", `删除 Mod 失败：${String(error)}`);
+    addToast("error", t("error.deleteModFailed", { err: String(error) }));
   }
 }
 
 async function handleExportModList() {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
   const filePath = await save({
-    title: "导出 Mod 列表",
+    title: t("tools.exportModList"),
     defaultPath: "junimo-box-mod-report.json",
-    filters: [{ name: "JSON 文件", extensions: ["json"] }],
+    filters: [{ name: "JSON", extensions: ["json"] }],
   });
 
   if (!filePath) {
@@ -4196,7 +4199,7 @@ async function handleExportModList() {
 
 async function handleExportProblemReport() {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
@@ -4717,7 +4720,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
 async function handleDownloadZipFromUrl() {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
@@ -4890,7 +4893,7 @@ function closeZipPreview() {
 
 async function handleInstallZipMod(conflictMode: ZipInstallConflictMode = "cancel") {
   if (!gamePath.value) {
-    message.value = "请先选择游戏目录。";
+    message.value = t("error.noGamePath");
     return;
   }
 
@@ -5978,6 +5981,36 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .summary-row strong,
 .setting-block strong {
   word-break: break-all;
+}
+
+.language-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border-strong, rgba(92,70,48,0.22));
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.language-toggle button {
+  flex: 1;
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #7a6652);
+  transition: all 0.15s ease;
+}
+
+.language-toggle button.active {
+  background: var(--green-bg, #6fa85f);
+  color: #fff;
+}
+
+.language-toggle button:not(.active):hover {
+  background: var(--bg-card, #f6ead8);
 }
 
 .status-card small {
