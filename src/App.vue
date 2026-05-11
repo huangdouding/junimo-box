@@ -2,7 +2,13 @@
   <main class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon">🌿</div>
+        <div class="brand-icon" aria-label="Junimo Box">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="26" height="26" rx="6" stroke="currentColor" fill="none"/>
+            <path d="M10 14l6-4 6 4v8a1 1 0 01-1 1H11a1 1 0 01-1-1v-8z" stroke="currentColor" fill="none"/>
+            <path d="M10 14v-2a1 1 0 011-1h10a1 1 0 011 1v2" stroke="currentColor" fill="none"/>
+          </svg>
+        </div>
         <div>
           <h1>Junimo Box</h1>
           <p>祝尼魔盒</p>
@@ -17,7 +23,7 @@
           :class="{ active: activeView === item.id }"
           @click="activeView = item.id"
         >
-          <span>{{ item.icon }}</span>
+          <span v-html="item.icon" class="nav-icon"></span>
           {{ item.label }}
         </button>
       </nav>
@@ -237,7 +243,9 @@
         <div class="panel filter-panel">
           <div class="filter-top-row">
             <div class="search-box">
-              <span>🔎</span>
+              <span class="search-icon">
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="5.5"/><line x1="11.5" y1="11.5" x2="16" y2="16"/></svg>
+              </span>
               <input
                 v-model="modSearchQuery"
                 type="text"
@@ -900,7 +908,9 @@
 
         <article class="panel tool-section-card zip-tool-card toolbox-full-card">
           <div class="tool-section-header">
-            <div class="tool-section-icon">📦</div>
+            <div class="tool-section-icon">
+              <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 7l-7.5-4-7.5 4m15 0l-7.5 4m7.5-4v8.5l-7.5 4m0-10.5L3.5 7m7.5 4.5v8.5"/></svg>
+            </div>
             <div>
               <h3>安装 ZIP Mod</h3>
               <p>所有外部来源最终都进入 ZIP 预览和依赖检查，确认后再安装到 Mods 文件夹。</p>
@@ -2218,12 +2228,12 @@ type DeletedModInfo = {
 };
 
 const navItems: Array<{ id: ViewId; label: string; icon: string }> = [
-  { id: "overview", label: "总览", icon: "🏡" },
-  { id: "mods", label: "Mods", icon: "📦" },
-  { id: "logs", label: "日志", icon: "📜" },
-  { id: "tools", label: "工具箱", icon: "🧰" },
-  { id: "profiles", label: "配置", icon: "🧩" },
-  { id: "settings", label: "设置", icon: "⚙️" },
+  { id: "overview", label: "总览", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 9.5l7.5-7 7.5 7M4 8v9a1 1 0 001 1h3v-5h4v5h3a1 1 0 001-1V8"/></svg>` },
+  { id: "mods", label: "Mods", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6l-7-4-7 4m14 0l-7 4m7-4v8l-7 4m0-10L3 6m7 4v8"/></svg>` },
+  { id: "logs", label: "日志", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.5H5a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 005 18.5h10a1.5 1.5 0 001.5-1.5V6.5z"/><polyline points="12 1.5 12 6.5 17 6.5"/><line x1="13.5" y1="11" x2="6.5" y2="11"/><line x1="13.5" y1="14" x2="6.5" y2="14"/></svg>` },
+  { id: "tools", label: "工具箱", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.2 5.3a.8.8 0 000 1.1l1.4 1.4a.8.8 0 001.1 0l3.2-3.2a5 5 0 01-6.6 6.6l-5.8 5.8a1.8 1.8 0 01-2.5-2.5l5.8-5.8a5 5 0 016.6-6.6l-3.2 3.2z"/></svg>` },
+  { id: "profiles", label: "配置", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17.5v-1.5a3 3 0 00-3-3H5a3 3 0 00-3 3v1.5"/><circle cx="8" cy="5.5" r="3"/><path d="M19 17.5v-1.5a3 3 0 00-2.5-2.9"/><path d="M13.5 3a3 3 0 010 5.8"/></svg>` },
+  { id: "settings", label: "设置", icon: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="M16.2 12.5a1.4 1.4 0 00.3 1.5l0 0a1.7 1.7 0 01-2.4 2.4l0 0a1.4 1.4 0 00-1.5-.3 1.4 1.4 0 00-.8 1.3V18a1.7 1.7 0 01-3.4 0v-.6a1.4 1.4 0 00-.8-1.3 1.4 1.4 0 00-1.5.3l0 0a1.7 1.7 0 01-2.4-2.4l0 0a1.4 1.4 0 00.3-1.5 1.4 1.4 0 00-1.3-.8H2a1.7 1.7 0 010-3.4h.6a1.4 1.4 0 001.3-.8 1.4 1.4 0 00-.3-1.5l0 0a1.7 1.7 0 012.4-2.4l0 0a1.4 1.4 0 001.5.3h.1a1.4 1.4 0 00.8-1.3V2a1.7 1.7 0 013.4 0v.6a1.4 1.4 0 00.8 1.3 1.4 1.4 0 001.5-.3l0 0a1.7 1.7 0 012.4 2.4l0 0a1.4 1.4 0 00-.3 1.5v.1a1.4 1.4 0 001.3.8H18a1.7 1.7 0 010 3.4h-.6a1.4 1.4 0 00-1.2.7z"/></svg>` },
 ];
 
 const statusFilterOptions: Array<{ value: ModStatusFilter; label: string }> = [
@@ -9563,6 +9573,53 @@ button.secondary:hover:not(:disabled) {
 
 .modal-actions .tiny-button {
   min-width: 80px;
+}
+
+/* SVG icon sizing */
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.nav-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.brand-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--bg-surface, #fffaf0);
+  color: var(--wood-mid, #6f431f);
+}
+
+.brand-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.search-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted, #846b50);
+  flex-shrink: 0;
+}
+
+.search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tool-section-icon svg {
+  width: 28px;
+  height: 28px;
 }
 
 /* Search highlight */
