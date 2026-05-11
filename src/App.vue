@@ -28,7 +28,14 @@
           :disabled="!smapiExists"
           @click="handleLaunchSmapi"
         >
-          启动游戏
+          启动 SMAPI
+        </button>
+        <button
+          class="sidebar-launch-button vanilla"
+          :disabled="!stardewExists"
+          @click="handleLaunchVanilla"
+        >
+          启动原版
         </button>
       </div>
     </aside>
@@ -5688,6 +5695,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .sidebar-footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   padding: 12px;
 }
 
@@ -5713,6 +5723,14 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .sidebar-launch-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.sidebar-launch-button.vanilla {
+  background: linear-gradient(180deg, var(--gold-bg, #8d693c), #735331);
+}
+
+.sidebar-launch-button.vanilla:hover:not(:disabled) {
+  background: linear-gradient(180deg, #735331, #5c4228);
 }
 
 .content {
@@ -7670,7 +7688,12 @@ button.secondary:hover:not(:disabled) {
   }
 
   .sidebar .sidebar-launch-button::after {
-    content: "▶";
+    content: "⚡";
+    font-size: 16px;
+  }
+
+  .sidebar .sidebar-launch-button.vanilla::after {
+    content: "🌾";
     font-size: 16px;
   }
 
