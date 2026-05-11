@@ -59,6 +59,13 @@
           >
             选择目录
           </button>
+          <button
+            v-if="activeView === 'overview' && !gamePath"
+            class="secondary compact-header-button"
+            @click="handleDetectPath"
+          >
+            自动检测
+          </button>
 
           <button
             v-if="activeView === 'mods' && gamePath"
@@ -2750,6 +2757,19 @@ onMounted(async () => {
     gamePath.value = savedPath;
     await checkGameFiles(savedPath);
     await scanMods();
+  } else {
+    // 自动检测游戏路径
+    try {
+      const detected = await invoke<string | null>("detect_game_path");
+      if (detected) {
+        gamePath.value = detected;
+        localStorage.setItem(STORAGE_KEY, detected);
+        await checkGameFiles(detected);
+        await scanMods();
+      }
+    } catch {
+      // 自动检测失败，静默处理
+    }
   }
 
   await checkStartupNxmLink();
@@ -3435,6 +3455,24 @@ async function handleApplyProfile(profile: ModProfile) {
   }
 
   activeView.value = "mods";
+}
+
+async function handleDetectPath() {
+  try {
+    addToast("info", "正在自动检测游戏路径...");
+    const detected = await invoke<string | null>("detect_game_path");
+    if (detected) {
+      gamePath.value = detected;
+      localStorage.setItem(STORAGE_KEY, detected);
+      await checkGameFiles(detected);
+      await scanMods();
+      addToast("success", `已自动检测到游戏目录：${detected}`);
+    } else {
+      addToast("warning", "未能自动检测到 Stardew Valley，请手动选择游戏目录。");
+    }
+  } catch (error) {
+    addToast("error", `自动检测失败：${String(error)}`);
+  }
 }
 
 async function handleSelectPath() {

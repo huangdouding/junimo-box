@@ -24,6 +24,34 @@ const FALLBACK_SMAPI_DOWNLOAD_URL: &str =
     "https://github.com/Pathoschild/SMAPI/releases/download/4.5.2/SMAPI-4.5.2-installer.zip";
 
 #[tauri::command]
+fn detect_game_path() -> Result<Option<String>, String> {
+    let candidates = vec![
+        r"C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley",
+        r"C:\Program Files\Steam\steamapps\common\Stardew Valley",
+        r"C:\Program Files (x86)\GOG Galaxy\Games\Stardew Valley",
+        r"C:\Program Files\GOG Galaxy\Games\Stardew Valley",
+    ];
+
+    for path in candidates {
+        let exe = format!(r"{}\Stardew Valley.exe", path);
+        if Path::new(&exe).exists() {
+            return Ok(Some(path.to_string()));
+        }
+    }
+
+    // Check alternate drives via Steam library folders (common D/E drives)
+    for drive in &["D", "E", "F", "G"] {
+        let path = format!(r"{}:\Steam\steamapps\common\Stardew Valley", drive);
+        let exe = format!(r"{}\Stardew Valley.exe", path);
+        if Path::new(&exe).exists() {
+            return Ok(Some(path));
+        }
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
 fn launch_game(path: String) -> Result<(), String> {
     Command::new(path)
         .spawn()
@@ -2956,6 +2984,7 @@ pub fn run() {
             open_folder,
             move_folder,
             write_text_file,
+            detect_game_path,
             get_smapi_log_folder,
             read_latest_smapi_log,
             preview_zip_mods,
