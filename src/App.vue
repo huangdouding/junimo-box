@@ -204,6 +204,7 @@
                 v-model="modSearchQuery"
                 type="text"
                 placeholder="搜索 Mod 名称、作者、UniqueID、文件夹或描述..."
+                @keydown.escape="modSearchQuery = ''"
               />
             </div>
 
@@ -500,6 +501,7 @@
         <div v-if="gamePath && allDisplayMods.length > 0 && filteredMods.length === 0" class="empty-state">
           <h3>没有符合条件的 Mod</h3>
           <p>试试清空搜索词，或者切换筛选条件。</p>
+          <button class="tiny-button" @click="clearModFilters" style="margin-top:8px">清空筛选</button>
         </div>
 
         <div v-if="skippedFolders.length > 0" class="panel">
@@ -529,7 +531,10 @@
           class="empty-state"
         >
           <h3>还没有扫描到 Mod</h3>
-          <p>点击“重新扫描”或进入工具箱扫描 Mods 文件夹。</p>
+          <p>点击下方按钮扫描 Mods 文件夹。</p>
+          <button class="tool-action-button" :disabled="isScanning" @click="scanMods" style="margin-top:12px">
+            {{ isScanning ? "扫描中..." : "扫描 Mods 文件夹" }}
+          </button>
         </div>
       </section>
 
@@ -630,7 +635,7 @@
 
         <div v-if="!smapiLogContent" class="empty-state">
           <h3>还没有读取日志</h3>
-          <p>点击“读取最新日志”，Junimo Box 会读取最近一次 SMAPI 日志并生成诊断摘要。</p>
+          <p>点击"读取最新日志"，Junimo Box 会读取最近一次 SMAPI 日志并生成诊断摘要。</p>
         </div>
       </section>
 
@@ -836,7 +841,7 @@
           </p>
 
           <p v-if="smapiInstallerOpened && !isSmapiInstalling" class="tool-section-note smapi-install-stage-text">
-            SMAPI {{ smapiInstallerVersion || "" }} 安装器已打开。请按官方安装器提示完成安装，完成后点击“我已完成安装，重新检测”。
+            SMAPI {{ smapiInstallerVersion || "" }} 安装器已打开。请按官方安装器提示完成安装，完成后点击"我已完成安装，重新检测"。
           </p>
 
           <p class="tool-section-note">
@@ -1234,7 +1239,7 @@
             <div class="zip-dependency-summary" :class="isNxmDownloading ? 'has-warning' : 'has-info'">
               <strong>{{ isNxmDownloading ? "正在下载" : "下载说明" }}</strong>
               <p>
-                {{ nxmDownloadMessage || "点击“自动下载并预览”后，Junimo Box 会使用这个 NXM 链接中的下载参数获取 ZIP。失败时仍可打开 Nexus 页面或选择已下载 ZIP。" }}
+                {{ nxmDownloadMessage || "点击「自动下载并预览」后，Junimo Box 会使用这个 NXM 链接中的下载参数获取 ZIP。失败时仍可打开 Nexus 页面或选择已下载 ZIP。" }}
               </p>
             </div>
 
@@ -1456,7 +1461,7 @@
                 </div>
 
                 <p class="profile-action-note">
-                  “应用并切换”会移动 Mods / Disabled Mods；“仅标记当前”只改变右侧显示，不移动文件。
+                  "应用并切换"会移动 Mods / Disabled Mods；"仅标记当前"只改变右侧显示，不移动文件。
                 </p>
 
                 <div class="profile-secondary-actions">
@@ -1538,7 +1543,11 @@
 
         <div v-else class="empty-state profile-empty-state">
           <h3>还没有配置方案</h3>
-          <p>点击“新建配置”，在小卡片里直接勾选要启用的 Mod。</p>
+          <p>创建配置方案来保存不同的 Mod 启用组合。</p>
+          <div class="profile-empty-actions" style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+            <button class="tool-action-button" @click="startCreateProfile(false)">新建配置</button>
+            <button class="tool-action-button secondary" @click="handleImportProfiles">导入配置</button>
+          </div>
         </div>
       </section>
 
@@ -2620,6 +2629,8 @@ onMounted(async () => {
   nxmPendingPollTimer = setInterval(() => {
     void checkPendingNxmLink();
   }, 1000);
+
+  document.addEventListener("keydown", handleGlobalKeydown);
 });
 
 onUnmounted(() => {
@@ -2642,6 +2653,8 @@ onUnmounted(() => {
     clearInterval(nxmPendingPollTimer);
     nxmPendingPollTimer = null;
   }
+
+  document.removeEventListener("keydown", handleGlobalKeydown);
 });
 
 
@@ -3563,7 +3576,7 @@ async function handleInstallSmapi() {
 
     setNotice(
       "success",
-      `SMAPI ${result.version} 安装器已打开。请在安装器中完成安装，然后点击“我已完成安装，重新检测”。`
+      `SMAPI ${result.version} 安装器已打开。请在安装器中完成安装，然后点击"我已完成安装，重新检测"。`
     );
   } catch (error) {
     smapiInstallerOpened.value = false;
@@ -4456,6 +4469,45 @@ async function checkPendingNxmLink() {
   }
 }
 
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    if (modalState.value.visible) {
+      handleModalCancel();
+      return;
+    }
+    if (selectedModKey.value) {
+      closeModDetail();
+      return;
+    }
+    if (isProfileEditorOpen.value) {
+      closeProfileEditor();
+      return;
+    }
+    if (zipModPreviews.value.length > 0) {
+      closeZipPreview();
+      return;
+    }
+    if (isDownloadQueueOpen.value) {
+      isDownloadQueueOpen.value = false;
+      return;
+    }
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key === "f") {
+    const searchInput = document.querySelector<HTMLInputElement>(".search-box input");
+    if (searchInput && activeView.value === "mods") {
+      searchInput.focus();
+      event.preventDefault();
+    }
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key === "r") {
+    if (gamePath.value && !isScanning.value) {
+      void scanMods();
+      event.preventDefault();
+    }
+  }
+}
 
 async function handleDownloadZipFromUrl() {
   if (!gamePath.value) {
@@ -4642,7 +4694,7 @@ async function handleInstallZipMod(conflictMode: ZipInstallConflictMode = "cance
   }
 
   if (hasZipInstallConflicts.value && conflictMode === "cancel") {
-    message.value = `检测到 ${zipInstallConflicts.value.length} 个已安装 Mod。请选择“跳过已有”或“替换 / 更新”。`;
+    message.value = `检测到 ${zipInstallConflicts.value.length} 个已安装 Mod。请选择"跳过已有"或"替换 / 更新"。`;
     return;
   }
 
@@ -8013,7 +8065,7 @@ button.secondary:hover:not(:disabled) {
 
 
 
-/* v0.6.1：Profiles 操作区重排，区分“实际切换”和“仅标记” */
+/* v0.6.1：Profiles 操作区重排，区分"实际切换"和"仅标记" */
 .profile-action-groups {
   flex-shrink: 0;
   display: flex;
@@ -8737,7 +8789,7 @@ button.secondary:hover:not(:disabled) {
 
 
 
-/* v0.6.1：Profiles 操作区重排，区分“实际切换”和“仅标记” */
+/* v0.6.1：Profiles 操作区重排，区分"实际切换"和"仅标记" */
 .profile-action-groups {
   flex-shrink: 0;
   display: flex;
@@ -9754,5 +9806,21 @@ button.secondary:hover:not(:disabled),
 .tool-action-button.danger {
   color: var(--danger-bg);
   border-color: var(--danger-bg);
+}
+
+.danger-button {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--danger-bg, #b9574f);
+  background: transparent;
+  color: var(--danger-bg, #b9574f);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.danger-button:hover {
+  background: var(--danger-bg, #b9574f);
+  color: #fff;
 }
 </style>
