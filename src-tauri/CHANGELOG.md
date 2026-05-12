@@ -26,6 +26,11 @@
 - 移除所有页面顶部大卡片/介绍卡片，避免重复信息分散注意力。
 - 产物优化：JS 减少约 15%，CSS 减少约 10%。
 
+### 已知问题
+- Mod 安装暂不支持语言补丁类 Mod（如中文翻译包），此类 Mod 需手动安装到 Mods 文件夹。
+- 在线 Mod 资源库暂未实现。
+- Mod 冲突检测暂未实现。
+
 ## 1.2.0 - Overview UI Redesign, Build Optimization, and Batch Operations Fix
 
 ### 优化
