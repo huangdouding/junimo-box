@@ -3,16 +3,16 @@
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-icon" aria-label="Junimo Box">
-          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="26" height="26" rx="6" stroke="currentColor" fill="none"/>
-            <path d="M10 14l6-4 6 4v8a1 1 0 01-1 1H11a1 1 0 01-1-1v-8z" stroke="currentColor" fill="none"/>
-            <path d="M10 14v-2a1 1 0 011-1h10a1 1 0 011 1v2" stroke="currentColor" fill="none"/>
-          </svg>
+          <img :src="junimoMascotAvatar" alt="Junimo Box" class="brand-icon-image" />
         </div>
         <div>
           <h1>Junimo Box</h1>
           <p>{{ t('brand.subtitle') }}</p>
         </div>
+      </div>
+
+      <div class="sidebar-decor-divider">
+        <img :src="leafDivider" alt="" aria-hidden="true" class="sidebar-divider-image" />
       </div>
 
       <nav class="nav">
@@ -51,10 +51,22 @@
       :class="{ 'content-fixed': activeView === 'mods' }"
     >
       <header class="content-header">
-        <div>
-          <p class="eyebrow">{{ currentViewMeta.eyebrow }}</p>
-          <h2>{{ currentViewMeta.title }}</h2>
-          <p>{{ currentViewMeta.description }}</p>
+        <div class="content-header-main">
+          <div>
+            <p class="eyebrow">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-2px;margin-right:4px;opacity:0.6;">
+                <path d="M6 1C4 3 4 5 6 7s5-1 5-3-3-4-5-3z" fill="#8bc47a" opacity="0.7"/>
+                <path d="M6 1C8 3 8 5 6 7S1 6 1 4 4 1 6 1z" fill="#6fa85f" opacity="0.6"/>
+              </svg>
+              {{ currentViewMeta.eyebrow }}
+            </p>
+            <h2>{{ currentViewMeta.title }}</h2>
+            <p>{{ currentViewMeta.description }}</p>
+          </div>
+
+          <div v-if="currentViewMeta.scene" class="content-header-scene-wrap">
+            <img :src="currentViewMeta.scene" alt="" aria-hidden="true" class="content-header-scene" />
+          </div>
         </div>
 
         <div class="header-actions">
@@ -150,8 +162,8 @@
           </div>
 
           <div class="overview-hero-scene" aria-hidden="true">
-            <svg class="scene-bg-svg" viewBox="0 0 400 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="280" rx="16"/>
+            <svg class="scene-bg-svg" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="400" height="240" rx="12"/>
               <defs>
                 <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stop-color="#fce8c8"/>
@@ -172,7 +184,7 @@
                 </linearGradient>
               </defs>
               <!-- Sky -->
-              <rect width="400" height="280" fill="url(#skyGrad)"/>
+              <rect width="400" height="240" fill="url(#skyGrad)"/>
               <!-- Sun -->
               <circle cx="340" cy="42" r="28" fill="#fde8b3" opacity="0.7"/>
               <circle cx="340" cy="42" r="20" fill="#fef0cd" opacity="0.5"/>
@@ -192,17 +204,17 @@
               <ellipse cx="30" cy="210" rx="130" ry="60" fill="url(#hillGrad2)" opacity="0.4"/>
               <ellipse cx="370" cy="210" rx="140" ry="55" fill="url(#hillGrad2)" opacity="0.35"/>
               <!-- Ground -->
-              <rect x="0" y="175" width="400" height="105" fill="url(#fieldGrad)" opacity="0.35"/>
+              <rect x="0" y="170" width="400" height="70" fill="url(#fieldGrad)" opacity="0.35"/>
               <!-- Crop rows (front field) -->
               <g stroke="#6a9a56" stroke-width="1.5" opacity="0.35">
-                <line x1="20" y1="235" x2="20" y2="255"/>
-                <line x1="28" y1="235" x2="28" y2="255"/>
-                <line x1="36" y1="235" x2="36" y2="255"/>
-                <line x1="44" y1="235" x2="44" y2="255"/>
-                <line x1="52" y1="235" x2="52" y2="255"/>
-                <line x1="60" y1="237" x2="60" y2="255"/>
-                <line x1="68" y1="237" x2="68" y2="255"/>
-                <line x1="76" y1="235" x2="76" y2="255"/>
+                <line x1="20" y1="200" x2="20" y2="215"/>
+                <line x1="28" y1="200" x2="28" y2="215"/>
+                <line x1="36" y1="200" x2="36" y2="215"/>
+                <line x1="44" y1="200" x2="44" y2="215"/>
+                <line x1="52" y1="200" x2="52" y2="215"/>
+                <line x1="60" y1="202" x2="60" y2="215"/>
+                <line x1="68" y1="202" x2="68" y2="215"/>
+                <line x1="76" y1="200" x2="76" y2="215"/>
               </g>
               <!-- Cabin / Farmhouse -->
               <g>
@@ -531,18 +543,25 @@
 
                       <button
                         v-else
-                        class="tiny-button danger"
+                        class="tiny-button"
                         @click.stop="handleDisableMod(mod.folderName)"
                       >
                         {{ t('mods.disable') }}
                       </button>
 
-                      <button
-                        class="tiny-button danger delete-mod-button"
-                        @click.stop="handleDeleteDisplayedMod(mod)"
-                      >
-                        {{ t('mods.delete') }}
-                      </button>
+                      <div class="more-menu-container" @click.stop>
+                        <button
+                          class="tiny-button more-button"
+                          @click.stop="moreMenuModKey = moreMenuModKey === getModKey(mod) ? '' : getModKey(mod)"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                        </button>
+                        <div v-if="moreMenuModKey === getModKey(mod)" class="more-dropdown">
+                          <button class="more-dropdown-item" @click.stop="handleDeleteDisplayedMod(mod)">
+                            {{ t('mods.delete') }}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -561,7 +580,7 @@
           <section class="mod-detail-card">
             <div class="mod-detail-card-header">
               <div>
-                <p class="eyebrow">Mod Detail</p>
+                <p class="eyebrow">{{ t('mods.detailTitle') }}</p>
                 <h3>{{ selectedMod.name }}</h3>
                 <p>{{ t('mods.detailStatus', { type: selectedMod.modType.label, status: selectedMod.isDisabled ? t('mods.statusDisabled') : t('mods.statusEnabled') }) }}</p>
               </div>
@@ -689,7 +708,9 @@
           </section>
         </div>
 
-        <div v-if="gamePath && allDisplayMods.length > 0 && filteredMods.length === 0" class="empty-state">
+        <div v-if="gamePath && allDisplayMods.length > 0 && filteredMods.length === 0" class="empty-state decorated-empty-state">
+          <img :src="grassTuft1" alt="" aria-hidden="true" class="empty-state-grass-image" />
+          <img :src="leafCornerBottomRight" alt="" aria-hidden="true" class="empty-state-leaf-corner" />
           <h3>{{ t('mods.emptyNoResults') }}</h3>
           <p>{{ t('mods.emptyNoResultsHint') }}</p>
           <button class="tiny-button" @click="clearModFilters" style="margin-top:8px">{{ t('mods.clearFilters') }}</button>
@@ -719,8 +740,10 @@
 
         <div
           v-if="gamePath && allDisplayMods.length === 0 && skippedFolders.length === 0"
-          class="empty-state"
+          class="empty-state decorated-empty-state"
         >
+          <img :src="grassTuft1" alt="" aria-hidden="true" class="empty-state-grass-image" />
+          <img :src="leafCornerBottomRight" alt="" aria-hidden="true" class="empty-state-leaf-corner" />
           <h3>{{ t('mods.emptyNoScan') }}</h3>
           <p>{{ t('mods.emptyNoScanHint') }}</p>
           <button class="tool-action-button" :disabled="isScanning" @click="scanMods" style="margin-top:12px">
@@ -733,7 +756,12 @@
         <div v-if="smapiLogAnalysis" class="panel">
           <div class="panel-header">
             <h3>{{ t('logs.diagnosisTitle') }}</h3>
-            <span>{{ smapiLogFileName }}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="log-file-label">{{ smapiLogFileName }}</span>
+              <button class="tiny-button" @click="handleReadLatestSmapiLog" style="flex-shrink:0;">
+                {{ t('overview.readLatestLog') }}
+              </button>
+            </div>
           </div>
 
           <div class="diagnosis-grid">
@@ -824,9 +852,18 @@
           </p>
         </div>
 
-        <div v-if="!smapiLogContent" class="empty-state">
+        <div v-if="!smapiLogContent" class="empty-state decorated-empty-state log-empty-state-card">
+          <img :src="sceneLogEmpty" alt="" aria-hidden="true" class="log-empty-scene" />
+          <img :src="leafCornerBottomRight" alt="" aria-hidden="true" class="empty-state-leaf-corner" />
           <h3>{{ t('logs.emptyTitle') }}</h3>
           <p>{{ t('logs.emptyHint') }}</p>
+          <button
+            class="tool-action-button"
+            style="margin-top:12px"
+            @click="handleReadLatestSmapiLog"
+          >
+            {{ t('overview.readLatestLog') }}
+          </button>
         </div>
       </section>
 
@@ -897,6 +934,38 @@
             </article>
             <article class="panel tool-section-card compact-tool-card">
               <div class="tool-section-header">
+                <div class="tool-section-icon">
+                  <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
+                    <path d="M12 2l7 4v5c0 5-3.5 9.7-7 11-3.5-1.3-7-6-7-11V6l7-4z"/>
+                    <path d="M9 12l2 2 4-4"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3>{{ t('tools.envCheck') }}</h3>
+                  <p>{{ t('tools.envCheckDesc') }}</p>
+                </div>
+              </div>
+
+              <div class="tool-section-actions">
+                <button
+                  class="tool-action-button"
+                  :disabled="!gamePath"
+                  @click="handleRunLaunchCheck"
+                >
+                  {{ t('tools.runEnvCheck') }}
+                </button>
+
+                <button
+                  class="tool-action-button"
+                  :disabled="!gamePath"
+                  @click="handleExportProblemReport"
+                >
+                  {{ t('tools.exportProblemReport') }}
+                </button>
+              </div>
+            </article>
+            <article class="panel tool-section-card compact-tool-card">
+              <div class="tool-section-header">
                 <div class="tool-section-icon">♻️</div>
                 <div>
                   <h3>{{ t('tools.recycleBin') }}</h3>
@@ -913,7 +982,7 @@
                   {{ isRecycleBinLoading ? t('tools.scanInProgress') : t('tools.scanRecycleBin') }}
                 </button>
                 <button
-                  class="tool-action-button"
+                  class="tool-action-button danger-action"
                   :disabled="deletedMods.length === 0"
                   @click="handleEmptyRecycleBin"
                 >
@@ -1232,7 +1301,7 @@
           <section class="zip-preview-card">
             <div class="zip-preview-card-header">
               <div>
-                <p class="eyebrow">ZIP Installer</p>
+                <p class="eyebrow">{{ t('tools.zipEyebrow') }}</p>
                 <h3>{{ t('tools.zipPreview') }}</h3>
                 <p>{{ t('tools.zipPreviewDesc', { n: zipModPreviews.length }) }}</p>
               </div>
@@ -1398,7 +1467,7 @@
           <section class="zip-preview-card nxm-request-card">
             <div class="zip-preview-card-header">
               <div>
-                <p class="eyebrow">Nexus NXM</p>
+                <p class="eyebrow">{{ t('tools.nxmEyebrow') }}</p>
                 <h3>{{ t('tools.nxmRequestTitle') }}</h3>
                 <p>{{ t('tools.nxmRequestDesc') }}</p>
               </div>
@@ -1471,7 +1540,7 @@
         <div class="panel compact-panel profile-hero-panel">
           <div class="profile-hero-main">
             <div>
-              <p class="eyebrow">Profiles</p>
+              <p class="eyebrow">{{ t('profiles.eyebrow') }}</p>
               <h3>{{ t('profiles.title') }}</h3>
               <p class="muted-text">
                 {{ t('profiles.desc') }}
@@ -1523,7 +1592,7 @@
           <section class="profile-editor-card compact-profile-editor">
             <div class="profile-card-header">
               <div>
-                <p class="eyebrow">Profile Editor</p>
+                <p class="eyebrow">{{ t('profiles.editorEyebrow') }}</p>
                 <h3>{{ profileEditorMode === 'edit' ? t('profiles.editorTitle') : t('profiles.editorTitleNew') }}</h3>
                 <p>
                   {{ t('profiles.editorDesc') }}
@@ -1761,7 +1830,7 @@
 
           <div class="setting-block">
             <span>{{ t('settings.gamePath') }}</span>
-            <strong>{{ gamePath || t('settings.noPath') }}</strong>
+            <strong class="path-display">{{ gamePath || t('settings.noPath') }}</strong>
           </div>
 
           <div class="setting-actions">
@@ -1818,7 +1887,19 @@
 
     <aside class="right-panel">
       <div class="launch-card">
-        <div class="junimo-badge">🌱</div>
+        <div class="junimo-badge">
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="16" cy="20" rx="10" ry="9" fill="#6fa85f"/>
+                <circle cx="16" cy="14" r="8" fill="#8bc47a"/>
+                <circle cx="12" cy="12" r="1.5" fill="#2d241b"/>
+                <circle cx="20" cy="12" r="1.5" fill="#2d241b"/>
+                <ellipse cx="16" cy="16" rx="3" ry="1.5" fill="#5b914e"/>
+                <circle cx="16" cy="16" r="0.8" fill="#f5efe3" opacity="0.6"/>
+                <path d="M16 2c-1 3-2 5-4 6s-3 2-3 2" stroke="#6fa85f" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                <path d="M16 2c1 3 2 5 4 6s3 2 3 2" stroke="#6fa85f" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                <path d="M14 21c1 1 2 1 3 0" stroke="#4a7a3e" stroke-width="1" stroke-linecap="round" fill="none"/>
+              </svg>
+            </div>
         <div>
           <h3>{{ t('sidebar.launchCenter') }}</h3>
           <p>{{ t('sidebar.launchCenterDesc') }}</p>
@@ -2120,6 +2201,15 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
 import { t, locale, setLocaleAndNotify } from "./i18n";
+import junimoMascotAvatar from "./assets/junimo/junimo-mascot-avatar.svg";
+import sceneOverviewHeader from "./assets/junimo/scene-overview-header.svg";
+import sceneModsHeader from "./assets/junimo/scene-mods-header.svg";
+import sceneToolsHeader from "./assets/junimo/scene-tools-header.svg";
+import sceneSettingsHeader from "./assets/junimo/scene-settings-header.svg";
+import sceneLogEmpty from "./assets/junimo/scene-log-empty.svg";
+import leafDivider from "./assets/junimo/leaf-divider.svg";
+import grassTuft1 from "./assets/junimo/grass-tuft-1.svg";
+import leafCornerBottomRight from "./assets/junimo/leaf-corner-bottom-right.svg";
 
 const STORAGE_KEY = "junimo-box-game-path";
 const PROFILES_STORAGE_KEY = "junimo-box-profiles";
@@ -2146,6 +2236,7 @@ type ViewMeta = {
   eyebrow: string;
   title: string;
   description: string;
+  scene?: string;
 };
 
 type ModDependency = {
@@ -2579,10 +2670,14 @@ const modDependencyFilter = ref<ModDependencyFilter>("all");
 const selectedModKey = ref("");
 const selectedModKeys = ref<Set<string>>(new Set());
 const lastSelectedModIndex = ref(-1);
-
+const moreMenuModKey = ref("");
 const showWizard = ref(false);
 const wizardStep = ref(0);
 const wizardSkippable = ref(true);
+
+function closeMoreMenu() {
+  moreMenuModKey.value = "";
+}
 const profiles = ref<ModProfile[]>([]);
 const currentProfileId = ref("");
 const isProfileEditorOpen = ref(false);
@@ -2659,12 +2754,12 @@ const totalModCount = computed(() => mods.value.length + disabledMods.value.leng
 const parsedNxmRequest = computed<ParsedNxmRequest>(() => parseNxmLink(nxmRequestLink.value));
 
 const viewMetaMap = computed<Record<ViewId, ViewMeta>>(() => ({
-  overview: { eyebrow: "Overview", title: t("nav.overview"), description: t("overview.heroDesc") },
-  mods: { eyebrow: "Local Mods", title: t("nav.mods"), description: "Search, filter, view, enable or disable Stardew Valley mods." },
-  logs: { eyebrow: "SMAPI Logs", title: t("nav.logs"), description: "Read the latest SMAPI log and generate a diagnosis summary." },
-  tools: { eyebrow: "Toolbox", title: t("nav.tools"), description: "Open common directories, export reports, preview and install ZIP mods." },
-  profiles: { eyebrow: "Profiles", title: t("nav.profiles"), description: "Save, view and apply different mod combinations." },
-  settings: { eyebrow: "Settings", title: t("nav.settings"), description: "Manage local paths and Junimo Box preferences." },
+  overview: { eyebrow: "总览", title: t("nav.overview"), description: t("overview.heroDesc"), scene: sceneOverviewHeader },
+  mods: { eyebrow: "本地 Mod", title: t("nav.mods"), description: "搜索、筛选、查看、启用或禁用 Stardew Valley Mod。", scene: sceneModsHeader },
+  logs: { eyebrow: "SMAPI 日志", title: t("nav.logs"), description: "读取最新 SMAPI 日志并生成诊断摘要。", scene: sceneLogEmpty },
+  tools: { eyebrow: "工具箱", title: t("nav.tools"), description: "打开常用目录、导出报告、预览和安装 ZIP Mod。", scene: sceneToolsHeader },
+  profiles: { eyebrow: "配置方案", title: t("nav.profiles"), description: "保存、查看和应用不同的 Mod 组合方案。" },
+  settings: { eyebrow: "设置", title: t("nav.settings"), description: "管理本地路径和 Junimo Box 偏好设置。", scene: sceneSettingsHeader },
 }));
 
 function setNotice(type: NoticeType, text: string) {
@@ -2846,6 +2941,7 @@ const selectedMod = computed<DisplayModInfo | null>(() => {
 const duplicateEnabledUniqueIds = computed(() => getDuplicateUniqueIds(mods.value));
 
 onMounted(async () => {
+  document.addEventListener("click", closeMoreMenu);
   unlistenSmapiInstallStage = await listen<SmapiInstallStagePayload>(
     "smapi-install-stage",
     (event) => {
@@ -2937,6 +3033,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener("click", closeMoreMenu);
+
   if (unlistenDragDrop) {
     unlistenDragDrop();
     unlistenDragDrop = null;
@@ -5243,7 +5341,8 @@ function getModKey(mod: DisplayModInfo): string {
   return `${mod.isDisabled ? "disabled" : "enabled"}-${mod.uniqueId || mod.folderName}`;
 }
 
-function selectMod(mod: DisplayModInfo, event?: MouseEvent) {
+moreMenuModKey.value = "";
+  function selectMod(mod: DisplayModInfo, event?: MouseEvent) {
   const key = getModKey(mod);
   if (event?.ctrlKey || event?.metaKey) {
     const keys = new Set(selectedModKeys.value);
@@ -5851,6 +5950,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   padding: 12px;
   border-radius: 17px;
   background: rgba(255, 250, 240, 0.1);
+  border: 1px solid rgba(255, 250, 240, 0.08);
 }
 
 .brand-icon {
@@ -5861,6 +5961,20 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   border-radius: 13px;
   background: var(--bg-surface, #fffaf0);
   font-size: 22px;
+  overflow: hidden;
+}
+
+.brand-icon-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sidebar-divider-image {
+  display: block;
+  width: 100px;
+  height: auto;
+  opacity: 0.75;
 }
 
 .brand h1 {
@@ -5886,7 +6000,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .nav-button {
   width: 100%;
-  padding: 11px 13px;
+  padding: 7px 10px;
   border: none;
   border-radius: 14px;
   background: transparent;
@@ -5909,8 +6023,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px;
+  gap: 5px;
+  padding: 10px 8px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-launch-button {
@@ -5957,7 +6072,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  padding: 28px 28px 20px;
+  padding: 16px 20px 12px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -5966,9 +6081,33 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .content-header {
   display: flex;
   justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
-  margin-bottom: 16px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.content-header-main {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.content-header-scene-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.content-header-scene {
+  display: block;
+  width: 168px;
+  max-width: 100%;
+  height: auto;
+  opacity: 0.96;
 }
 
 .header-actions {
@@ -5978,9 +6117,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .content-header h2 {
-  margin: 3px 0 5px;
-  font-size: 31px;
-  line-height: 1.1;
+  margin: 2px 0 2px;
+  font-size: 24px;
+  line-height: 1.15;
   letter-spacing: -0.01em;
   font-weight: 800;
 }
@@ -6003,7 +6142,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .view-stack {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   min-height: 0;
 }
 
@@ -6016,8 +6155,8 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .notice {
-  margin-bottom: 16px;
-  padding: 12px 16px;
+  margin-bottom: 8px;
+  padding: 6px 12px;
   color: var(--warning-text, #7a4f22);
   font-weight: 700;
   display: flex;
@@ -6027,7 +6166,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   border-radius: var(--radius-md, 12px);
   background: rgba(255, 250, 240, 0.94);
   box-shadow: 0 2px 8px rgba(61, 40, 21, 0.04);
-  font-size: 13px;
+  font-size: 12px;
   position: relative;
 }
 
@@ -6070,11 +6209,15 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .compact-panel {
-  padding: 20px 22px;
+  padding: 16px 18px;
+}
+
+.compact-panel + .compact-panel {
+  margin-top: 12px;
 }
 
 .compact-panel .panel-header {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .compact-panel .panel-header h3 {
@@ -6109,8 +6252,8 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .panel-header h3 {
@@ -6125,7 +6268,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .sticky-panel-header {
   position: sticky;
-  top: -24px;
+  top: 0;
   z-index: 1;
   padding: 4px 0 10px;
   background: rgba(255, 250, 240, 0.95);
@@ -6147,7 +6290,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .summary-row,
 .tool-grid {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .status-grid {
@@ -6169,7 +6312,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .setting-block span {
   display: block;
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
   margin-bottom: 6px;
 }
 
@@ -6177,6 +6320,16 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .summary-row strong,
 .setting-block strong {
   word-break: break-all;
+}
+
+.path-display {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(92, 70, 48, 0.06);
+  word-break: break-all;
+  line-height: 1.45;
 }
 
 .language-toggle {
@@ -6193,7 +6346,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary, #7a6652);
   transition: all 0.15s ease;
@@ -6227,7 +6380,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--border-subtle, rgba(92, 70, 48, 0.10));
 }
@@ -6287,7 +6440,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary, #755f48);
 }
 
@@ -6297,7 +6450,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .filter-panel {
-  padding: 16px;
+  padding: 10px 14px 8px;
 }
 
 .batch-action-bar {
@@ -6306,8 +6459,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
+  padding: 8px 14px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
   border-radius: var(--radius-md, 12px);
   background: rgba(111, 168, 95, 0.08);
   border: 1.5px solid rgba(111, 168, 95, 0.25);
@@ -6328,7 +6482,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .filter-top-row {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -6338,8 +6492,8 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 13px;
-  border-radius: 15px;
+  padding: 7px 10px;
+  border-radius: 12px;
   background: var(--bg-card, #f6ead8);
   transition: box-shadow 0.18s ease, background 0.18s ease;
 }
@@ -6365,8 +6519,8 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 18px;
-  margin-top: 12px;
+  gap: 6px 14px;
+  margin-top: 8px;
 }
 
 .filter-group {
@@ -6378,17 +6532,17 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .filter-label {
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .filter-chip {
-  padding: 7px 11px;
+  padding: 4px 9px;
   border: none;
   border-radius: 999px;
   background: #eadcc8;
   color: var(--text-tertiary, #5c4630);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -6406,15 +6560,15 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .filter-result-text {
-  margin: 12px 0 0;
+  margin: 6px 0 0;
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .mods-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .compact-mods-list {
@@ -6425,7 +6579,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
+  padding: 10px 14px 8px;
   border-radius: 18px;
   background: var(--bg-card, #f6ead8);
 }
@@ -6446,12 +6600,15 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
 .mod-item h4 {
-  margin: 0 0 6px;
-  font-size: 18px;
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .mod-badges {
@@ -6463,7 +6620,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .status-badge {
-  padding: 4px 8px;
+  padding: 3px 7px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
@@ -6490,7 +6647,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .mod-meta {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   color: var(--text-secondary, #7a6652);
   font-size: 14px;
 }
@@ -6544,7 +6701,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .dependency-line {
   margin: 4px 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-tertiary, #5c4630);
 }
 
@@ -6577,14 +6734,14 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .tool-section-card {
-  padding: 18px;
+  padding: 12px 16px;
 }
 
 .tool-section-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .tool-section-icon {
@@ -6593,7 +6750,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 15px;
+  border-radius: 12px;
   background: var(--bg-card, #f6ead8);
   font-size: 22px;
 }
@@ -6619,7 +6776,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .tool-status-row {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin: 12px 0;
   padding: 12px 14px;
   border-radius: 14px;
@@ -6631,9 +6788,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .tool-section-note {
-  margin: 12px 0 0;
+  margin: 6px 0 0;
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -6654,18 +6811,27 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .zip-tool-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .zip-tool-hint {
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
 .setting-actions {
-  margin-top: 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.setting-actions button {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 13px;
 }
 
 .log-viewer {
@@ -6685,24 +6851,37 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .diagnosis-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .diagnosis-card {
   padding: 14px;
   border-radius: 16px;
   background: var(--bg-card, #f6ead8);
+  border: 1px solid rgba(92, 70, 48, 0.08);
+}
+
+.log-file-label {
+  font-size: 12px;
+  color: var(--text-secondary, #7a6652);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .diagnosis-card span {
   display: block;
   margin-bottom: 6px;
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .diagnosis-card strong {
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .diagnosis-section {
@@ -6844,10 +7023,10 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .zip-card-scroll {
   overflow: auto;
   margin-top: 14px;
-  padding-right: 4px;
+  padding: 2px 4px 4px 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .zip-preview-item {
@@ -6860,19 +7039,22 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
 }
 
 .zip-preview-title-row h4 {
-  margin: 0 0 6px;
-  font-size: 18px;
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .zip-preview-meta-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .zip-preview-meta-grid > div {
@@ -6896,7 +7078,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .zip-preview-meta-grid strong {
   display: block;
   color: #4b3a2a;
-  font-size: 13px;
+  font-size: 12px;
   word-break: break-all;
 }
 
@@ -6945,13 +7127,13 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .dependency-title {
   margin: 0 0 5px;
   color: var(--text-tertiary, #5c4630);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .zip-drop-zone {
   margin-top: 14px;
-  padding: 18px;
+  padding: 12px 16px;
   border: 2px dashed rgba(111, 168, 95, 0.45);
   border-radius: 18px;
   background: rgba(232, 243, 223, 0.58);
@@ -6993,7 +7175,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .zip-drop-zone p {
   margin: 0;
   color: #6f5c48;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -7078,7 +7260,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .detail-grid strong {
   display: block;
   word-break: break-all;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .detail-side {
@@ -7116,7 +7298,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .dependency-detail-item {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--bg-card, #f6ead8);
@@ -7161,7 +7343,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .launch-card,
 .side-card {
-  padding: 16px;
+  padding: 10px 14px 8px;
   border-radius: var(--radius-card, 10px);
   background: var(--bg-surface, #fffaf0);
   box-shadow: 0 10px 26px rgba(67, 47, 27, 0.09);
@@ -7183,21 +7365,29 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 15px;
-  background: #e3f0d6;
-  font-size: 25px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #d4eac6, #b8dba8);
+  border: 1px solid rgba(111, 168, 95, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.sidebar-decor-divider {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 2px;
+  opacity: 0.7;
 }
 
 .launch-card h3,
 .side-card h4 {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
 }
 
 .launch-card p,
 .path-card p {
   margin: 0;
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
   word-break: break-all;
 }
@@ -7206,7 +7396,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   width: 100%;
   margin-top: 14px;
   padding: 13px 16px;
-  border-radius: 15px;
+  border-radius: 12px;
   background: var(--green-bg, #6fa85f);
   font-size: 16px;
   font-weight: 800;
@@ -7281,7 +7471,7 @@ button.secondary:hover:not(:disabled) {
 }
 
 .tiny-button {
-  padding: 7px 11px;
+  padding: 4px 9px;
   border-radius: 999px;
   font-size: 12px;
   background: var(--text-gold, #8b6f47);
@@ -7329,8 +7519,8 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-top: 12px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .filter-summary-row .filter-result-text {
@@ -7340,7 +7530,7 @@ button.secondary:hover:not(:disabled) {
 .active-filter-text {
   margin: 0;
   color: var(--green-bg, #6fa85f);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -7366,7 +7556,7 @@ button.secondary:hover:not(:disabled) {
 }
 
 .compact-result-box {
-  margin-top: 12px;
+  margin-top: 8px;
   padding: 12px;
 }
 
@@ -7379,7 +7569,7 @@ button.secondary:hover:not(:disabled) {
 }
 
 .compact-missing-list .missing-item p {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .mods-workspace {
@@ -7395,14 +7585,14 @@ button.secondary:hover:not(:disabled) {
 }
 
 .mods-list-panel {
-  padding: 18px;
+  padding: 12px 16px;
 }
 
 .scrollable-mods-list {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 4px;
+  padding: 2px 4px 4px 0;
 }
 
 .scrollable-mods-list::-webkit-scrollbar,
@@ -7440,6 +7630,72 @@ button.secondary:hover:not(:disabled) {
   width: 72px;
 }
 
+.more-menu-container {
+  position: relative;
+  display: inline-flex;
+}
+
+.more-button {
+  width: 32px !important;
+  min-width: 32px !important;
+  padding: 4px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  color: var(--text-secondary, #7a6652);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.more-button:hover {
+  background: #e2d1b8 !important;
+  color: var(--text-primary, #2d241b);
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.more-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 100px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--bg-surface, #fffaf0);
+  border: 1px solid var(--border-strong, rgba(92, 70, 48, 0.22));
+  box-shadow: 0 8px 24px rgba(45, 36, 27, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.more-dropdown-item {
+  padding: 7px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #2d241b);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background 0.12s ease;
+}
+
+.more-dropdown-item:hover {
+  background: #f0e4d0;
+}
+
+.more-dropdown-item.danger {
+  color: #b9574f;
+}
+
+.more-dropdown-item.danger:hover {
+  background: #f7dfd8;
+}
+
 .mod-detail-overlay {
   position: fixed;
   inset: 0;
@@ -7468,7 +7724,7 @@ button.secondary:hover:not(:disabled) {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .mod-detail-card-header h3 {
@@ -7491,7 +7747,7 @@ button.secondary:hover:not(:disabled) {
   top: 0;
   max-height: calc(100vh - 190px);
   overflow-y: auto;
-  padding: 18px;
+  padding: 12px 16px;
 }
 
 .side-detail-panel .panel-header {
@@ -7499,7 +7755,8 @@ button.secondary:hover:not(:disabled) {
 }
 
 .side-detail-panel .detail-description {
-  margin-bottom: 12px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
 }
 
 .detail-actions-inline {
@@ -7563,7 +7820,7 @@ button.secondary:hover:not(:disabled) {
 .profile-create-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   margin-top: 16px;
 }
@@ -7588,14 +7845,14 @@ button.secondary:hover:not(:disabled) {
 .profile-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .profile-card {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
+  padding: 10px 14px 8px;
   border-radius: 18px;
   background: var(--bg-card, #f6ead8);
 }
@@ -7605,8 +7862,11 @@ button.secondary:hover:not(:disabled) {
 }
 
 .profile-main h4 {
-  margin: 0 0 6px;
-  font-size: 18px;
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .profile-main p {
@@ -7700,7 +7960,7 @@ button.secondary:hover:not(:disabled) {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .profile-card-header h3 {
@@ -7717,7 +7977,7 @@ button.secondary:hover:not(:disabled) {
 .profile-editor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 14px;
 }
 
@@ -7725,7 +7985,7 @@ button.secondary:hover:not(:disabled) {
   display: block;
   margin-bottom: 6px;
   color: var(--text-secondary, #7a6652);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -7733,7 +7993,7 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 12px 0;
   color: var(--text-secondary, #7a6652);
   font-weight: 800;
@@ -7750,7 +8010,7 @@ button.secondary:hover:not(:disabled) {
   gap: 10px;
   max-height: 360px;
   overflow: auto;
-  padding-right: 4px;
+  padding: 2px 4px 4px 0;
 }
 
 .profile-select-item {
@@ -7758,7 +8018,7 @@ button.secondary:hover:not(:disabled) {
   gap: 10px;
   align-items: flex-start;
   padding: 12px;
-  border-radius: 15px;
+  border-radius: 12px;
   background: var(--bg-card, #f6ead8);
   border: 1px solid transparent;
   cursor: pointer;
@@ -7813,7 +8073,7 @@ button.secondary:hover:not(:disabled) {
   border-radius: 0;
   background: transparent;
   color: var(--warning-text, #7a4f22);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -7850,7 +8110,7 @@ button.secondary:hover:not(:disabled) {
   .zip-preview-card {
     width: calc(100vw - 28px);
     max-height: calc(100vh - 28px);
-    padding: 16px;
+    padding: 10px 14px 8px;
   }
 
   .zip-preview-card-header,
@@ -7896,7 +8156,7 @@ button.secondary:hover:not(:disabled) {
 .mod-card-main-row {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   align-items: flex-start;
 }
 
@@ -7930,7 +8190,7 @@ button.secondary:hover:not(:disabled) {
 
 .compact-mod-card .compact-description {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.42;
   color: var(--text-tertiary, #5c4630);
   -webkit-line-clamp: 2;
@@ -7941,13 +8201,13 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .folder-chip {
   min-width: 0;
   max-width: 62%;
-  padding: 4px 8px;
+  padding: 3px 7px;
   border-radius: 999px;
   background: rgba(226, 209, 184, 0.75);
   color: var(--text-folder-chip, #6b5238);
@@ -7973,7 +8233,9 @@ button.secondary:hover:not(:disabled) {
 }
 
 .ghost-button {
-  background: #a58a68;
+  background: #c2b096;
+  color: #f5efe3;
+  font-weight: 600;
 }
 
 .ghost-button:hover:not(:disabled) {
@@ -8007,7 +8269,7 @@ button.secondary:hover:not(:disabled) {
   padding: 9px 10px;
   border-radius: 12px;
   background: var(--text-gold, #8b6f47);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .side-check-button:hover:not(:disabled) {
@@ -8055,7 +8317,10 @@ button.secondary:hover:not(:disabled) {
   }
 
   .sidebar .nav-button span:first-child {
-    font-size: 18px;
+    font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
   }
 
   .sidebar .sidebar-footer {
@@ -8171,6 +8436,57 @@ button.secondary:hover:not(:disabled) {
 
 .mods-page-fixed .mods-list-panel .panel-header {
   flex-shrink: 0 !important;
+  position: relative;
+  background: linear-gradient(180deg, #f2e0c2, #e5cfaa);
+  margin: -18px -16px 14px;
+  padding: 12px 16px;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 2px solid rgba(92, 70, 48, 0.12);
+}
+
+.mods-page-fixed .mods-list-panel .panel-header::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(92, 70, 48, 0.15);
+  box-shadow: 18px 0 0 rgba(92, 70, 48, 0.15), 36px 0 0 rgba(92, 70, 48, 0.1);
+}
+
+.mods-page-fixed .mods-list-panel .panel-header::after {
+  content: "✦";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: rgba(92, 70, 48, 0.15);
+}
+
+.mods-page-fixed .mods-list-panel .panel-header h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #4a3520;
+  margin-left: 48px;
+}
+
+.mods-page-fixed .mods-list-panel .panel-header .detail-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #7a6248;
+  margin-left: 48px;
+}
+
+.mods-page-fixed .mods-list-panel .panel-header > span:last-child {
+  font-size: 13px;
+  color: #7a6248;
+  font-weight: 700;
+  background: rgba(92, 70, 48, 0.08);
+  padding: 3px 10px;
+  border-radius: 999px;
 }
 
 .mods-page-fixed .scrollable-mods-list {
@@ -8257,7 +8573,7 @@ button.secondary:hover:not(:disabled) {
 .profile-action-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
   margin-top: 16px;
 }
 
@@ -8327,7 +8643,7 @@ button.secondary:hover:not(:disabled) {
 
 .profile-main p {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary, #7a6652);
 }
 
@@ -8373,13 +8689,13 @@ button.secondary:hover:not(:disabled) {
 .expanded-profile-preview {
   max-height: 180px;
   overflow: auto;
-  padding-right: 4px;
+  padding: 2px 4px 4px 0;
 }
 
 .compact-profile-editor {
   width: min(760px, calc(100vw - 48px));
   max-height: calc(100vh - 72px);
-  padding: 18px;
+  padding: 12px 16px;
 }
 
 .compact-editor-summary {
@@ -8456,7 +8772,7 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
@@ -8483,7 +8799,7 @@ button.secondary:hover:not(:disabled) {
   box-sizing: border-box;
   border: 1px solid var(--border-strong, rgba(92, 70, 48, 0.22));
   border-radius: 13px;
-  padding: 11px 13px;
+  padding: 7px 10px;
   background: var(--bg-surface, #fffaf0);
   color: var(--text-primary, #2d241b);
   font-size: 14px;
@@ -8561,10 +8877,10 @@ button.secondary:hover:not(:disabled) {
 /* v0.4.0：安装结果改为轻量行内提示，避免顶开 Mod 列表 */
 .inline-install-summary,
 .inline-dependency-summary {
-  margin-top: 10px;
-  padding: 9px 12px;
+  margin-top: 6px;
+  padding: 6px 10px;
   border-radius: 14px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -8661,7 +8977,7 @@ button.secondary:hover:not(:disabled) {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .nexus-setting-actions {
@@ -8696,7 +9012,7 @@ button.secondary:hover:not(:disabled) {
 
 .zip-conflict-summary p {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .zip-conflict-line {
@@ -8731,7 +9047,7 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   padding: 10px 12px;
   border-radius: 14px;
   background: rgba(255, 250, 240, 0.78);
@@ -8933,7 +9249,7 @@ button.secondary:hover:not(:disabled) {
 .toolbox-section-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .toolbox-section-title-row {
@@ -9002,7 +9318,8 @@ button.secondary:hover:not(:disabled) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
 }
 
 .compact-result-header {
@@ -9033,7 +9350,7 @@ button.secondary:hover:not(:disabled) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 11px 12px;
   border-radius: 14px;
   background: rgba(255, 250, 240, 0.78);
@@ -9089,7 +9406,7 @@ button.secondary:hover:not(:disabled) {
 }
 
 .tool-inline-state span {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .history-header-actions {
@@ -9180,7 +9497,7 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
@@ -9207,7 +9524,7 @@ button.secondary:hover:not(:disabled) {
   box-sizing: border-box;
   border: 1px solid var(--border-strong, rgba(92, 70, 48, 0.22));
   border-radius: 13px;
-  padding: 11px 13px;
+  padding: 7px 10px;
   background: var(--bg-surface, #fffaf0);
   color: var(--text-primary, #2d241b);
   font-size: 14px;
@@ -9285,10 +9602,10 @@ button.secondary:hover:not(:disabled) {
 /* v0.4.0：安装结果改为轻量行内提示，避免顶开 Mod 列表 */
 .inline-install-summary,
 .inline-dependency-summary {
-  margin-top: 10px;
-  padding: 9px 12px;
+  margin-top: 6px;
+  padding: 6px 10px;
   border-radius: 14px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -9385,7 +9702,7 @@ button.secondary:hover:not(:disabled) {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .nexus-setting-actions {
@@ -9420,7 +9737,7 @@ button.secondary:hover:not(:disabled) {
 
 .zip-conflict-summary p {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .zip-conflict-line {
@@ -9455,7 +9772,7 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   padding: 10px 12px;
   border-radius: 14px;
   background: rgba(255, 250, 240, 0.78);
@@ -9649,7 +9966,7 @@ button.secondary:hover:not(:disabled) {
 .toolbox-section-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .toolbox-section-title-row {
@@ -9718,7 +10035,8 @@ button.secondary:hover:not(:disabled) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
 }
 
 .compact-result-header {
@@ -9749,7 +10067,7 @@ button.secondary:hover:not(:disabled) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 11px 12px;
   border-radius: 14px;
   background: rgba(255, 250, 240, 0.78);
@@ -9805,7 +10123,7 @@ button.secondary:hover:not(:disabled) {
 }
 
 .tool-inline-state span {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .history-header-actions {
@@ -9885,11 +10203,11 @@ button.secondary:hover:not(:disabled) {
   box-sizing: border-box;
   border: 1px solid var(--border-strong, rgba(92, 70, 48, 0.22));
   border-radius: 13px;
-  padding: 11px 13px;
+  padding: 7px 10px;
   background: var(--bg-surface, #fffaf0);
   color: var(--text-primary, #2d241b);
   font-size: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .modal-input:focus {
@@ -9979,7 +10297,7 @@ mark.hl {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 8px 14px;
   border-radius: 12px;
   border: 1.5px solid rgba(92, 70, 48, 0.12);
   background: #fffaf0;
@@ -10039,7 +10357,7 @@ mark.hl {
 }
 
 .sidebar {
-  padding: 20px 16px;
+  padding: 14px 12px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
     linear-gradient(180deg, var(--bg-sidebar-start, #7c4b22), var(--bg-sidebar-end, #3c2412));
@@ -10067,7 +10385,7 @@ mark.hl {
 }
 
 .content {
-  padding: 24px;
+  padding: 16px 20px 12px;
   background:
     radial-gradient(circle at top left, rgba(127, 179, 107, 0.14), transparent 28%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 18%),
@@ -10075,7 +10393,7 @@ mark.hl {
 }
 
 .content-header {
-  padding: 20px 24px;
+  padding: 12px 18px;
   border-radius: var(--radius-md, 12px);
   border: 1px solid rgba(92, 70, 48, 0.10);
   background: rgba(255, 249, 236, 0.85);
@@ -10085,10 +10403,10 @@ mark.hl {
 
 .overview-hero {
   display: grid;
-  grid-template-columns: 1fr 240px;
-  gap: 22px;
+  grid-template-columns: 1fr 180px;
+  gap: 16px;
   align-items: start;
-  padding: 28px;
+  padding: 16px;
   background: linear-gradient(135deg, #f7ebd0 0%, #f0dcb8 40%, #ecd5aa 100%);
   border: 1px solid rgba(92, 70, 48, 0.12);
   box-shadow:
@@ -10102,9 +10420,9 @@ mark.hl {
 }
 
 .overview-hero-copy h3 {
-  margin: 4px 0 10px;
-  font-size: 30px;
-  line-height: 1.08;
+  margin: 2px 0 6px;
+  font-size: 24px;
+  line-height: 1.12;
   letter-spacing: -0.02em;
   font-weight: 900;
   color: var(--wood-dark, #3c2412);
@@ -10120,8 +10438,8 @@ mark.hl {
 .hero-chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .hero-chip-row span {
@@ -10136,8 +10454,8 @@ mark.hl {
 .hero-action-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .hero-action-button {
@@ -10199,9 +10517,10 @@ mark.hl {
 
 .overview-hero-scene {
   position: relative;
-  min-height: 0;
+  min-height: 140px;
   height: 100%;
-  border-radius: 16px;
+  max-height: 180px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1.5px solid rgba(92, 70, 48, 0.10);
   background: linear-gradient(180deg, #fce8c8, #f5eddd 60%, #f0e2c8);
@@ -10253,6 +10572,49 @@ mark.hl {
 .panel,
 .empty-state {
   border-radius: var(--radius-md, 12px);
+  text-align: center;
+  padding: 32px 20px;
+}
+
+.empty-state-grass {
+  display: block;
+  margin: 0 auto 12px;
+}
+
+.decorated-empty-state {
+  position: relative;
+  overflow: hidden;
+}
+
+.empty-state-grass-image {
+  display: block;
+  width: 116px;
+  max-width: 42%;
+  height: auto;
+  margin: 0 auto 12px;
+  opacity: 0.88;
+}
+
+.empty-state-leaf-corner {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  width: 86px;
+  height: auto;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.log-empty-state-card {
+  padding-top: 26px;
+}
+
+.log-empty-scene {
+  display: block;
+  width: 220px;
+  max-width: min(100%, 320px);
+  height: auto;
+  margin: 0 auto 10px;
 }
 
 .launch-card {
@@ -10261,10 +10623,17 @@ mark.hl {
   box-shadow: 0 6px 18px rgba(61, 40, 21, 0.08);
 }
 
+.side-card {
+  background: linear-gradient(180deg, rgba(255, 250, 240, 0.92), rgba(247, 234, 210, 0.94));
+  border: 1.5px solid rgba(92, 70, 48, 0.12);
+}
+
 .right-panel {
   padding: 18px 16px;
-  background: rgba(255, 249, 236, 0.66);
-  border-left: 1px solid rgba(92, 70, 48, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 20%),
+    linear-gradient(180deg, #eedcc2, #dfcaaa);
+  border-left: 2px solid rgba(92, 70, 48, 0.12);
 }
 
 button,
@@ -10341,6 +10710,18 @@ button.secondary:hover:not(:disabled),
   .right-panel {
     display: none;
   }
+
+  .content-header-main {
+    grid-template-columns: 1fr;
+  }
+
+  .content-header-scene-wrap {
+    justify-content: flex-start;
+  }
+
+  .content-header-scene {
+    width: 132px;
+  }
 }
 
 @media (max-width: 820px) {
@@ -10360,50 +10741,55 @@ button.secondary:hover:not(:disabled),
   bottom: 24px;
   right: 24px;
   z-index: 1000;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  border: 2px solid var(--border-strong);
-  background: linear-gradient(180deg, #f9f0da, #ecdfc3);
-  color: var(--text-primary);
-  font-size: 20px;
+  border: 1.5px solid var(--border-strong, rgba(92, 70, 48, 0.22));
+  background: var(--bg-surface, #fffaf0);
+  color: var(--text-secondary, #7a6652);
+  font-size: 18px;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(61, 40, 21, 0.25);
-  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 10px rgba(61, 40, 21, 0.12);
+  transition: transform 0.15s, box-shadow 0.15s, color 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .download-queue-fab:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 24px rgba(61, 40, 21, 0.35);
+  transform: scale(1.06);
+  box-shadow: 0 4px 16px rgba(61, 40, 21, 0.2);
+  color: var(--text-primary, #2d241b);
 }
 
 .download-queue-fab.has-active {
-  border-color: var(--green-bg);
+  border-color: var(--green-bg, #6fa85f);
   animation: dq-pulse 2s ease-in-out infinite;
 }
 
 @keyframes dq-pulse {
-  0%, 100% { box-shadow: 0 4px 16px rgba(61, 40, 21, 0.25); }
-  50% { box-shadow: 0 4px 24px rgba(111, 168, 95, 0.5); }
+  0%, 100% { box-shadow: 0 2px 10px rgba(61, 40, 21, 0.12); }
+  50% { box-shadow: 0 2px 18px rgba(111, 168, 95, 0.35); }
 }
 
 .dq-fab-count {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 10px;
-  background: var(--danger-bg);
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--text-secondary, #7a6652);
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  line-height: 20px;
+  line-height: 18px;
   text-align: center;
+}
+
+.download-queue-fab.has-active .dq-fab-count {
+  background: var(--green-bg, #6fa85f);
 }
 
 /* 下载队列面板 */
@@ -10427,7 +10813,7 @@ button.secondary:hover:not(:disabled),
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-card);
 }
@@ -10456,7 +10842,7 @@ button.secondary:hover:not(:disabled),
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-page);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .dq-item:last-child {
@@ -10637,7 +11023,7 @@ button.secondary:hover:not(:disabled),
 }
 
 .rb-info strong {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -10659,12 +11045,24 @@ button.secondary:hover:not(:disabled),
   text-align: center;
   padding: 16px 8px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .tool-action-button.danger {
   color: var(--danger-bg);
   border-color: var(--danger-bg);
+}
+
+.danger-action {
+  color: var(--danger-bg, #b9574f);
+  border-color: rgba(185, 87, 79, 0.25);
+  opacity: 0.75;
+}
+
+.danger-action:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(185, 87, 79, 0.07);
+  border-color: rgba(185, 87, 79, 0.4);
 }
 
 .danger-button {
@@ -10673,7 +11071,7 @@ button.secondary:hover:not(:disabled),
   border: 1px solid var(--danger-bg, #b9574f);
   background: transparent;
   color: var(--danger-bg, #b9574f);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -10729,7 +11127,7 @@ button.secondary:hover:not(:disabled),
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .wizard-icon {

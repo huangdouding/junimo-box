@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
+
+  <defs>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#5B432A" flood-opacity="0.12"/>
+    </filter>
+    <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#D7D9A6"/>
+      <stop offset="100%" stop-color="#B7C58D"/>
+    </linearGradient>
+    <linearGradient id="creamGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF8E8"/>
+      <stop offset="100%" stop-color="#EBDDC3"/>
+    </linearGradient>
+  </defs>
+
+
+  <g stroke="#B8A77B" stroke-width="1" stroke-linecap="round" fill="none">
+    <path d="M8 20h86" opacity="0.45"/>
+    <path d="M102 20h86" opacity="0.45"/>
+  </g>
+  <g transform="translate(88 7)" filter="url(#softShadow)">
+    <path d="M2 16c11-8 18-8 27 0" stroke="#8FA36A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <path d="M8 14c-5-4-8-4-12-1 3 5 7 5 12 1Z" fill="#A6B978"/>
+    <path d="M23 14c4-4 8-5 13-2-3 5-8 6-13 2Z" fill="#A6B978"/>
+  </g>
+
+</svg>

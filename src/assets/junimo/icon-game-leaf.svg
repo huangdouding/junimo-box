@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+
+  <defs>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#5B432A" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+<g filter="url(#softShadow)"><path d="M4 17.5C7 8.7 13.5 5 20 4c-1 6.7-4.7 12.7-13.7 15.8" fill="#8FA36A" stroke="#66784F" stroke-width="1.2"/><path d="M7 18c3.5-4 7-7.3 12-12" stroke="#66784F" stroke-width="1.1" stroke-linecap="round"/></g>
+</svg>
