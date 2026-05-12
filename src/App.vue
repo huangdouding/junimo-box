@@ -11,10 +11,6 @@
         </div>
       </div>
 
-      <div class="sidebar-decor-divider">
-        <img :src="leafDivider" alt="" aria-hidden="true" class="sidebar-divider-image" />
-      </div>
-
       <nav class="nav">
         <button
           v-for="item in navItems"
@@ -50,59 +46,6 @@
       class="content"
       :class="{ 'content-fixed': activeView === 'mods' }"
     >
-      <header class="content-header">
-        <div class="content-header-main">
-          <div>
-            <p class="eyebrow">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-2px;margin-right:4px;opacity:0.6;">
-                <path d="M6 1C4 3 4 5 6 7s5-1 5-3-3-4-5-3z" fill="#8bc47a" opacity="0.7"/>
-                <path d="M6 1C8 3 8 5 6 7S1 6 1 4 4 1 6 1z" fill="#6fa85f" opacity="0.6"/>
-              </svg>
-              {{ currentViewMeta.eyebrow }}
-            </p>
-            <h2>{{ currentViewMeta.title }}</h2>
-            <p>{{ currentViewMeta.description }}</p>
-          </div>
-
-          <div v-if="currentViewMeta.scene" class="content-header-scene-wrap">
-            <img :src="currentViewMeta.scene" alt="" aria-hidden="true" class="content-header-scene" />
-          </div>
-        </div>
-
-        <div class="header-actions">
-          <button
-            v-if="activeView === 'overview'"
-            class="secondary compact-header-button"
-            @click="handleSelectPath"
-          >
-            {{ t('overview.selectPath') }}
-          </button>
-          <button
-            v-if="activeView === 'overview' && !gamePath"
-            class="secondary compact-header-button"
-            @click="handleDetectPath"
-          >
-            {{ t('overview.autoDetect') }}
-          </button>
-
-          <button
-            v-if="activeView === 'mods' && gamePath"
-            class="secondary compact-header-button"
-            :disabled="isScanning"
-            @click="scanMods"
-          >
-            {{ isScanning ? t('overview.scanInProgress') : t('overview.rescan') }}
-          </button>
-
-          <button
-            v-if="activeView === 'logs'"
-            class="secondary compact-header-button"
-            @click="handleReadLatestSmapiLog"
-          >
-            {{ t('overview.readLatestLog') }}
-          </button>
-        </div>
-      </header>
 
       <div
         v-if="notice"
@@ -133,165 +76,23 @@
       </div>
 
       <section v-if="activeView === 'overview'" class="view-stack">
-        <div class="overview-hero panel">
-          <div class="overview-hero-copy">
-            <p class="eyebrow">Junimo Box</p>
-            <h3>{{ t('overview.heroTitle') }}</h3>
-            <p>
-              {{ t('overview.heroDesc') }}
-            </p>
-
-            <div class="hero-chip-row">
-              <span>{{ gamePath ? t('overview.chipGamePathReady') : t('overview.chipGamePathMissing') }}</span>
-              <span>{{ smapiExists ? t('overview.chipSmapiReady') : t('overview.chipSmapiMissing') }}</span>
-              <span>{{ t('overview.chipModCount', { n: totalModCount }) }}</span>
-              <span>{{ currentProfile?.name || t('overview.chipDefaultProfile') }}</span>
-            </div>
-
-            <div class="hero-action-row">
-              <button class="hero-action-button primary" :disabled="!smapiExists" @click="handleLaunchSmapi">
-                {{ t('overview.launchGame') }}
-              </button>
-              <button class="hero-action-button secondary" @click="handleSelectPath">
-                {{ t('overview.selectPath') }}
-              </button>
-              <button class="hero-action-button tertiary" :disabled="!gamePath || isScanning" @click="scanMods">
-                {{ t('overview.rescan') }}
-              </button>
-            </div>
-          </div>
-
-          <div class="overview-hero-scene" aria-hidden="true">
-            <svg class="scene-bg-svg" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="240" rx="12"/>
-              <defs>
-                <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#fce8c8"/>
-                  <stop offset="40%" stop-color="#fdf0da"/>
-                  <stop offset="100%" stop-color="#f5eddd"/>
-                </linearGradient>
-                <linearGradient id="hillGrad1" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#b5d6a5"/>
-                  <stop offset="100%" stop-color="#8fbc7a"/>
-                </linearGradient>
-                <linearGradient id="hillGrad2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#a3c98f"/>
-                  <stop offset="100%" stop-color="#7fb36b"/>
-                </linearGradient>
-                <linearGradient id="fieldGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#7fb36b"/>
-                  <stop offset="100%" stop-color="#6a9a56"/>
-                </linearGradient>
-              </defs>
-              <!-- Sky -->
-              <rect width="400" height="240" fill="url(#skyGrad)"/>
-              <!-- Sun -->
-              <circle cx="340" cy="42" r="28" fill="#fde8b3" opacity="0.7"/>
-              <circle cx="340" cy="42" r="20" fill="#fef0cd" opacity="0.5"/>
-              <!-- Clouds -->
-              <g opacity="0.5">
-                <ellipse cx="80" cy="52" rx="32" ry="10" fill="white"/>
-                <ellipse cx="70" cy="48" rx="20" ry="9" fill="white"/>
-                <ellipse cx="92" cy="49" rx="18" ry="8" fill="white"/>
-                <ellipse cx="260" cy="68" rx="28" ry="8" fill="white"/>
-                <ellipse cx="250" cy="64" rx="18" ry="7" fill="white"/>
-                <ellipse cx="274" cy="66" rx="16" ry="7" fill="white"/>
-              </g>
-              <!-- Far hills -->
-              <ellipse cx="50" cy="180" rx="140" ry="70" fill="url(#hillGrad1)" opacity="0.5"/>
-              <ellipse cx="320" cy="190" rx="160" ry="80" fill="url(#hillGrad1)" opacity="0.4"/>
-              <!-- Mid hills -->
-              <ellipse cx="30" cy="210" rx="130" ry="60" fill="url(#hillGrad2)" opacity="0.4"/>
-              <ellipse cx="370" cy="210" rx="140" ry="55" fill="url(#hillGrad2)" opacity="0.35"/>
-              <!-- Ground -->
-              <rect x="0" y="170" width="400" height="70" fill="url(#fieldGrad)" opacity="0.35"/>
-              <!-- Crop rows (front field) -->
-              <g stroke="#6a9a56" stroke-width="1.5" opacity="0.35">
-                <line x1="20" y1="200" x2="20" y2="215"/>
-                <line x1="28" y1="200" x2="28" y2="215"/>
-                <line x1="36" y1="200" x2="36" y2="215"/>
-                <line x1="44" y1="200" x2="44" y2="215"/>
-                <line x1="52" y1="200" x2="52" y2="215"/>
-                <line x1="60" y1="202" x2="60" y2="215"/>
-                <line x1="68" y1="202" x2="68" y2="215"/>
-                <line x1="76" y1="200" x2="76" y2="215"/>
-              </g>
-              <!-- Cabin / Farmhouse -->
-              <g>
-                <!-- Wall -->
-                <rect x="173" y="148" width="50" height="48" rx="1" fill="#c4956a" stroke="#a67a52" stroke-width="1.5"/>
-                <!-- Roof -->
-                <polygon points="168,150 198,122 228,150" fill="#8c5a35" stroke="#6f431f" stroke-width="1.5"/>
-                <!-- Door -->
-                <rect x="192" y="170" width="12" height="26" rx="1" fill="#6f431f" stroke="#4a2a14" stroke-width="1" stroke-linejoin="round"/>
-                <circle cx="201" cy="183" r="1" fill="#f5eddd"/>
-                <!-- Window -->
-                <rect x="178" y="160" width="10" height="10" rx="1" fill="#fce8c8" stroke="#a67a52" stroke-width="1"/>
-                <rect x="208" y="160" width="10" height="10" rx="1" fill="#fce8c8" stroke="#a67a52" stroke-width="1"/>
-                <!-- Chimney -->
-                <rect x="213" y="124" width="10" height="22" rx="1" fill="#8c5a35" stroke="#6f431f" stroke-width="1"/>
-              </g>
-              <!-- Fence -->
-              <g stroke="#a67a52" stroke-width="1.5" opacity="0.5">
-                <line x1="152" y1="198" x2="232" y2="198"/>
-                <line x1="152" y1="208" x2="232" y2="208"/>
-                <line x1="155" y1="194" x2="155" y2="213"/>
-                <line x1="167" y1="194" x2="167" y2="213"/>
-                <line x1="179" y1="194" x2="179" y2="213"/>
-                <line x1="219" y1="194" x2="219" y2="213"/>
-                <line x1="229" y1="194" x2="229" y2="213"/>
-              </g>
-              <!-- Tree left -->
-              <g>
-                <rect x="120" y="170" width="6" height="40" rx="1" fill="#8c5a35"/>
-                <circle cx="123" cy="160" r="22" fill="#7fb36b" opacity="0.7"/>
-                <circle cx="110" cy="168" r="16" fill="#8fbc7a" opacity="0.5"/>
-                <circle cx="136" cy="166" r="14" fill="#6a9a56" opacity="0.5"/>
-              </g>
-              <!-- Tree right -->
-              <g>
-                <rect x="288" y="172" width="5" height="38" rx="1" fill="#8c5a35"/>
-                <circle cx="290" cy="163" r="18" fill="#7fb36b" opacity="0.65"/>
-                <circle cx="280" cy="169" r="13" fill="#8fbc7a" opacity="0.45"/>
-                <circle cx="301" cy="168" r="12" fill="#6a9a56" opacity="0.45"/>
-              </g>
-              <!-- Junimo shape (center-right) -->
-              <g transform="translate(318, 148)" opacity="0.7">
-                <ellipse cx="0" cy="10" rx="12" ry="11" fill="#91c978"/>
-                <circle cx="0" cy="-2" r="9" fill="#91c978"/>
-                <circle cx="-4" cy="1" r="1.5" fill="#2d241b"/>
-                <circle cx="4" cy="1" r="1.5" fill="#2d241b"/>
-                <circle cx="0" cy="5" r="1.5" fill="#4a2a14"/>
-                <line x1="0" y1="-10" x2="0" y2="-16" stroke="#91c978" stroke-width="1.5" stroke-linecap="round"/>
-                <circle cx="0" cy="-17" r="2" fill="#fde8b3"/>
-              </g>
-              <!-- Scarecrow (far left) -->
-              <g transform="translate(88, 170)" opacity="0.55">
-                <rect x="-1" y="10" width="2" height="30" rx="1" fill="#8c5a35"/>
-                <rect x="-10" y="5" width="20" height="14" rx="2" fill="#c4956a" stroke="#a67a52" stroke-width="0.8"/>
-                <circle cx="0" cy="0" r="6" fill="#f5eddd" stroke="#a67a52" stroke-width="0.8"/>
-                <circle cx="-2" cy="-1" r="0.8" fill="#2d241b"/>
-                <circle cx="2" cy="-1" r="0.8" fill="#2d241b"/>
-                <polygon points="-8,11 0,18 8,11" fill="#d4a373"/>
-              </g>
-              <!-- Grass tufts -->
-              <g stroke="#6a9a56" stroke-width="1" opacity="0.3">
-                <path d="M140 212 Q142 205 144 212" fill="none"/>
-                <path d="M255 215 Q257 208 259 215" fill="none"/>
-                <path d="M40 220 Q42 213 44 220" fill="none"/>
-                <path d="M350 210 Q352 203 354 210" fill="none"/>
-              </g>
-              <!-- Warm light overlay -->
-              <ellipse cx="200" cy="100" rx="200" ry="120" fill="url(#sunGlow)" opacity="0.15" style="mix-blend-mode: overlay;"/>
-              <defs>
-                <radialGradient id="sunGlow" cx="0.5" cy="0.3" r="0.6">
-                  <stop offset="0%" stop-color="#fef0cd"/>
-                  <stop offset="100%" stop-color="transparent"/>
-                </radialGradient>
-              </defs>
-            </svg>
-            <div class="scene-glow"></div>
-          </div>
+        <div class="overview-actions-bar">
+          <button class="overview-action-btn" :disabled="!smapiExists" @click="handleLaunchSmapi">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>{{ t('overview.launchGame') }}</span>
+          </button>
+          <button class="overview-action-btn" @click="handleSelectPath">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            <span>{{ t('overview.selectPath') }}</span>
+          </button>
+          <button class="overview-action-btn" :disabled="!gamePath || isScanning" @click="scanMods">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            <span>{{ isScanning ? t('overview.scanInProgress') : t('overview.rescan') }}</span>
+          </button>
+          <button class="overview-action-btn" :disabled="!stardewExists" @click="handleLaunchVanilla">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>{{ t('sidebar.vanillaLaunchBtn') }}</span>
+          </button>
         </div>
 
         <div class="overview-grid">
@@ -386,12 +187,30 @@
             </div>
           </div>
         </div>
+
+        <div class="overview-footer-bar">
+          <div class="overview-footer-chip">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span>{{ smapiExists ? t('overview.envInstalled') : t('overview.envNotInstalled') }}</span>
+            <strong>SMAPI {{ smapiDetectedVersion || '-' }}</strong>
+          </div>
+          <div class="overview-footer-chip">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>{{ t('overview.envGamePath') }}</span>
+            <strong class="footer-path">{{ gamePath || t('settings.noPath') }}</strong>
+          </div>
+          <div v-if="currentProfile" class="overview-footer-chip">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+            <span>{{ t('sidebar.currentProfile') }}</span>
+            <strong>{{ currentProfile.name }}</strong>
+          </div>
+        </div>
       </section>
 
       <section v-if="activeView === 'mods'" class="view-stack mods-view mods-page-fixed">
         <div class="panel filter-panel">
-          <div class="filter-top-row">
-            <div class="search-box">
+          <div class="filter-toolbar">
+            <div class="search-box search-box-modern">
               <span class="search-icon">
                 <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="5.5"/><line x1="11.5" y1="11.5" x2="16" y2="16"/></svg>
               </span>
@@ -436,37 +255,13 @@
             </div>
           </div>
 
-          <div class="filter-summary-row">
-            <p class="filter-result-text">
-              {{ t('mods.filterResult', { n: filteredMods.length, m: allDisplayMods.length }) }}
-            </p>
-            <p v-if="modSearchQuery || modStatusFilter !== 'all' || modDependencyFilter !== 'all'" class="active-filter-text">
-              {{ t('mods.filterActive') }}
-            </p>
-          </div>
-
-          <div v-if="lastInstalledZipMods.length > 0" class="inline-install-summary">
-            <span>{{ t('mods.recentInstall') }}</span>
-            <strong>
-              {{
-                lastInstalledZipMods
-                  .slice(0, 3)
-                  .map((mod) => mod.name || mod.suggested_folder)
-                  .join("、")
-              }}
-            </strong>
-            <span v-if="lastInstalledZipMods.length > 3">
-              {{ t('mods.recentInstallMore', { n: lastInstalledZipMods.length }) }}
-            </span>
-          </div>
-
-          <div v-if="mods.length > 0 && missingDependencies.length > 0" class="inline-dependency-summary">
-            <span>{{ t('mods.depWarning', { n: missingDependencies.length }) }}</span>
-          </div>
         </div>
 
         <div v-if="selectedModKeys.size > 0" class="batch-action-bar">
-          <span class="batch-count">{{ t('mods.batchSelected', { n: selectedModKeys.size }) }}</span>
+          <div class="batch-action-summary">
+            <span class="batch-count">{{ t('mods.batchSelected', { n: selectedModKeys.size }) }}</span>
+            <span class="batch-hint">{{ t('mods.listHint') }}</span>
+          </div>
           <div class="batch-actions">
             <button class="tiny-button" @click="handleBatchEnable">{{ t('mods.batchEnable') }}</button>
             <button class="tiny-button danger" @click="handleBatchDisable">{{ t('mods.batchDisable') }}</button>
@@ -708,9 +503,7 @@
           </section>
         </div>
 
-        <div v-if="gamePath && allDisplayMods.length > 0 && filteredMods.length === 0" class="empty-state decorated-empty-state">
-          <img :src="grassTuft1" alt="" aria-hidden="true" class="empty-state-grass-image" />
-          <img :src="leafCornerBottomRight" alt="" aria-hidden="true" class="empty-state-leaf-corner" />
+        <div v-if="gamePath && allDisplayMods.length > 0 && filteredMods.length === 0" class="empty-state">
           <h3>{{ t('mods.emptyNoResults') }}</h3>
           <p>{{ t('mods.emptyNoResultsHint') }}</p>
           <button class="tiny-button" @click="clearModFilters" style="margin-top:8px">{{ t('mods.clearFilters') }}</button>
@@ -740,10 +533,8 @@
 
         <div
           v-if="gamePath && allDisplayMods.length === 0 && skippedFolders.length === 0"
-          class="empty-state decorated-empty-state"
+          class="empty-state"
         >
-          <img :src="grassTuft1" alt="" aria-hidden="true" class="empty-state-grass-image" />
-          <img :src="leafCornerBottomRight" alt="" aria-hidden="true" class="empty-state-leaf-corner" />
           <h3>{{ t('mods.emptyNoScan') }}</h3>
           <p>{{ t('mods.emptyNoScanHint') }}</p>
           <button class="tool-action-button" :disabled="isScanning" @click="scanMods" style="margin-top:12px">
@@ -754,16 +545,6 @@
 
       <section v-if="activeView === 'logs'" class="view-stack">
         <div v-if="smapiLogAnalysis" class="panel">
-          <div class="panel-header">
-            <h3>{{ t('logs.diagnosisTitle') }}</h3>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span class="log-file-label">{{ smapiLogFileName }}</span>
-              <button class="tiny-button" @click="handleReadLatestSmapiLog" style="flex-shrink:0;">
-                {{ t('overview.readLatestLog') }}
-              </button>
-            </div>
-          </div>
-
           <div class="diagnosis-grid">
             <div class="diagnosis-card">
               <span>{{ t('logs.diagnosisSmapiVersion') }}</span>
@@ -852,34 +633,52 @@
           </p>
         </div>
 
-        <div v-if="!smapiLogContent" class="empty-state decorated-empty-state log-empty-state-card">
-          <img :src="sceneLogEmpty" alt="" aria-hidden="true" class="log-empty-scene" />
-          <img :src="leafCornerBottomRight" alt="" aria-hidden="true" class="empty-state-leaf-corner" />
-          <h3>{{ t('logs.emptyTitle') }}</h3>
-          <p>{{ t('logs.emptyHint') }}</p>
-          <button
-            class="tool-action-button"
-            style="margin-top:12px"
-            @click="handleReadLatestSmapiLog"
-          >
-            {{ t('overview.readLatestLog') }}
-          </button>
+        <div v-if="!smapiLogContent" class="logs-empty-area">
+          <div class="empty-state log-empty-state-card">
+            <h3>{{ t('logs.emptyTitle') }}</h3>
+            <p>{{ t('logs.emptyHint') }}</p>
+            <button
+              class="tool-action-button"
+              style="margin-top:12px"
+              @click="handleReadLatestSmapiLog"
+            >
+              {{ t('overview.readLatestLog') }}
+            </button>
+          </div>
+
+          <div class="logs-help-grid">
+            <div class="panel compact-panel logs-help-card">
+              <div class="logs-help-card-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <h4>{{ t('logs.logHelpTitle') }}</h4>
+              </div>
+              <p>{{ t('logs.logHelpDesc') }}</p>
+            </div>
+
+            <div class="panel compact-panel logs-help-card">
+              <div class="logs-help-card-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <h4>{{ t('logs.logOpenFolder') }}</h4>
+              </div>
+              <p>{{ t('logs.logSuggestionTip') }}</p>
+              <button class="tiny-button" style="margin-top:8px" @click="handleOpenSmapiLogFolder">{{ t('logs.logOpenFolder') }}</button>
+            </div>
+          </div>
         </div>
       </section>
 
       <section v-if="activeView === 'tools'" class="view-stack toolbox-workspace">
-        <div class="toolbox-section-block">
-          <div class="toolbox-section-title-row">
-            <div>
-              <h3>{{ t('tools.quickActions') }}</h3>
-              <p>{{ t('tools.quickActionsDesc') }}</p>
-            </div>
+        <div class="tool-group">
+          <div class="tool-group-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+            <span>{{ t('tools.groupCommon') }}</span>
           </div>
-
           <div class="toolbox-grid">
             <article class="panel tool-section-card compact-tool-card">
               <div class="tool-section-header">
-                <div class="tool-section-icon">📁</div>
+                <div class="tool-section-icon">
+                  <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M2 6h7l2 3h9v9H2V6z"/></svg>
+                </div>
                 <div>
                   <h3>{{ t('tools.folders') }}</h3>
                   <p>{{ t('tools.foldersDesc') }}</p>
@@ -907,7 +706,9 @@
 
             <article class="panel tool-section-card compact-tool-card">
               <div class="tool-section-header">
-                <div class="tool-section-icon">📤</div>
+                <div class="tool-section-icon">
+                  <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </div>
                 <div>
                   <h3>{{ t('tools.export') }}</h3>
                   <p>{{ t('tools.exportDesc') }}</p>
@@ -935,10 +736,7 @@
             <article class="panel tool-section-card compact-tool-card">
               <div class="tool-section-header">
                 <div class="tool-section-icon">
-                  <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
-                    <path d="M12 2l7 4v5c0 5-3.5 9.7-7 11-3.5-1.3-7-6-7-11V6l7-4z"/>
-                    <path d="M9 12l2 2 4-4"/>
-                  </svg>
+                  <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
                 </div>
                 <div>
                   <h3>{{ t('tools.envCheck') }}</h3>
@@ -966,7 +764,9 @@
             </article>
             <article class="panel tool-section-card compact-tool-card">
               <div class="tool-section-header">
-                <div class="tool-section-icon">♻️</div>
+                <div class="tool-section-icon">
+                  <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </div>
                 <div>
                   <h3>{{ t('tools.recycleBin') }}</h3>
                   <p>{{ t('tools.recycleBinDesc') }}</p>
@@ -1029,9 +829,17 @@
           </div>
         </div>
 
+        <div class="tool-group">
+          <div class="tool-group-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>
+            <span>{{ t('tools.groupBackup') }}</span>
+          </div>
+
         <article class="panel tool-section-card toolbox-full-card">
           <div class="tool-section-header">
-            <div class="tool-section-icon">💾</div>
+            <div class="tool-section-icon">
+              <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>
+            </div>
             <div>
               <h3>{{ t('tools.backup') }}</h3>
               <p>{{ t('tools.backupDesc') }}</p>
@@ -1055,10 +863,19 @@
             </button>
           </div>
         </article>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-group-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 4v5c0 5-3.5 9.7-7 11-3.5-1.3-7-6-7-11V6l7-4z"/><path d="M9 12l2 2 4-4"/></svg>
+            <span>{{ t('tools.groupEnv') }}</span>
+          </div>
 
         <article class="panel tool-section-card smapi-tool-card toolbox-full-card">
           <div class="tool-section-header">
-            <div class="tool-section-icon">🧩</div>
+            <div class="tool-section-icon">
+              <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M12 2l7 4v5c0 5-3.5 9.7-7 11-3.5-1.3-7-6-7-11V6l7-4z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
             <div>
               <h3>{{ t('tools.smapiManage') }}</h3>
               <p>{{ t('tools.smapiManageDesc') }}</p>
@@ -1109,6 +926,13 @@
             {{ t('tools.smapiInstallNote2') }}
           </p>
         </article>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-group-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>{{ t('tools.groupInstall') }}</span>
+          </div>
 
         <article class="panel tool-section-card zip-tool-card toolbox-full-card">
           <div class="tool-section-header">
@@ -1209,11 +1033,20 @@
             </div>
           </div>
         </article>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-group-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
+            <span>{{ t('tools.groupResults') }}</span>
+          </div>
 
         <article class="panel tool-section-card update-check-panel toolbox-result-panel">
           <div class="tool-result-header">
             <div class="tool-section-header compact-result-header">
-              <div class="tool-section-icon">🔎</div>
+              <div class="tool-section-icon">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><circle cx="10" cy="10" r="8"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
+              </div>
               <div>
                 <h3>{{ t('tools.updateCheck') }}</h3>
                 <p>{{ t('tools.updateCheckDesc') }}</p>
@@ -1265,7 +1098,9 @@
         <article v-else class="panel tool-section-card install-history-panel toolbox-result-panel">
           <div class="tool-result-header">
             <div class="tool-section-header compact-result-header">
-              <div class="tool-section-icon">🧾</div>
+              <div class="tool-section-icon">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><circle cx="11" cy="11" r="8"/><polyline points="11 7 11 11 13 13"/><path d="M2 20l4-4"/></svg>
+              </div>
               <div>
                 <h3>{{ t('tools.installHistoryPanel') }}</h3>
                 <p>{{ t('tools.installHistoryDesc') }}</p>
@@ -1292,6 +1127,7 @@
             </article>
           </div>
         </article>
+        </div>
 
         <div
           v-if="zipModPreviews.length > 0"
@@ -1537,23 +1373,8 @@
         </div>
 
       <section v-if="activeView === 'profiles'" class="view-stack profiles-page">
-        <div class="panel compact-panel profile-hero-panel">
-          <div class="profile-hero-main">
-            <div>
-              <p class="eyebrow">{{ t('profiles.eyebrow') }}</p>
-              <h3>{{ t('profiles.title') }}</h3>
-              <p class="muted-text">
-                {{ t('profiles.desc') }}
-              </p>
-            </div>
-
-            <div class="profile-hero-stats">
-              <span>{{ t('profiles.count', { n: profiles.length }) }}</span>
-              <span>{{ t('profiles.modCount', { n: totalModCount }) }}</span>
-            </div>
-          </div>
-
-          <div class="profile-action-cards">
+        <div class="setting-section-label">{{ t('profiles.eyebrow') }}</div>
+        <div class="profile-action-cards">
             <button class="profile-action-card primary" @click="startCreateProfile(false)">
               <strong>{{ t('profiles.createNew') }}</strong>
               <span>{{ t('profiles.createNewDesc') }}</span>
@@ -1582,7 +1403,6 @@
               <span>{{ t('profiles.importProfilesDesc') }}</span>
             </button>
           </div>
-        </div>
 
         <div
           v-if="isProfileEditorOpen"
@@ -1814,12 +1634,8 @@
       </section>
 
       <section v-if="activeView === 'settings'" class="view-stack">
+        <div class="setting-section-label">{{ t('settings.basic') }}</div>
         <div class="panel compact-panel">
-          <div class="panel-header">
-            <h3>{{ t('settings.basic') }}</h3>
-            <span>{{ t('settings.basicDesc') }}</span>
-          </div>
-
           <div class="setting-block">
             <span>{{ t('settings.language') }}</span>
             <div class="language-toggle">
@@ -1838,12 +1654,8 @@
           </div>
         </div>
 
+        <div class="setting-section-label">{{ t('settings.nexusSection') }}</div>
         <div class="panel compact-panel">
-          <div class="panel-header">
-            <h3>{{ t('settings.nexusSection') }}</h3>
-            <span>{{ t('settings.nexusDesc') }}</span>
-          </div>
-
           <p class="muted-text">
             {{ t('settings.nexusExplanation') }}
           </p>
@@ -1887,7 +1699,8 @@
 
     <aside class="right-panel">
       <div class="launch-card">
-        <div class="junimo-badge">
+        <div class="launch-card-head">
+          <div class="junimo-badge">
               <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <ellipse cx="16" cy="20" rx="10" ry="9" fill="#6fa85f"/>
                 <circle cx="16" cy="14" r="8" fill="#8bc47a"/>
@@ -1904,7 +1717,9 @@
           <h3>{{ t('sidebar.launchCenter') }}</h3>
           <p>{{ t('sidebar.launchCenterDesc') }}</p>
         </div>
+        </div>
 
+        <div class="launch-card-actions">
         <button
           class="launch-button"
           :disabled="!smapiExists"
@@ -1945,6 +1760,7 @@
         <p v-if="smapiInstallerOpened && !isSmapiInstalling" class="side-install-stage">
           {{ t('sidebar.smapiInstallerNote') }}
         </p>
+        </div>
       </div>
 
       <div class="side-card current-profile-side-card">
@@ -1996,7 +1812,7 @@
       <span class="dq-fab-count">
         {{ downloadQueue.filter(i => i.status === 'queued' || i.status === 'downloading' || i.status === 'connecting').length }}
       </span>
-      ⬇
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20 12v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4"/></svg>
     </button>
 
     <div v-if="isDownloadQueueOpen" class="download-queue-panel">
@@ -2202,14 +2018,6 @@ import { exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import JSON5 from "json5";
 import { t, locale, setLocaleAndNotify } from "./i18n";
 import junimoMascotAvatar from "./assets/junimo/junimo-mascot-avatar.svg";
-import sceneOverviewHeader from "./assets/junimo/scene-overview-header.svg";
-import sceneModsHeader from "./assets/junimo/scene-mods-header.svg";
-import sceneToolsHeader from "./assets/junimo/scene-tools-header.svg";
-import sceneSettingsHeader from "./assets/junimo/scene-settings-header.svg";
-import sceneLogEmpty from "./assets/junimo/scene-log-empty.svg";
-import leafDivider from "./assets/junimo/leaf-divider.svg";
-import grassTuft1 from "./assets/junimo/grass-tuft-1.svg";
-import leafCornerBottomRight from "./assets/junimo/leaf-corner-bottom-right.svg";
 
 const STORAGE_KEY = "junimo-box-game-path";
 const PROFILES_STORAGE_KEY = "junimo-box-profiles";
@@ -2230,13 +2038,6 @@ type LaunchCheckIssue = {
   level: LaunchIssueLevel;
   title: string;
   detail?: string;
-};
-
-type ViewMeta = {
-  eyebrow: string;
-  title: string;
-  description: string;
-  scene?: string;
 };
 
 type ModDependency = {
@@ -2753,15 +2554,6 @@ const totalModCount = computed(() => mods.value.length + disabledMods.value.leng
 
 const parsedNxmRequest = computed<ParsedNxmRequest>(() => parseNxmLink(nxmRequestLink.value));
 
-const viewMetaMap = computed<Record<ViewId, ViewMeta>>(() => ({
-  overview: { eyebrow: "总览", title: t("nav.overview"), description: t("overview.heroDesc"), scene: sceneOverviewHeader },
-  mods: { eyebrow: "本地 Mod", title: t("nav.mods"), description: "搜索、筛选、查看、启用或禁用 Stardew Valley Mod。", scene: sceneModsHeader },
-  logs: { eyebrow: "SMAPI 日志", title: t("nav.logs"), description: "读取最新 SMAPI 日志并生成诊断摘要。", scene: sceneLogEmpty },
-  tools: { eyebrow: "工具箱", title: t("nav.tools"), description: "打开常用目录、导出报告、预览和安装 ZIP Mod。", scene: sceneToolsHeader },
-  profiles: { eyebrow: "配置方案", title: t("nav.profiles"), description: "保存、查看和应用不同的 Mod 组合方案。" },
-  settings: { eyebrow: "设置", title: t("nav.settings"), description: "管理本地路径和 Junimo Box 偏好设置。", scene: sceneSettingsHeader },
-}));
-
 function setNotice(type: NoticeType, text: string) {
   notice.value = { type, text };
 }
@@ -2839,8 +2631,6 @@ function inferNoticeType(text: string): NoticeType {
 
   return "info";
 }
-
-const currentViewMeta = computed<ViewMeta>(() => viewMetaMap.value[activeView.value]);
 
 const allDisplayMods = computed<DisplayModInfo[]>(() => [
   ...mods.value.map((mod) => createDisplayMod(mod, false)),
@@ -3701,24 +3491,6 @@ async function handleApplyProfile(profile: ModProfile) {
   }
 
   activeView.value = "mods";
-}
-
-async function handleDetectPath() {
-  try {
-    addToast("info", t("error.detectingPath"));
-    const detected = await invoke<string | null>("detect_game_path");
-    if (detected) {
-      gamePath.value = detected;
-      localStorage.setItem(STORAGE_KEY, detected);
-      await checkGameFiles(detected);
-      await scanMods();
-      addToast("success", t("error.gameDetected", { path: detected }));
-    } else {
-      addToast("warning", t("error.gameDetectionFailed"));
-    }
-  } catch (error) {
-    addToast("error", t("error.detectionError", { err: String(error) }));
-  }
 }
 
 async function handleSelectPath() {
@@ -5970,13 +5742,6 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   object-fit: contain;
 }
 
-.sidebar-divider-image {
-  display: block;
-  width: 100px;
-  height: auto;
-  opacity: 0.75;
-}
-
 .brand h1 {
   margin: 0;
   font-size: 19px;
@@ -6076,58 +5841,6 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-}
-
-.content-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.content-header-main {
-  min-width: 0;
-  flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-}
-
-.content-header-scene-wrap {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.content-header-scene {
-  display: block;
-  width: 168px;
-  max-width: 100%;
-  height: auto;
-  opacity: 0.96;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.content-header h2 {
-  margin: 2px 0 2px;
-  font-size: 24px;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
-  font-weight: 800;
-}
-
-.content-header p {
-  margin: 0;
-  color: var(--text-secondary, #7a6652);
-  line-height: 1.45;
 }
 
 .eyebrow {
@@ -6280,6 +5993,94 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 10px;
 }
 
+.overview-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.overview-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-subtle, rgba(86,62,43,0.10));
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg-surface, #fcf9f4);
+  color: var(--text-primary, #2f261f);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-xs, 0 1px 3px rgba(44,31,21,0.04));
+}
+
+.overview-action-btn:hover:not(:disabled) {
+  background: var(--bg-card, #f3ede2);
+  border-color: var(--border-strong, rgba(86,62,43,0.18));
+  box-shadow: var(--shadow-sm, 0 6px 16px rgba(44,31,21,0.06));
+}
+
+.overview-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.overview-action-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.overview-footer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--bg-surface, #fcf9f4);
+  border: 1px solid var(--border-subtle, rgba(86,62,43,0.10));
+}
+
+.overview-footer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #6f5c4a);
+  padding: 4px 10px;
+  border-radius: var(--radius-full, 999px);
+  background: rgba(139, 107, 67, 0.06);
+}
+
+.overview-footer-chip svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.overview-footer-chip strong {
+  font-weight: 700;
+  color: var(--text-primary, #2f261f);
+}
+
+.overview-footer-chip .footer-path {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .overview-footer-chip .footer-path {
+    max-width: 120px;
+  }
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6297,23 +6098,36 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.setting-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted, #8b7560);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+
 .status-card,
 .summary-row > div,
 .setting-block {
   padding: 14px 16px;
-  border-radius: var(--radius-lg, 16px);
-  background: var(--bg-card, #f6ead8);
-  border: 1px solid rgba(92, 70, 48, 0.07);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
+  box-shadow: none;
 }
 
 .status-card span,
 .summary-row span,
 .setting-block span {
   display: block;
-  color: var(--text-secondary, #7a6652);
-  font-size: 12px;
+  color: var(--text-muted, #8b7560);
+  font-size: 11px;
   margin-bottom: 6px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .status-card strong,
@@ -6325,9 +6139,10 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .path-display {
   font-family: ui-monospace, "SF Mono", Consolas, monospace;
   font-size: 13px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(92, 70, 48, 0.06);
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(139, 107, 67, 0.08);
+  border: 1px solid rgba(139, 107, 67, 0.10);
   word-break: break-all;
   line-height: 1.45;
 }
@@ -6335,33 +6150,34 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .language-toggle {
   display: flex;
   gap: 0;
-  border: 1px solid var(--border-strong, rgba(92,70,48,0.22));
-  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
+  border-radius: 10px;
   overflow: hidden;
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .language-toggle button {
   flex: 1;
-  padding: 6px 16px;
+  padding: 7px 14px;
   border: none;
   background: transparent;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
   transition: all 0.15s ease;
   min-width: 52px;
+  box-shadow: none;
 }
 
 .language-toggle button.active {
-  background: var(--green-bg, #6fa85f);
+  background: var(--green-bg, #5e9360);
   color: #fff;
   font-weight: 700;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .language-toggle button:not(.active):hover {
-  background: rgba(92, 70, 48, 0.06);
+  background: rgba(139, 107, 67, 0.06);
 }
 
 .status-card small {
@@ -6450,7 +6266,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .filter-panel {
-  padding: 10px 14px 8px;
+  padding: 14px 16px 12px;
 }
 
 .batch-action-bar {
@@ -6459,25 +6275,42 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 10px 14px;
   flex-shrink: 0;
   margin-bottom: 8px;
-  border-radius: var(--radius-md, 12px);
-  background: rgba(111, 168, 95, 0.08);
-  border: 1.5px solid rgba(111, 168, 95, 0.25);
-  box-shadow: 0 2px 8px rgba(111, 168, 95, 0.06);
+  border-radius: 14px;
+  background: rgba(94, 147, 96, 0.08);
+  border: 1px solid rgba(94, 147, 96, 0.18);
+  box-shadow: none;
+}
+
+.batch-action-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .batch-count {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--green-text, #2f7d3e);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--green-text, #35663c);
+}
+
+.batch-hint {
+  color: var(--text-muted, #8b7560);
+  font-size: 11px;
 }
 
 .batch-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.filter-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .filter-top-row {
@@ -6492,15 +6325,17 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-radius: 12px;
-  background: var(--bg-card, #f6ead8);
-  transition: box-shadow 0.18s ease, background 0.18s ease;
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
+  background: rgba(255, 255, 255, 0.76);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
 .search-box:focus-within {
-  background: var(--bg-surface, #fffaf0);
-  box-shadow: 0 0 0 2px rgba(111, 168, 95, 0.2);
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(94, 147, 96, 0.22);
+  box-shadow: 0 0 0 3px rgba(94, 147, 96, 0.12);
 }
 
 .search-box input {
@@ -6508,19 +6343,19 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   border: none;
   outline: none;
   background: transparent;
-  color: var(--text-primary, #2d241b);
+  color: var(--text-primary, #2f261f);
   font-size: 14px;
 }
 
 .search-box input::placeholder {
-  color: #9a8065;
+  color: var(--text-muted, #8b7560);
 }
 
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  margin-top: 8px;
+  gap: 8px 16px;
+  margin-top: 12px;
 }
 
 .filter-group {
@@ -6531,17 +6366,19 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .filter-label {
-  color: var(--text-secondary, #7a6652);
-  font-size: 12px;
+  color: var(--text-muted, #8b7560);
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .filter-chip {
-  padding: 4px 9px;
-  border: none;
+  padding: 5px 10px;
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: #eadcc8;
-  color: var(--text-tertiary, #5c4630);
+  background: rgba(139, 107, 67, 0.08);
+  color: var(--text-secondary, #6f5c4a);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -6549,19 +6386,20 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .filter-chip:hover {
-  background: #dccaa8;
-  color: var(--text-primary, #2d241b);
+  background: rgba(139, 107, 67, 0.14);
+  color: var(--text-primary, #2f261f);
 }
 
 .filter-chip.active {
-  background: var(--text-gold, #8b6f47);
-  color: var(--bg-surface, #fffaf0);
-  box-shadow: 0 2px 6px rgba(139, 111, 71, 0.2);
+  background: var(--wood-dark, #322219);
+  color: var(--text-on-dark, #fff8ef);
+  border-color: rgba(50, 34, 25, 0.18);
+  box-shadow: none;
 }
 
 .filter-result-text {
-  margin: 6px 0 0;
-  color: var(--text-secondary, #7a6652);
+  margin: 0;
+  color: var(--text-secondary, #6f5c4a);
   font-size: 12px;
 }
 
@@ -6581,7 +6419,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 16px;
   padding: 10px 14px 8px;
   border-radius: 18px;
-  background: var(--bg-card, #f6ead8);
+  background: var(--bg-card, #f3ede2);
 }
 
 .mod-item.disabled {
@@ -6589,7 +6427,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .mod-item.warning {
-  background: var(--warning-bg, #f8e7c8);
+  background: rgba(247, 226, 222, 0.72);
 }
 
 .mod-main {
@@ -6727,44 +6565,75 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.tool-group {
+  margin-bottom: 18px;
+}
+
+.tool-group:last-child {
+  margin-bottom: 0;
+}
+
+.tool-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.tool-group-header svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted, #8b7560);
+  flex-shrink: 0;
+}
+
+.tool-group-header span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted, #8b7560);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 .toolbox-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .tool-section-card {
-  padding: 12px 16px;
+  padding: 14px 16px;
 }
 
 .tool-section-header {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
 .tool-section-icon {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: var(--bg-card, #f6ead8);
-  font-size: 22px;
+  background: rgba(139, 107, 67, 0.08);
+  font-size: 20px;
 }
 
 .tool-section-header h3 {
-  margin: 0 0 5px;
-  font-size: 21px;
+  margin: 0 0 4px;
+  font-size: 18px;
 }
 
 .tool-section-header p {
   margin: 0;
-  color: var(--text-secondary, #7a6652);
-  font-size: 14px;
-  line-height: 1.45;
+  color: var(--text-secondary, #6f5c4a);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .tool-section-actions {
@@ -6779,23 +6648,24 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 8px;
   margin: 12px 0;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--bg-card, #f6ead8);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
 }
 
 .tool-status-row span {
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
 }
 
 .tool-section-note {
   margin: 6px 0 0;
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
   font-size: 12px;
   line-height: 1.5;
 }
 
 .tool-action-button {
-  min-height: 42px;
+  min-height: 40px;
 }
 
 .zip-tool-card {
@@ -6816,9 +6686,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .zip-tool-hint {
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .setting-actions {
@@ -6840,30 +6710,30 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   margin: 0;
   padding: 14px;
   border-radius: 14px;
-  background: var(--text-primary, #2d241b);
-  color: #fff7e8;
+  background: #261e18;
+  color: #f7f1e8;
   font-family: Consolas, "Courier New", monospace;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
 }
 
 .diagnosis-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .diagnosis-card {
   padding: 14px;
-  border-radius: 16px;
-  background: var(--bg-card, #f6ead8);
-  border: 1px solid rgba(92, 70, 48, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
 }
 
 .log-file-label {
   font-size: 12px;
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6873,32 +6743,35 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .diagnosis-card span {
   display: block;
   margin-bottom: 6px;
-  color: var(--text-secondary, #7a6652);
-  font-size: 12px;
+  color: var(--text-muted, #8b7560);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .diagnosis-card strong {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .diagnosis-section {
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid rgba(92, 70, 48, 0.14);
+  border-top: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
 }
 
 .diagnosis-section h4 {
   margin: 0 0 8px;
-  font-size: 17px;
+  font-size: 16px;
 }
 
 .diagnosis-section p {
   margin: 0 0 10px;
-  color: var(--text-tertiary, #5c4630);
-  line-height: 1.5;
+  color: var(--text-tertiary, #594838);
+  line-height: 1.55;
 }
 
 .diagnosis-list {
@@ -7343,21 +7216,28 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .launch-card,
 .side-card {
-  padding: 10px 14px 8px;
-  border-radius: var(--radius-card, 10px);
-  background: var(--bg-surface, #fffaf0);
-  box-shadow: 0 10px 26px rgba(67, 47, 27, 0.09);
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--bg-surface, #fcf9f4);
+  box-shadow: var(--shadow-sm, 0 6px 16px rgba(44, 31, 21, 0.06));
 }
 
 .launch-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  row-gap: 12px;
+}
+
+.launch-card-head {
   display: grid;
   grid-template-columns: 44px 1fr;
   column-gap: 12px;
   align-items: center;
 }
 
-.launch-card .launch-button {
-  grid-column: 1 / -1;
+.launch-card-actions {
+  display: grid;
+  gap: 8px;
 }
 
 .junimo-badge {
@@ -7366,16 +7246,16 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: linear-gradient(180deg, #d4eac6, #b8dba8);
-  border: 1px solid rgba(111, 168, 95, 0.2);
+  background: linear-gradient(180deg, #dfeccf, #c4dbb5);
+  border: 1px solid rgba(94, 147, 96, 0.16);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .sidebar-decor-divider {
   display: flex;
   justify-content: center;
-  margin: 6px 0 2px;
-  opacity: 0.7;
+  margin: 4px 0 2px;
+  opacity: 0.6;
 }
 
 .launch-card h3,
@@ -7386,46 +7266,44 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .launch-card p,
 .path-card p {
   margin: 0;
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.5;
   word-break: break-all;
 }
 
 .launch-button {
   width: 100%;
-  margin-top: 14px;
-  padding: 13px 16px;
+  margin-top: 0;
+  padding: 12px 14px;
   border-radius: 12px;
-  background: var(--green-bg, #6fa85f);
-  font-size: 16px;
+  background: var(--green-bg, #5e9360);
+  font-size: 14px;
   font-weight: 800;
 }
 
 .vanilla-button {
-  margin-top: 8px;
-  background: var(--text-gold, #8b6f47);
+  background: var(--gold-bg, #8b6b43);
 }
 
 .smapi-install-button {
-  margin-top: 8px;
-  background: #9f7d4a;
+  background: #8f7453;
 }
 
 .smapi-install-button:hover:not(:disabled) {
-  background: #87693d;
+  background: #7a6245;
 }
 
 .vanilla-button:hover:not(:disabled) {
-  background: var(--gold-hover, #755d3c);
+  background: var(--gold-hover, #735733);
 }
 
 .info-line {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border-subtle, rgba(92, 70, 48, 0.12));
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
 }
 
 .info-line:last-child {
@@ -7437,56 +7315,57 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 button {
-  padding: 11px 16px;
-  border: none;
-  border-radius: 13px;
-  background: var(--green-bg, #6fa85f);
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--green-bg, #5e9360);
   color: white;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   letter-spacing: 0.01em;
 }
 
 button:hover:not(:disabled) {
-  background: var(--green-hover, #5d944f);
+  background: var(--green-hover, #4f7f52);
 }
 
 button:disabled {
-  opacity: 0.4;
+  opacity: 0.42;
   cursor: not-allowed;
 }
 
 button.secondary {
-  background: var(--text-gold, #8b6f47);
+  background: var(--gold-bg, #8b6b43);
 }
 
 button.secondary:hover:not(:disabled) {
-  background: var(--gold-hover, #755d3c);
+  background: var(--gold-hover, #735733);
 }
 
-.compact-header-button {
-  white-space: nowrap;
-  padding: 10px 15px;
-}
 
 .tiny-button {
-  padding: 4px 9px;
+  padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
-  background: var(--text-gold, #8b6f47);
+  background: rgba(139, 107, 67, 0.12);
+  color: var(--text-secondary, #6f5c4a);
+  border: 1px solid rgba(139, 107, 67, 0.14);
 }
 
 .tiny-button:hover:not(:disabled) {
-  background: var(--gold-hover, #755d3c);
+  background: rgba(139, 107, 67, 0.18);
+  color: var(--text-primary, #2f261f);
 }
 
 .tiny-button.danger {
-  background: #b65b4b;
+  background: rgba(182, 96, 89, 0.12);
+  color: var(--danger-text, #8f3832);
+  border-color: rgba(182, 96, 89, 0.18);
 }
 
 .tiny-button.danger:hover:not(:disabled) {
-  background: #9f493c;
+  background: rgba(182, 96, 89, 0.18);
 }
 
 .ok {
@@ -7513,18 +7392,6 @@ button.secondary:hover:not(:disabled) {
 
 .mods-view {
   gap: 14px;
-}
-
-.filter-summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.filter-summary-row .filter-result-text {
-  margin: 0;
 }
 
 .active-filter-text {
@@ -8130,23 +7997,23 @@ button.secondary:hover:not(:disabled) {
 /* v0.2：Mod 列表卡片密度优化 */
 .compact-mod-card {
   padding: 14px;
-  border-radius: var(--radius-lg, 16px);
+  border-radius: 16px;
   display: block;
-  border: 1.5px solid rgba(92, 70, 48, 0.08);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .compact-mod-card:hover {
-  box-shadow: 0 6px 16px rgba(61, 40, 21, 0.07);
+  box-shadow: var(--shadow-sm, 0 6px 16px rgba(44, 31, 21, 0.06));
 }
 
 .compact-mod-card.warning {
-  border-color: rgba(159, 73, 60, 0.28);
-  background: #f9e8d3;
+  border-color: rgba(182, 96, 89, 0.18);
+  background: rgba(247, 226, 222, 0.72);
 }
 
 .compact-mod-card.disabled {
-  opacity: 0.7;
+  opacity: 0.72;
 }
 
 .mod-card-content {
@@ -8156,7 +8023,7 @@ button.secondary:hover:not(:disabled) {
 .mod-card-main-row {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-start;
 }
 
@@ -8184,15 +8051,15 @@ button.secondary:hover:not(:disabled) {
 }
 
 .compact-badges .status-badge {
-  padding: 3px 7px;
+  padding: 4px 8px;
   font-size: 11px;
 }
 
 .compact-mod-card .compact-description {
   margin-top: 8px;
   font-size: 12px;
-  line-height: 1.42;
-  color: var(--text-tertiary, #5c4630);
+  line-height: 1.5;
+  color: var(--text-tertiary, #594838);
   -webkit-line-clamp: 2;
 }
 
@@ -8207,12 +8074,12 @@ button.secondary:hover:not(:disabled) {
 .folder-chip {
   min-width: 0;
   max-width: 62%;
-  padding: 3px 7px;
+  padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(226, 209, 184, 0.75);
-  color: var(--text-folder-chip, #6b5238);
+  background: rgba(139, 107, 67, 0.10);
+  color: var(--text-folder-chip, #6a533f);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -8233,13 +8100,15 @@ button.secondary:hover:not(:disabled) {
 }
 
 .ghost-button {
-  background: #c2b096;
-  color: #f5efe3;
+  background: rgba(139, 107, 67, 0.08);
+  color: var(--text-secondary, #6f5c4a);
   font-weight: 600;
+  border: 1px solid rgba(139, 107, 67, 0.12);
 }
 
 .ghost-button:hover:not(:disabled) {
-  background: var(--text-gold, #8b6f47);
+  background: rgba(139, 107, 67, 0.14);
+  color: var(--text-primary, #2f261f);
 }
 
 .scrollable-mods-list {
@@ -8390,7 +8259,6 @@ button.secondary:hover:not(:disabled) {
   min-height: 0 !important;
 }
 
-.content-header,
 .notice {
   flex-shrink: 0 !important;
 }
@@ -8535,36 +8403,11 @@ button.secondary:hover:not(:disabled) {
   gap: 14px;
 }
 
-.profile-hero-panel {
-  padding: 18px 20px;
-}
-
-.profile-hero-main {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
-}
-
-.profile-hero-main h3 {
-  margin: 4px 0 6px;
-  font-size: 22px;
-}
-
-.profile-hero-stats {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-end;
-}
-
-.profile-hero-stats span,
 .experiment-chip {
   padding: 5px 8px;
   border-radius: 999px;
-  background: var(--green-light, #e8f3df);
-  color: #2f6f3c;
+  background: rgba(94, 147, 96, 0.10);
+  color: var(--green-text, #35663c);
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
@@ -8573,23 +8416,24 @@ button.secondary:hover:not(:disabled) {
 .profile-action-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
   margin-top: 16px;
 }
 
 .profile-action-card {
   width: 100%;
   padding: 14px 16px;
-  border-radius: 18px;
-  background: var(--bg-card, #f6ead8);
-  color: var(--text-primary, #2d241b);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--text-primary, #2f261f);
   text-align: left;
   box-shadow: none;
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
 }
 
 .profile-action-card.primary {
-  background: var(--green-bg, #6fa85f);
-  color: var(--bg-surface, #fffaf0);
+  background: var(--green-bg, #5e9360);
+  color: var(--bg-surface, #fcf9f4);
 }
 
 .profile-action-card strong,
@@ -8606,7 +8450,7 @@ button.secondary:hover:not(:disabled) {
   color: inherit;
   opacity: 0.82;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .profile-list-light {
@@ -8618,8 +8462,8 @@ button.secondary:hover:not(:disabled) {
 .light-profile-card {
   display: block;
   padding: 14px 16px;
-  border-radius: 18px;
-  background: var(--bg-surface, #fffaf0);
+  border-radius: 16px;
+  background: rgba(252, 249, 244, 0.94);
 }
 
 .profile-card-top {
@@ -8715,12 +8559,10 @@ button.secondary:hover:not(:disabled) {
 }
 
 @media (max-width: 820px) {
-  .profile-hero-main,
   .profile-card-top {
     flex-direction: column;
   }
 
-  .profile-hero-stats,
   .compact-profile-actions {
     align-items: flex-start;
   }
@@ -8874,45 +8716,6 @@ button.secondary:hover:not(:disabled) {
 }
 
 
-/* v0.4.0：安装结果改为轻量行内提示，避免顶开 Mod 列表 */
-.inline-install-summary,
-.inline-dependency-summary {
-  margin-top: 6px;
-  padding: 6px 10px;
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.inline-install-summary {
-  background: rgba(229, 245, 219, 0.9);
-  border: 1px solid rgba(111, 168, 95, 0.22);
-  color: var(--green-text, #2f7d3e);
-}
-
-.inline-install-summary span {
-  color: #4f7d48;
-}
-
-.inline-install-summary strong {
-  color: #1f6d34;
-}
-
-.inline-dependency-summary {
-  background: rgba(255, 243, 205, 0.9);
-  border: 1px solid rgba(161, 119, 55, 0.22);
-  color: #8a5a18;
-}
-
-.inline-dependency-summary span {
-  color: #8a6a3d;
-}
-
-.inline-dependency-summary strong {
-  color: #7a4b11;
-}
-
-
 /* v0.5.0：NXM 协议入口 */
 .nxm-box {
   margin-top: 14px;
@@ -8993,9 +8796,9 @@ button.secondary:hover:not(:disabled) {
 .nexus-status-block small {
   display: block;
   margin-top: 6px;
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 
@@ -9244,32 +9047,6 @@ button.secondary:hover:not(:disabled) {
 /* v0.6.2：工具箱重排——从 block2 合并 */
 .toolbox-workspace {
   gap: 16px !important;
-}
-
-.toolbox-section-block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.toolbox-section-title-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 2px;
-}
-
-.toolbox-section-title-row h3 {
-  margin: 0 0 4px;
-  font-size: 22px;
-  color: var(--text-primary, #2d241b);
-}
-
-.toolbox-section-title-row p {
-  margin: 0;
-  color: var(--text-secondary, #7a6652);
-  font-size: 14px;
 }
 
 .toolbox-full-card,
@@ -9599,45 +9376,6 @@ button.secondary:hover:not(:disabled) {
 }
 
 
-/* v0.4.0：安装结果改为轻量行内提示，避免顶开 Mod 列表 */
-.inline-install-summary,
-.inline-dependency-summary {
-  margin-top: 6px;
-  padding: 6px 10px;
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.inline-install-summary {
-  background: rgba(229, 245, 219, 0.9);
-  border: 1px solid rgba(111, 168, 95, 0.22);
-  color: var(--green-text, #2f7d3e);
-}
-
-.inline-install-summary span {
-  color: #4f7d48;
-}
-
-.inline-install-summary strong {
-  color: #1f6d34;
-}
-
-.inline-dependency-summary {
-  background: rgba(255, 243, 205, 0.9);
-  border: 1px solid rgba(161, 119, 55, 0.22);
-  color: #8a5a18;
-}
-
-.inline-dependency-summary span {
-  color: #8a6a3d;
-}
-
-.inline-dependency-summary strong {
-  color: #7a4b11;
-}
-
-
 /* v0.5.0：NXM 协议入口 */
 .nxm-box {
   margin-top: 14px;
@@ -9718,9 +9456,9 @@ button.secondary:hover:not(:disabled) {
 .nexus-status-block small {
   display: block;
   margin-top: 6px;
-  color: var(--text-secondary, #7a6652);
+  color: var(--text-secondary, #6f5c4a);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 
@@ -9961,32 +9699,6 @@ button.secondary:hover:not(:disabled) {
 /* v0.6.2：工具箱重排，入口在上、结果在下，避免半宽结果列表挤压布局 */
 .toolbox-workspace {
   gap: 16px !important;
-}
-
-.toolbox-section-block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.toolbox-section-title-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 2px;
-}
-
-.toolbox-section-title-row h3 {
-  margin: 0 0 4px;
-  font-size: 22px;
-  color: var(--text-primary, #2d241b);
-}
-
-.toolbox-section-title-row p {
-  margin: 0;
-  color: var(--text-secondary, #7a6652);
-  font-size: 14px;
 }
 
 .toolbox-full-card,
@@ -10351,23 +10063,23 @@ mark.hl {
 .app-shell {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0) 24%),
-    linear-gradient(135deg, rgba(162, 103, 44, 0.08), transparent 32%),
-    var(--bg-page, #f5eddd);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0) 24%),
+    radial-gradient(circle at top left, rgba(126, 162, 107, 0.08), transparent 28%),
+    linear-gradient(180deg, #f7f2ea 0%, var(--bg-page, #f4efe7) 100%);
 }
 
 .sidebar {
-  padding: 14px 12px;
+  padding: 16px 12px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
-    linear-gradient(180deg, var(--bg-sidebar-start, #7c4b22), var(--bg-sidebar-end, #3c2412));
-  border-right: 2px solid rgba(36, 21, 10, 0.22);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 18%),
+    linear-gradient(180deg, var(--bg-sidebar-start, #5a3828), var(--bg-sidebar-end, #2b1b14));
+  border-right: 1px solid rgba(36, 21, 10, 0.24);
 }
 
 .brand {
-  background: rgba(255, 246, 229, 0.08);
-  border: 1px solid rgba(255, 246, 229, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  background: rgba(252, 249, 244, 0.08);
+  border: 1px solid rgba(255, 246, 229, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .nav-button {
@@ -10377,177 +10089,20 @@ mark.hl {
 
 .nav-button:hover,
 .nav-button.active {
-  transform: translateX(3px);
-  border-color: rgba(255, 247, 232, 0.45);
-  background: linear-gradient(180deg, #f9f0da, #ecdfc3);
-  color: #3f2b1d;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateX(2px);
+  border-color: rgba(255, 247, 232, 0.12);
+  background: rgba(255, 248, 239, 0.92);
+  color: var(--wood-dark, #322219);
+  box-shadow: var(--shadow-sm, 0 6px 16px rgba(44, 31, 21, 0.06));
 }
 
 .content {
-  padding: 16px 20px 12px;
+  padding: 18px 22px 16px;
   background:
-    radial-gradient(circle at top left, rgba(127, 179, 107, 0.14), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 18%),
-    linear-gradient(180deg, rgba(255, 250, 240, 0.9), rgba(247, 234, 210, 0.94));
+    radial-gradient(circle at top left, rgba(126, 162, 107, 0.10), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 18%),
+    linear-gradient(180deg, rgba(252, 249, 244, 0.94), rgba(245, 239, 231, 0.96));
 }
-
-.content-header {
-  padding: 12px 18px;
-  border-radius: var(--radius-md, 12px);
-  border: 1px solid rgba(92, 70, 48, 0.10);
-  background: rgba(255, 249, 236, 0.85);
-  box-shadow: 0 4px 16px rgba(61, 40, 21, 0.07);
-  backdrop-filter: blur(4px);
-}
-
-.overview-hero {
-  display: grid;
-  grid-template-columns: 1fr 180px;
-  gap: 16px;
-  align-items: start;
-  padding: 16px;
-  background: linear-gradient(135deg, #f7ebd0 0%, #f0dcb8 40%, #ecd5aa 100%);
-  border: 1px solid rgba(92, 70, 48, 0.12);
-  box-shadow:
-    0 8px 28px rgba(61, 40, 21, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-.overview-hero-copy {
-  display: flex;
-  flex-direction: column;
-}
-
-.overview-hero-copy h3 {
-  margin: 2px 0 6px;
-  font-size: 24px;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
-  font-weight: 900;
-  color: var(--wood-dark, #3c2412);
-}
-
-.overview-hero-copy p {
-  margin: 0;
-  max-width: 46ch;
-  color: var(--text-secondary, #755f48);
-  line-height: 1.6;
-}
-
-.hero-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.hero-chip-row span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(111, 168, 95, 0.16);
-  color: var(--green-text, #2f7d3e);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.hero-action-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.hero-action-button {
-  min-height: 44px;
-  padding: 10px 20px;
-  border-radius: var(--radius-button, 8px);
-  border: 1.5px solid transparent;
-  font-weight: 800;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.hero-action-button.primary {
-  background: var(--green-bg, #6fa85f);
-  color: #fffaf0;
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 14px rgba(111, 168, 95, 0.3), 0 2px 6px rgba(61, 40, 21, 0.1);
-}
-
-.hero-action-button.primary:hover:not(:disabled) {
-  background: var(--green-hover, #5b914e);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(111, 168, 95, 0.4), 0 3px 8px rgba(61, 40, 21, 0.12);
-}
-
-.hero-action-button.secondary {
-  background: var(--gold-bg, #8d693c);
-  color: #fffaf0;
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 3px 12px rgba(141, 105, 60, 0.2), 0 1px 4px rgba(61, 40, 21, 0.08);
-}
-
-.hero-action-button.secondary:hover:not(:disabled) {
-  background: var(--gold-hover, #735331);
-  transform: translateY(-1px);
-  box-shadow: 0 5px 16px rgba(141, 105, 60, 0.3), 0 2px 6px rgba(61, 40, 21, 0.1);
-}
-
-.hero-action-button.tertiary {
-  background: transparent;
-  color: var(--text-secondary, #755f48);
-  border-color: rgba(92, 70, 48, 0.18);
-  box-shadow: none;
-}
-
-.hero-action-button.tertiary:hover:not(:disabled) {
-  background: rgba(92, 70, 48, 0.06);
-  border-color: rgba(92, 70, 48, 0.28);
-  transform: translateY(-1px);
-}
-
-.hero-action-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-.overview-hero-scene {
-  position: relative;
-  min-height: 140px;
-  height: 100%;
-  max-height: 180px;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1.5px solid rgba(92, 70, 48, 0.10);
-  background: linear-gradient(180deg, #fce8c8, #f5eddd 60%, #f0e2c8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.scene-bg-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.scene-glow {
-  position: absolute;
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(111, 168, 95, 0.06), transparent 70%);
-  top: 30%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
 
 .panel,
 .empty-state,
@@ -10564,16 +10119,16 @@ mark.hl {
 .zip-preview-item,
 .url-zip-box,
 .nxm-box {
-  border: 1.5px solid rgba(92, 70, 48, 0.10);
-  background: rgba(255, 250, 240, 0.94);
-  box-shadow: 0 4px 14px rgba(61, 40, 21, 0.07), 0 1px 3px rgba(61, 40, 21, 0.05);
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
+  background: rgba(252, 249, 244, 0.94);
+  box-shadow: var(--shadow-sm, 0 6px 16px rgba(44, 31, 21, 0.06));
 }
 
 .panel,
 .empty-state {
-  border-radius: var(--radius-md, 12px);
+  border-radius: 16px;
   text-align: center;
-  padding: 32px 20px;
+  padding: 28px 20px;
 }
 
 .empty-state-grass {
@@ -10581,98 +10136,115 @@ mark.hl {
   margin: 0 auto 12px;
 }
 
-.decorated-empty-state {
-  position: relative;
-  overflow: hidden;
-}
-
-.empty-state-grass-image {
-  display: block;
-  width: 116px;
-  max-width: 42%;
-  height: auto;
-  margin: 0 auto 12px;
-  opacity: 0.88;
-}
-
-.empty-state-leaf-corner {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  width: 86px;
-  height: auto;
-  opacity: 0.7;
-  pointer-events: none;
-}
-
 .log-empty-state-card {
-  padding-top: 26px;
+  padding-top: 28px;
 }
 
-.log-empty-scene {
-  display: block;
-  width: 220px;
-  max-width: min(100%, 320px);
-  height: auto;
-  margin: 0 auto 10px;
+.logs-empty-area {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.logs-help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.logs-help-card {
+  padding: 16px;
+}
+
+.logs-help-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #6f5c4a);
+  line-height: 1.5;
+}
+
+.logs-help-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.logs-help-card-header svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted, #8b7560);
+  flex-shrink: 0;
+}
+
+.logs-help-card-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@media (max-width: 820px) {
+  .logs-help-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .launch-card {
-  border-radius: var(--radius-lg, 16px);
-  background: linear-gradient(180deg, #f6e4be, #e8c78d);
-  box-shadow: 0 6px 18px rgba(61, 40, 21, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f5ecdc, #efe4d2);
+  box-shadow: var(--shadow-md, 0 12px 28px rgba(44, 31, 21, 0.08));
 }
 
 .side-card {
-  background: linear-gradient(180deg, rgba(255, 250, 240, 0.92), rgba(247, 234, 210, 0.94));
-  border: 1.5px solid rgba(92, 70, 48, 0.12);
+  background: rgba(252, 249, 244, 0.88);
+  border: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
 }
 
 .right-panel {
   padding: 18px 16px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 20%),
-    linear-gradient(180deg, #eedcc2, #dfcaaa);
-  border-left: 2px solid rgba(92, 70, 48, 0.12);
+    linear-gradient(180deg, #f0e7d9, #e9dfcf);
+  border-left: 1px solid var(--border-subtle, rgba(86, 62, 43, 0.10));
 }
 
 button,
 .launch-button {
-  box-shadow: 0 3px 10px rgba(95, 67, 32, 0.13);
+  box-shadow: var(--shadow-button, 0 6px 14px rgba(44, 31, 21, 0.10));
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 button:hover:not(:disabled),
 .launch-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(95, 67, 32, 0.2);
+  box-shadow: var(--shadow-button-hover, 0 10px 20px rgba(44, 31, 21, 0.14));
 }
 
 button:active:not(:disabled),
 .launch-button:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(95, 67, 32, 0.12);
+  box-shadow: var(--shadow-xs, 0 1px 3px rgba(44, 31, 21, 0.04));
 }
 
 button.secondary,
 .secondary-action,
 .smapi-recheck-button,
 .hero-action-button.secondary {
-  background: var(--text-gold, #8d693c);
+  background: var(--gold-bg, #8b6b43);
 }
 
 button.secondary:hover:not(:disabled),
 .secondary-action:hover:not(:disabled),
 .smapi-recheck-button:hover:not(:disabled),
 .hero-action-button.secondary:hover:not(:disabled) {
-  background: var(--gold-hover, #735331);
+  background: var(--gold-hover, #735733);
 }
 
 .url-zip-input,
 .profile-input,
 .modal-input {
-  border: 1px solid rgba(92, 70, 48, 0.16);
-  background: rgba(255, 252, 245, 0.96);
+  border: 1px solid var(--border-strong, rgba(86, 62, 43, 0.18));
+  background: rgba(255, 254, 251, 0.96);
 }
 
 .mod-item,
@@ -10688,8 +10260,7 @@ button.secondary:hover:not(:disabled),
 
 .folder-chip,
 .profile-preview-inline span,
-.expanded-profile-preview span,
-.hero-chip-row span {
+.expanded-profile-preview span {
   background: rgba(233, 217, 188, 0.9);
 }
 
@@ -10700,38 +10271,9 @@ button.secondary:hover:not(:disabled),
   letter-spacing: -0.01em;
 }
 
-@media (max-width: 1320px) {
-  .overview-hero {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 1200px) {
   .right-panel {
     display: none;
-  }
-
-  .content-header-main {
-    grid-template-columns: 1fr;
-  }
-
-  .content-header-scene-wrap {
-    justify-content: flex-start;
-  }
-
-  .content-header-scene {
-    width: 132px;
-  }
-}
-
-@media (max-width: 820px) {
-  .overview-hero-copy h3 {
-    font-size: 24px;
-  }
-
-  .hero-action-row,
-  .hero-chip-row {
-    gap: 8px;
   }
 }
 
@@ -11171,6 +10713,44 @@ button.secondary:hover:not(:disabled),
   gap: 10px;
   justify-content: center;
   margin-top: 8px;
+}
+
+.hero-action-button {
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hero-action-button.primary,
+.wizard-primary {
+  background: var(--green-bg, #5e9360);
+  color: #fffaf0;
+}
+
+.hero-action-button.primary:hover:not(:disabled),
+.wizard-primary:hover:not(:disabled) {
+  background: var(--green-hover, #4f7f52);
+}
+
+.hero-action-button.secondary {
+  background: var(--gold-bg, #8b6b43);
+  color: #fffaf0;
+}
+
+.hero-action-button.secondary:hover:not(:disabled) {
+  background: var(--gold-hover, #735733);
+}
+
+.hero-action-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .wizard-primary {
