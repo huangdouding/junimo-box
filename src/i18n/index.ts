@@ -20,7 +20,7 @@ const zh: TranslationTable = {
     settings: "设置",
   },
   overview: {
-    heroTitle: "像素风的星露谷 Mod 小屋",
+    heroTitle: "你的星露谷 Mod 小站",
     heroDesc: "把目录、安装、更新和启动收进一个温暖清楚的第三方管理器里，让玩家少折腾文件夹。",
     chipGamePathReady: "游戏目录已就绪",
     chipGamePathMissing: "先选择游戏目录",
@@ -53,6 +53,9 @@ const zh: TranslationTable = {
     modDisabled: "已禁用",
     modMissingDeps: "缺失依赖",
     modUnrecognized: "未识别",
+    smapiNotDetected: "未检测到",
+    updatesAvailable: (p) => `${p.n} 个更新可用`,
+    recentActivity: "最近活动",
   },
   mods: {
     searchPlaceholder: "搜索 Mod 名称、作者、UniqueID、文件夹或描述...",
@@ -714,6 +717,9 @@ const en: TranslationTable = {
     modDisabled: "Disabled",
     modMissingDeps: "Missing Dependencies",
     modUnrecognized: "Unrecognized",
+    smapiNotDetected: "Not detected",
+    updatesAvailable: (p) => `${p.n} update${p.n > 1 ? 's' : ''} available`,
+    recentActivity: "Recent Activity",
   },
   mods: {
     searchPlaceholder: "Search mods by name, author, UniqueID, folder or description...",

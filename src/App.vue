@@ -137,33 +137,148 @@
             </div>
 
             <div class="hero-action-row">
-              <button class="hero-action-button" @click="handleSelectPath">
+              <button class="hero-action-button primary" :disabled="!smapiExists" @click="handleLaunchSmapi">
+                {{ t('overview.launchGame') }}
+              </button>
+              <button class="hero-action-button secondary" @click="handleSelectPath">
                 {{ t('overview.selectPath') }}
               </button>
-              <button class="hero-action-button secondary" :disabled="!gamePath || isScanning" @click="scanMods">
+              <button class="hero-action-button tertiary" :disabled="!gamePath || isScanning" @click="scanMods">
                 {{ t('overview.rescan') }}
-              </button>
-              <button class="hero-action-button" :disabled="!smapiExists" @click="handleLaunchSmapi">
-                {{ t('overview.launchGame') }}
               </button>
             </div>
           </div>
 
           <div class="overview-hero-scene" aria-hidden="true">
-            <div class="scene-sky"></div>
-            <div class="scene-mountains"></div>
-            <div class="scene-field"></div>
-            <div class="scene-house">
-              <span class="scene-roof"></span>
-              <span class="scene-wall"></span>
-              <span class="scene-door"></span>
-              <span class="scene-window left"></span>
-              <span class="scene-window right"></span>
-            </div>
-            <div class="scene-tree scene-tree-left"></div>
-            <div class="scene-tree scene-tree-right"></div>
-            <div class="scene-crate"></div>
-            <div class="scene-junimo"></div>
+            <svg class="scene-bg-svg" viewBox="0 0 400 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="400" height="280" rx="16"/>
+              <defs>
+                <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#fce8c8"/>
+                  <stop offset="40%" stop-color="#fdf0da"/>
+                  <stop offset="100%" stop-color="#f5eddd"/>
+                </linearGradient>
+                <linearGradient id="hillGrad1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#b5d6a5"/>
+                  <stop offset="100%" stop-color="#8fbc7a"/>
+                </linearGradient>
+                <linearGradient id="hillGrad2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#a3c98f"/>
+                  <stop offset="100%" stop-color="#7fb36b"/>
+                </linearGradient>
+                <linearGradient id="fieldGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#7fb36b"/>
+                  <stop offset="100%" stop-color="#6a9a56"/>
+                </linearGradient>
+              </defs>
+              <!-- Sky -->
+              <rect width="400" height="280" fill="url(#skyGrad)"/>
+              <!-- Sun -->
+              <circle cx="340" cy="42" r="28" fill="#fde8b3" opacity="0.7"/>
+              <circle cx="340" cy="42" r="20" fill="#fef0cd" opacity="0.5"/>
+              <!-- Clouds -->
+              <g opacity="0.5">
+                <ellipse cx="80" cy="52" rx="32" ry="10" fill="white"/>
+                <ellipse cx="70" cy="48" rx="20" ry="9" fill="white"/>
+                <ellipse cx="92" cy="49" rx="18" ry="8" fill="white"/>
+                <ellipse cx="260" cy="68" rx="28" ry="8" fill="white"/>
+                <ellipse cx="250" cy="64" rx="18" ry="7" fill="white"/>
+                <ellipse cx="274" cy="66" rx="16" ry="7" fill="white"/>
+              </g>
+              <!-- Far hills -->
+              <ellipse cx="50" cy="180" rx="140" ry="70" fill="url(#hillGrad1)" opacity="0.5"/>
+              <ellipse cx="320" cy="190" rx="160" ry="80" fill="url(#hillGrad1)" opacity="0.4"/>
+              <!-- Mid hills -->
+              <ellipse cx="30" cy="210" rx="130" ry="60" fill="url(#hillGrad2)" opacity="0.4"/>
+              <ellipse cx="370" cy="210" rx="140" ry="55" fill="url(#hillGrad2)" opacity="0.35"/>
+              <!-- Ground -->
+              <rect x="0" y="175" width="400" height="105" fill="url(#fieldGrad)" opacity="0.35"/>
+              <!-- Crop rows (front field) -->
+              <g stroke="#6a9a56" stroke-width="1.5" opacity="0.35">
+                <line x1="20" y1="235" x2="20" y2="255"/>
+                <line x1="28" y1="235" x2="28" y2="255"/>
+                <line x1="36" y1="235" x2="36" y2="255"/>
+                <line x1="44" y1="235" x2="44" y2="255"/>
+                <line x1="52" y1="235" x2="52" y2="255"/>
+                <line x1="60" y1="237" x2="60" y2="255"/>
+                <line x1="68" y1="237" x2="68" y2="255"/>
+                <line x1="76" y1="235" x2="76" y2="255"/>
+              </g>
+              <!-- Cabin / Farmhouse -->
+              <g>
+                <!-- Wall -->
+                <rect x="173" y="148" width="50" height="48" rx="1" fill="#c4956a" stroke="#a67a52" stroke-width="1.5"/>
+                <!-- Roof -->
+                <polygon points="168,150 198,122 228,150" fill="#8c5a35" stroke="#6f431f" stroke-width="1.5"/>
+                <!-- Door -->
+                <rect x="192" y="170" width="12" height="26" rx="1" fill="#6f431f" stroke="#4a2a14" stroke-width="1" stroke-linejoin="round"/>
+                <circle cx="201" cy="183" r="1" fill="#f5eddd"/>
+                <!-- Window -->
+                <rect x="178" y="160" width="10" height="10" rx="1" fill="#fce8c8" stroke="#a67a52" stroke-width="1"/>
+                <rect x="208" y="160" width="10" height="10" rx="1" fill="#fce8c8" stroke="#a67a52" stroke-width="1"/>
+                <!-- Chimney -->
+                <rect x="213" y="124" width="10" height="22" rx="1" fill="#8c5a35" stroke="#6f431f" stroke-width="1"/>
+              </g>
+              <!-- Fence -->
+              <g stroke="#a67a52" stroke-width="1.5" opacity="0.5">
+                <line x1="152" y1="198" x2="232" y2="198"/>
+                <line x1="152" y1="208" x2="232" y2="208"/>
+                <line x1="155" y1="194" x2="155" y2="213"/>
+                <line x1="167" y1="194" x2="167" y2="213"/>
+                <line x1="179" y1="194" x2="179" y2="213"/>
+                <line x1="219" y1="194" x2="219" y2="213"/>
+                <line x1="229" y1="194" x2="229" y2="213"/>
+              </g>
+              <!-- Tree left -->
+              <g>
+                <rect x="120" y="170" width="6" height="40" rx="1" fill="#8c5a35"/>
+                <circle cx="123" cy="160" r="22" fill="#7fb36b" opacity="0.7"/>
+                <circle cx="110" cy="168" r="16" fill="#8fbc7a" opacity="0.5"/>
+                <circle cx="136" cy="166" r="14" fill="#6a9a56" opacity="0.5"/>
+              </g>
+              <!-- Tree right -->
+              <g>
+                <rect x="288" y="172" width="5" height="38" rx="1" fill="#8c5a35"/>
+                <circle cx="290" cy="163" r="18" fill="#7fb36b" opacity="0.65"/>
+                <circle cx="280" cy="169" r="13" fill="#8fbc7a" opacity="0.45"/>
+                <circle cx="301" cy="168" r="12" fill="#6a9a56" opacity="0.45"/>
+              </g>
+              <!-- Junimo shape (center-right) -->
+              <g transform="translate(318, 148)" opacity="0.7">
+                <ellipse cx="0" cy="10" rx="12" ry="11" fill="#91c978"/>
+                <circle cx="0" cy="-2" r="9" fill="#91c978"/>
+                <circle cx="-4" cy="1" r="1.5" fill="#2d241b"/>
+                <circle cx="4" cy="1" r="1.5" fill="#2d241b"/>
+                <circle cx="0" cy="5" r="1.5" fill="#4a2a14"/>
+                <line x1="0" y1="-10" x2="0" y2="-16" stroke="#91c978" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="0" cy="-17" r="2" fill="#fde8b3"/>
+              </g>
+              <!-- Scarecrow (far left) -->
+              <g transform="translate(88, 170)" opacity="0.55">
+                <rect x="-1" y="10" width="2" height="30" rx="1" fill="#8c5a35"/>
+                <rect x="-10" y="5" width="20" height="14" rx="2" fill="#c4956a" stroke="#a67a52" stroke-width="0.8"/>
+                <circle cx="0" cy="0" r="6" fill="#f5eddd" stroke="#a67a52" stroke-width="0.8"/>
+                <circle cx="-2" cy="-1" r="0.8" fill="#2d241b"/>
+                <circle cx="2" cy="-1" r="0.8" fill="#2d241b"/>
+                <polygon points="-8,11 0,18 8,11" fill="#d4a373"/>
+              </g>
+              <!-- Grass tufts -->
+              <g stroke="#6a9a56" stroke-width="1" opacity="0.3">
+                <path d="M140 212 Q142 205 144 212" fill="none"/>
+                <path d="M255 215 Q257 208 259 215" fill="none"/>
+                <path d="M40 220 Q42 213 44 220" fill="none"/>
+                <path d="M350 210 Q352 203 354 210" fill="none"/>
+              </g>
+              <!-- Warm light overlay -->
+              <ellipse cx="200" cy="100" rx="200" ry="120" fill="url(#sunGlow)" opacity="0.15" style="mix-blend-mode: overlay;"/>
+              <defs>
+                <radialGradient id="sunGlow" cx="0.5" cy="0.3" r="0.6">
+                  <stop offset="0%" stop-color="#fef0cd"/>
+                  <stop offset="100%" stop-color="transparent"/>
+                </radialGradient>
+              </defs>
+            </svg>
+            <div class="scene-glow"></div>
           </div>
         </div>
 
@@ -233,6 +348,28 @@
               <div>
                 <span>{{ t('overview.modUnrecognized') }}</span>
                 <strong>{{ skippedFolders.length }}</strong>
+              </div>
+            </div>
+
+            <div class="overview-meta-row">
+              <div class="meta-chip">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <span>SMAPI</span>
+                <strong>{{ smapiDetectedVersion || t('overview.smapiNotDetected') }}</strong>
+              </div>
+              <div v-if="updateCheckResults.length > 0" class="meta-chip warn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 2.83h16.94a2 2 0 001.71-2.83l-8.47-14.14a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>{{ t('overview.updatesAvailable', { n: updateCheckResults.length }) }}</span>
+              </div>
+            </div>
+
+            <div v-if="recentInstallHistory.length > 0" class="overview-recent">
+              <span class="overview-recent-label">{{ t('overview.recentActivity') }}</span>
+              <div class="overview-recent-list">
+                <div v-for="item in recentInstallHistory.slice(0, 3)" :key="item.id" class="overview-recent-item">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>{{ item.mods[0]?.name || item.sourceLabel }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -3515,18 +3652,25 @@ async function handleSelectPath() {
 }
 
 async function checkGameFiles(selectedPath: string) {
-  const stardewExe = `${selectedPath}\\Stardew Valley.exe`;
-  const smapiExe = `${selectedPath}\\StardewModdingAPI.exe`;
-  const modsFolder = `${selectedPath}\\Mods`;
+  try {
+    const stardewExe = `${selectedPath}\\Stardew Valley.exe`;
+    const smapiExe = `${selectedPath}\\StardewModdingAPI.exe`;
+    const modsFolder = `${selectedPath}\\Mods`;
 
-  stardewExists.value = await exists(stardewExe);
-  smapiExists.value = await exists(smapiExe);
-  modsFolderExists.value = await exists(modsFolder);
+    stardewExists.value = await exists(stardewExe);
+    smapiExists.value = await exists(smapiExe);
+    modsFolderExists.value = await exists(modsFolder);
 
-  if (smapiExists.value) {
-    await refreshSmapiVersionFromLatestLog();
-  } else {
-    smapiDetectedVersion.value = "";
+    if (smapiExists.value) {
+      await refreshSmapiVersionFromLatestLog();
+    } else {
+      smapiDetectedVersion.value = "";
+    }
+  } catch (error) {
+    console.warn("checkGameFiles error:", error);
+    stardewExists.value = false;
+    smapiExists.value = false;
+    modsFolderExists.value = false;
   }
 }
 
@@ -4036,7 +4180,7 @@ async function handleOpenDisplayedModFolder(mod: DisplayModInfo) {
   }
 }
 
-async function handleDisableMod(folderName: string) {
+async function handleDisableMod(folderName: string, skipScan = false) {
   if (!gamePath.value) {
     addToast("error", t("error.noGamePath"));
     return;
@@ -4063,13 +4207,13 @@ async function handleDisableMod(folderName: string) {
       label: t("common.undo"),
       handler: () => { void handleEnableMod(folderName); },
     });
-    await scanMods();
+    if (!skipScan) await scanMods();
   } catch (error) {
     addToast("error", t("error.disableModFailed", { err: String(error) }));
   }
 }
 
-async function handleEnableMod(folderName: string) {
+async function handleEnableMod(folderName: string, skipScan = false) {
   if (!gamePath.value) {
     addToast("error", t("error.noGamePath"));
     return;
@@ -4096,14 +4240,14 @@ async function handleEnableMod(folderName: string) {
       label: t("common.undo"),
       handler: () => { void handleDisableMod(folderName); },
     });
-    await scanMods();
+    if (!skipScan) await scanMods();
   } catch (error) {
     addToast("error", `启用 Mod 失败：${String(error)}`);
   }
 }
 
 
-async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
+async function handleDeleteDisplayedMod(mod: DisplayModInfo, skipScan = false) {
   if (!gamePath.value) {
     addToast("error", t("error.noGamePath"));
     return;
@@ -4146,7 +4290,7 @@ async function handleDeleteDisplayedMod(mod: DisplayModInfo) {
         void handleRestoreDeletedMod(recycleFolderName);
       },
     });
-    await scanMods();
+    if (!skipScan) await scanMods();
   } catch (error) {
     addToast("error", t("error.deleteModFailed", { err: String(error) }));
   }
@@ -4581,7 +4725,9 @@ function handleRemoveFromQueue(itemId: string) {
   if (idx === -1) return;
 
   if (downloadQueue.value[idx].status === "downloading" || downloadQueue.value[idx].status === "connecting") {
-    void invoke("cancel_download", { downloadId: itemId });
+    invoke("cancel_download", { downloadId: itemId }).catch((err) => {
+      console.warn("Failed to cancel download:", err);
+    });
   }
 
   downloadQueue.value.splice(idx, 1);
@@ -5147,9 +5293,10 @@ async function handleBatchEnable() {
     return;
   }
   for (const mod of toEnable) {
-    await handleEnableMod(mod.folderName);
+    await handleEnableMod(mod.folderName, true);
   }
   selectedModKeys.value = new Set();
+  await scanMods();
 }
 
 async function handleBatchDisable() {
@@ -5159,9 +5306,10 @@ async function handleBatchDisable() {
     return;
   }
   for (const mod of toDisable) {
-    await handleDisableMod(mod.folderName);
+    await handleDisableMod(mod.folderName, true);
   }
   selectedModKeys.value = new Set();
+  await scanMods();
 }
 
 async function handleBatchDelete() {
@@ -5178,7 +5326,7 @@ async function handleBatchDelete() {
   let deletedCount = 0;
   for (const mod of selected) {
     try {
-      await handleDeleteDisplayedMod(mod);
+      await handleDeleteDisplayedMod(mod, true);
       deletedCount++;
     } catch {
       // 单个删除失败不影响后续
@@ -5188,6 +5336,7 @@ async function handleBatchDelete() {
     addToast("success", `已删除 ${deletedCount} 个 Mod`);
   }
   selectedModKeys.value = new Set();
+  if (deletedCount > 0) await scanMods();
 }
 
 function handleWizardNext() {
@@ -5675,9 +5824,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
     #f5efe3;
   color: var(--text-primary, #2d241b);
   font-family:
+    "Microsoft YaHei UI",
     "Microsoft YaHei",
+    "Segoe UI Variable",
     system-ui,
     sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .sidebar {
@@ -5715,6 +5867,9 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   margin: 0;
   font-size: 19px;
   line-height: 1.05;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 800;
 }
 
 .brand p {
@@ -5768,13 +5923,20 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, transform 0.12s;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 3px 10px rgba(61, 40, 21, 0.15);
 }
 
 .sidebar-launch-button:hover:not(:disabled) {
   background: linear-gradient(180deg, #5b914e, #4a7d3e);
-  transform: scale(1.02);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(61, 40, 21, 0.22);
+}
+
+.sidebar-launch-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(61, 40, 21, 0.15);
 }
 
 .sidebar-launch-button:disabled {
@@ -5795,7 +5957,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  padding: 24px 28px;
+  padding: 28px 28px 20px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -5819,6 +5981,8 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   margin: 3px 0 5px;
   font-size: 31px;
   line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-weight: 800;
 }
 
 .content-header p {
@@ -5829,40 +5993,56 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .eyebrow {
   color: var(--text-gold, #8b6f47) !important;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  font-size: 12px;
+  font-size: 11px;
+  margin: 0 0 2px;
 }
 
 .view-stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   min-height: 0;
 }
 
 .notice,
 .panel,
 .empty-state {
-  border-radius: var(--radius-panel, 12px);
+  border-radius: var(--radius-md, 12px);
   background: rgba(255, 250, 240, 0.92);
-  box-shadow: 0 10px 28px rgba(67, 47, 27, 0.09);
+  box-shadow: 0 4px 14px rgba(67, 47, 27, 0.06);
 }
 
 .notice {
   margin-bottom: 16px;
-  padding: 13px 18px;
+  padding: 12px 16px;
   color: var(--warning-text, #7a4f22);
-  font-weight: 800;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid rgba(122, 79, 34, 0.1);
+  border: 1px solid rgba(122, 79, 34, 0.12);
+  border-radius: var(--radius-md, 12px);
+  background: rgba(255, 250, 240, 0.94);
+  box-shadow: 0 2px 8px rgba(61, 40, 21, 0.04);
+  font-size: 13px;
+  position: relative;
+}
+
+.notice::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md, 12px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.4), transparent 60%);
+  pointer-events: none;
 }
 
 .notice-icon {
   flex-shrink: 0;
+  position: relative;
 }
 
 .notice-success {
@@ -5890,7 +6070,21 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .compact-panel {
-  padding: 18px 20px;
+  padding: 20px 22px;
+}
+
+.compact-panel .panel-header {
+  margin-bottom: 14px;
+}
+
+.compact-panel .panel-header h3 {
+  font-size: 15px;
+}
+
+.compact-panel .panel-header > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #846b50);
 }
 
 .slim-panel {
@@ -5898,7 +6092,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 }
 
 .empty-state {
-  padding: 32px;
+  padding: 40px 32px;
   text-align: center;
 }
 
@@ -5916,7 +6110,7 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .panel-header h3 {
@@ -5963,9 +6157,11 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 .status-card,
 .summary-row > div,
 .setting-block {
-  padding: 13px 14px;
-  border-radius: 15px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg, 16px);
   background: var(--bg-card, #f6ead8);
+  border: 1px solid rgba(92, 70, 48, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .status-card span,
@@ -5989,7 +6185,6 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   border: 1px solid var(--border-strong, rgba(92,70,48,0.22));
   border-radius: 8px;
   overflow: hidden;
-  margin-top: 6px;
 }
 
 .language-toggle button {
@@ -6002,15 +6197,18 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   font-weight: 600;
   color: var(--text-secondary, #7a6652);
   transition: all 0.15s ease;
+  min-width: 52px;
 }
 
 .language-toggle button.active {
   background: var(--green-bg, #6fa85f);
   color: #fff;
+  font-weight: 700;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .language-toggle button:not(.active):hover {
-  background: var(--bg-card, #f6ead8);
+  background: rgba(92, 70, 48, 0.06);
 }
 
 .status-card small {
@@ -6025,6 +6223,79 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.overview-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle, rgba(92, 70, 48, 0.10));
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(111, 168, 95, 0.10);
+  font-size: 12px;
+  color: var(--text-secondary, #755f48);
+}
+
+.meta-chip svg {
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.meta-chip strong {
+  font-weight: 800;
+  color: var(--green-text, #2f7d3e);
+}
+
+.meta-chip.warn {
+  background: rgba(250, 230, 189, 0.6);
+}
+
+.meta-chip.warn strong {
+  color: var(--warning-text, #7a4f22);
+}
+
+.overview-recent {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle, rgba(92, 70, 48, 0.10));
+}
+
+.overview-recent-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, #846b50);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.overview-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.overview-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #755f48);
+}
+
+.overview-recent-item svg {
+  color: var(--green-bg, #6fa85f);
+  flex-shrink: 0;
+}
+
 .filter-panel {
   padding: 16px;
 }
@@ -6037,9 +6308,10 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   gap: 10px;
   padding: 12px 16px;
   margin-bottom: 12px;
-  border-radius: var(--radius-panel, 12px);
-  background: rgba(111, 168, 95, 0.1);
-  border: 2px solid rgba(111, 168, 95, 0.3);
+  border-radius: var(--radius-md, 12px);
+  background: rgba(111, 168, 95, 0.08);
+  border: 1.5px solid rgba(111, 168, 95, 0.25);
+  box-shadow: 0 2px 8px rgba(111, 168, 95, 0.06);
 }
 
 .batch-count {
@@ -6069,6 +6341,12 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
   padding: 11px 13px;
   border-radius: 15px;
   background: var(--bg-card, #f6ead8);
+  transition: box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.search-box:focus-within {
+  background: var(--bg-surface, #fffaf0);
+  box-shadow: 0 0 0 2px rgba(111, 168, 95, 0.2);
 }
 
 .search-box input {
@@ -6106,16 +6384,25 @@ function analyzeSmapiLog(content: string): SmapiLogAnalysis {
 
 .filter-chip {
   padding: 7px 11px;
+  border: none;
   border-radius: 999px;
   background: #eadcc8;
   color: var(--text-tertiary, #5c4630);
   font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.filter-chip:hover,
+.filter-chip:hover {
+  background: #dccaa8;
+  color: var(--text-primary, #2d241b);
+}
+
 .filter-chip.active {
   background: var(--text-gold, #8b6f47);
   color: var(--bg-surface, #fffaf0);
+  box-shadow: 0 2px 6px rgba(139, 111, 71, 0.2);
 }
 
 .filter-result-text {
@@ -6966,8 +7253,9 @@ button {
   background: var(--green-bg, #6fa85f);
   color: white;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
+  letter-spacing: 0.01em;
 }
 
 button:hover:not(:disabled) {
@@ -6975,7 +7263,7 @@ button:hover:not(:disabled) {
 }
 
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -7159,8 +7447,8 @@ button.secondary:hover:not(:disabled) {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(45, 36, 27, 0.3);
-  backdrop-filter: blur(2px);
+  background: rgba(45, 36, 27, 0.35);
+  backdrop-filter: blur(4px);
 }
 
 .mod-detail-card {
@@ -7168,11 +7456,11 @@ button.secondary:hover:not(:disabled) {
   max-height: calc(100vh - 64px);
   overflow: auto;
   box-sizing: border-box;
-  padding: 20px;
+  padding: 24px;
   border-radius: 24px;
   background: var(--bg-surface, #fffaf0);
-  box-shadow: 0 24px 70px rgba(45, 36, 27, 0.24);
-  border: 1px solid rgba(111, 168, 95, 0.35);
+  box-shadow: 0 20px 60px rgba(45, 36, 27, 0.2);
+  border: 1px solid rgba(111, 168, 95, 0.3);
 }
 
 .mod-detail-card-header {
@@ -7391,8 +7679,8 @@ button.secondary:hover:not(:disabled) {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(45, 36, 27, 0.28);
-  backdrop-filter: blur(2px);
+  background: rgba(45, 36, 27, 0.32);
+  backdrop-filter: blur(4px);
 }
 
 .profile-editor-card {
@@ -7400,11 +7688,11 @@ button.secondary:hover:not(:disabled) {
   max-height: calc(100vh - 64px);
   overflow: auto;
   box-sizing: border-box;
-  padding: 20px;
+  padding: 24px;
   border-radius: 24px;
   background: var(--bg-surface, #fffaf0);
-  box-shadow: 0 24px 70px rgba(45, 36, 27, 0.24);
-  border: 1px solid rgba(111, 168, 95, 0.35);
+  box-shadow: 0 20px 60px rgba(45, 36, 27, 0.2);
+  border: 1px solid rgba(111, 168, 95, 0.3);
 }
 
 .profile-card-header {
@@ -7581,10 +7869,15 @@ button.secondary:hover:not(:disabled) {
 
 /* v0.2：Mod 列表卡片密度优化 */
 .compact-mod-card {
-  padding: 12px 13px;
-  border-radius: 16px;
+  padding: 14px;
+  border-radius: var(--radius-lg, 16px);
   display: block;
-  border: 1px solid rgba(92, 70, 48, 0.08);
+  border: 1.5px solid rgba(92, 70, 48, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.compact-mod-card:hover {
+  box-shadow: 0 6px 16px rgba(61, 40, 21, 0.07);
 }
 
 .compact-mod-card.warning {
@@ -9687,23 +9980,23 @@ mark.hl {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-radius: 10px;
-  border: 2px solid rgba(92, 70, 48, 0.15);
+  border-radius: 12px;
+  border: 1.5px solid rgba(92, 70, 48, 0.12);
   background: #fffaf0;
-  box-shadow: 0 8px 24px rgba(61, 40, 21, 0.18);
+  box-shadow: 0 8px 24px rgba(61, 40, 21, 0.15);
   font-size: 14px;
   pointer-events: auto;
-  animation: toast-in 0.25s ease;
+  animation: toast-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.toast-success { border-color: rgba(111, 168, 95, 0.4); background: #f0f7ea; }
-.toast-error { border-color: rgba(185, 87, 79, 0.4); background: #fdf0ee; }
-.toast-warning { border-color: rgba(250, 230, 189, 0.8); background: #fef9ed; }
+.toast-success { border-color: rgba(111, 168, 95, 0.35); background: #f0f7ea; }
+.toast-error { border-color: rgba(185, 87, 79, 0.35); background: #fdf0ee; }
+.toast-warning { border-color: rgba(250, 230, 189, 0.7); background: #fef9ed; }
 
 .toast-text { flex: 1; color: var(--text-primary, #2d241b); }
 
@@ -9746,7 +10039,7 @@ mark.hl {
 }
 
 .sidebar {
-  padding: 18px 16px;
+  padding: 20px 16px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
     linear-gradient(180deg, var(--bg-sidebar-start, #7c4b22), var(--bg-sidebar-end, #3c2412));
@@ -9761,19 +10054,20 @@ mark.hl {
 
 .nav-button {
   border: 1px solid transparent;
-  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-button:hover,
 .nav-button.active {
-  transform: translateX(2px);
+  transform: translateX(3px);
   border-color: rgba(255, 247, 232, 0.45);
   background: linear-gradient(180deg, #f9f0da, #ecdfc3);
   color: #3f2b1d;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .content {
-  padding: 20px;
+  padding: 24px;
   background:
     radial-gradient(circle at top left, rgba(127, 179, 107, 0.14), transparent 28%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 18%),
@@ -9781,35 +10075,46 @@ mark.hl {
 }
 
 .content-header {
-  padding: 18px 20px;
-  border-radius: var(--radius-panel, 12px);
-  border: 1px solid rgba(92, 70, 48, 0.12);
-  background: rgba(255, 249, 236, 0.8);
-  box-shadow: 0 14px 34px rgba(61, 40, 21, 0.14);
+  padding: 20px 24px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid rgba(92, 70, 48, 0.10);
+  background: rgba(255, 249, 236, 0.85);
+  box-shadow: 0 4px 16px rgba(61, 40, 21, 0.07);
+  backdrop-filter: blur(4px);
 }
 
 .overview-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
-  gap: 18px;
-  align-items: stretch;
-  padding: 22px;
-  overflow: hidden;
-  background: linear-gradient(180deg, #f5e7c7, #e7cda4);
+  grid-template-columns: 1fr 240px;
+  gap: 22px;
+  align-items: start;
+  padding: 28px;
+  background: linear-gradient(135deg, #f7ebd0 0%, #f0dcb8 40%, #ecd5aa 100%);
   border: 1px solid rgba(92, 70, 48, 0.12);
+  box-shadow:
+    0 8px 28px rgba(61, 40, 21, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.overview-hero-copy {
+  display: flex;
+  flex-direction: column;
 }
 
 .overview-hero-copy h3 {
-  margin: 4px 0 8px;
+  margin: 4px 0 10px;
   font-size: 30px;
   line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 900;
+  color: var(--wood-dark, #3c2412);
 }
 
 .overview-hero-copy p {
   margin: 0;
   max-width: 46ch;
   color: var(--text-secondary, #755f48);
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .hero-chip-row {
@@ -9832,148 +10137,100 @@ mark.hl {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 20px;
 }
 
 .hero-action-button {
   min-height: 44px;
-  padding: 10px 16px;
-  border: 1px solid rgba(92, 70, 48, 0.18);
+  padding: 10px 20px;
   border-radius: var(--radius-button, 8px);
+  border: 1.5px solid transparent;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hero-action-button.primary {
   background: var(--green-bg, #6fa85f);
   color: #fffaf0;
-  font-weight: 800;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(111, 168, 95, 0.3), 0 2px 6px rgba(61, 40, 21, 0.1);
+}
+
+.hero-action-button.primary:hover:not(:disabled) {
+  background: var(--green-hover, #5b914e);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(111, 168, 95, 0.4), 0 3px 8px rgba(61, 40, 21, 0.12);
 }
 
 .hero-action-button.secondary {
-  background: var(--text-gold, #8d693c);
+  background: var(--gold-bg, #8d693c);
+  color: #fffaf0;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 3px 12px rgba(141, 105, 60, 0.2), 0 1px 4px rgba(61, 40, 21, 0.08);
+}
+
+.hero-action-button.secondary:hover:not(:disabled) {
+  background: var(--gold-hover, #735331);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(141, 105, 60, 0.3), 0 2px 6px rgba(61, 40, 21, 0.1);
+}
+
+.hero-action-button.tertiary {
+  background: transparent;
+  color: var(--text-secondary, #755f48);
+  border-color: rgba(92, 70, 48, 0.18);
+  box-shadow: none;
+}
+
+.hero-action-button.tertiary:hover:not(:disabled) {
+  background: rgba(92, 70, 48, 0.06);
+  border-color: rgba(92, 70, 48, 0.28);
+  transform: translateY(-1px);
+}
+
+.hero-action-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .overview-hero-scene {
   position: relative;
-  min-height: 250px;
-  border-radius: 18px;
+  min-height: 0;
+  height: 100%;
+  border-radius: 16px;
   overflow: hidden;
-  border: 4px solid rgba(92, 70, 48, 0.2);
-  background: linear-gradient(180deg, #8fd0f5 0%, #cbeafe 42%, #e2f3ad 42%, #b0d66d 100%);
+  border: 1.5px solid rgba(92, 70, 48, 0.10);
+  background: linear-gradient(180deg, #fce8c8, #f5eddd 60%, #f0e2c8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.scene-mountains,
-.scene-field,
-.scene-house,
-.scene-tree,
-.scene-crate,
-.scene-junimo {
+.scene-bg-svg {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.scene-mountains {
-  left: -10%;
-  right: -10%;
-  top: 16%;
-  height: 30%;
-  background:
-    linear-gradient(135deg, transparent 46%, rgba(72, 125, 80, 0.95) 46% 58%, transparent 58%) left bottom/34% 100% no-repeat,
-    linear-gradient(135deg, transparent 44%, rgba(56, 106, 70, 0.95) 44% 59%, transparent 59%) center bottom/36% 100% no-repeat,
-    linear-gradient(135deg, transparent 45%, rgba(88, 141, 90, 0.95) 45% 60%, transparent 60%) right bottom/34% 100% no-repeat;
-}
-
-.scene-field {
-  inset: auto 0 0;
-  height: 44%;
-  background: linear-gradient(180deg, #84bc58, #5f9338 70%, #49712b);
-}
-
-.scene-house {
-  left: 50%;
-  bottom: 16%;
-  width: 124px;
-  height: 88px;
-  transform: translateX(-50%);
-}
-
-.scene-roof {
+.scene-glow {
   position: absolute;
-  inset: 0 6px auto;
-  height: 34px;
-  background: linear-gradient(180deg, #5e9a4f, #47773a);
-  clip-path: polygon(50% 0, 100% 60%, 100% 100%, 0 100%, 0 60%);
-}
-
-.scene-wall {
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 0;
-  height: 58px;
-  border-radius: 8px 8px 10px 10px;
-  background: linear-gradient(180deg, #bb8b53, #8c5a2c);
-  border: 2px solid rgba(52, 30, 16, 0.22);
-}
-
-.scene-door {
-  position: absolute;
-  left: 52px;
-  bottom: 4px;
-  width: 20px;
-  height: 32px;
-  border-radius: 6px 6px 3px 3px;
-  background: linear-gradient(180deg, #6c4420, #4b2e17);
-}
-
-.scene-window {
-  position: absolute;
-  bottom: 20px;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  background: #f8e8b2;
-  border: 2px solid rgba(70, 43, 22, 0.22);
-}
-
-.scene-window.left { left: 33px; }
-.scene-window.right { right: 33px; }
-
-.scene-tree {
-  bottom: 15%;
-  width: 32px;
-  height: 76px;
-  border-radius: 16px 16px 10px 10px;
-  background:
-    radial-gradient(circle at 50% 18%, #7dc264 0 36%, transparent 38%),
-    radial-gradient(circle at 35% 40%, #5f9b49 0 28%, transparent 30%),
-    radial-gradient(circle at 65% 42%, #4b8338 0 26%, transparent 28%),
-    linear-gradient(180deg, #6e4d2b, #4a2f19 72%, transparent 72%);
-}
-
-.scene-tree-left { left: 12px; }
-.scene-tree-right { right: 12px; }
-
-.scene-crate {
-  left: 18%;
-  bottom: 19%;
-  width: 28px;
-  height: 22px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #b57b3e, #885429);
-  border: 2px solid rgba(50, 29, 15, 0.2);
-}
-
-.scene-junimo {
-  right: 12px;
-  bottom: 10px;
-  width: 38px;
-  height: 38px;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 50% 38%, #f6f2c0 0 2px, transparent 3px),
-    radial-gradient(circle at 38% 44%, #5d903f 0 3px, transparent 4px),
-    radial-gradient(circle at 62% 44%, #5d903f 0 3px, transparent 4px),
-    linear-gradient(180deg, #a9df74, #6ea84f);
+  background: radial-gradient(circle, rgba(111, 168, 95, 0.06), transparent 70%);
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
+
 
 .panel,
-.notice,
 .empty-state,
 .launch-card,
 .side-card,
@@ -9988,19 +10245,20 @@ mark.hl {
 .zip-preview-item,
 .url-zip-box,
 .nxm-box {
-  border: var(--border-pixel, 2px solid rgba(92, 70, 48, 0.15));
-  background: rgba(255, 249, 236, 0.9);
-  box-shadow: 0 10px 24px rgba(61, 40, 21, 0.10);
+  border: 1.5px solid rgba(92, 70, 48, 0.10);
+  background: rgba(255, 250, 240, 0.94);
+  box-shadow: 0 4px 14px rgba(61, 40, 21, 0.07), 0 1px 3px rgba(61, 40, 21, 0.05);
 }
 
 .panel,
 .empty-state {
-  border-radius: var(--radius-panel, 12px);
+  border-radius: var(--radius-md, 12px);
 }
 
 .launch-card {
-  border-radius: var(--radius-card, 10px);
+  border-radius: var(--radius-lg, 16px);
   background: linear-gradient(180deg, #f6e4be, #e8c78d);
+  box-shadow: 0 6px 18px rgba(61, 40, 21, 0.08);
 }
 
 .right-panel {
@@ -10010,9 +10268,21 @@ mark.hl {
 }
 
 button,
-.launch-button,
-.hero-action-button {
-  box-shadow: 0 8px 18px rgba(95, 67, 32, 0.15);
+.launch-button {
+  box-shadow: 0 3px 10px rgba(95, 67, 32, 0.13);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:hover:not(:disabled),
+.launch-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(95, 67, 32, 0.2);
+}
+
+button:active:not(:disabled),
+.launch-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(95, 67, 32, 0.12);
 }
 
 button.secondary,
@@ -10058,6 +10328,7 @@ button.secondary:hover:not(:disabled),
 .profile-main h4,
 .zip-preview-title-row h4 {
   font-size: 17px;
+  letter-spacing: -0.01em;
 }
 
 @media (max-width: 1320px) {

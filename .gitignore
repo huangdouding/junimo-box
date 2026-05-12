@@ -24,7 +24,19 @@ dist-ssr
 *.sw?
 
 # Junimo Box
-public/stardew_nexus_index.json
+stardew_nexus_index.json
+
+# Screenshots & generated images
+*.jpg
+*.png
+!src-tauri/icons/**/*.png
+
+# Agent/project generated docs
+AGENTS.md
+REPORT.md
+
+# Tauri
+src-tauri/target/
 
 # Claude Code session artifacts
 .claude/
